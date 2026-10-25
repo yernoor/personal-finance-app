@@ -3,9 +3,11 @@ package dev.yernur.moneytracker.data.importer
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import dev.yernur.moneytracker.data.db.AppDatabase
+import dev.yernur.moneytracker.data.summarize
 import dev.yernur.moneytracker.data.db.TransactionType
 import java.io.File
 import kotlin.math.roundToLong
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -56,16 +58,19 @@ class RealBackupImportTest {
             assertEquals(minor(totals.getDouble("income")), total(TransactionType.Income))
             assertEquals(minor(totals.getDouble("expense")), total(TransactionType.Expense))
 
-            // Per-account balance from imported rows (transfers fall back to fromAmount) == the app's cached balance.
-            val fromTransactions = db.transactionDao().sumByAccount().associate { it.accountUid to it.total }
+            // The balance the app will show (same query as the Accounts screen) == the original's cached balance.
+            val shown = db.accountDao().observeBalances().first().associate { it.uid to it.balance }
             val cached = snapshot.getJSONObject("balances_cached")
             assertTrue(cached.length() > 0)
             for (uid in cached.keys()) {
-                val incoming = transfers.filter { it.toAccountUid == uid }.sumOf { it.toAmount ?: it.fromAmount }
-                val outgoing = transfers.filter { it.fromAccountUid == uid }.sumOf { it.fromAmount }
-                val balance = (fromTransactions[uid] ?: 0L) + incoming - outgoing
-                assertEquals("balance of $uid", minor(cached.getDouble(uid)), balance)
+                assertEquals("balance of $uid", minor(cached.getDouble(uid)), shown[uid] ?: 0L)
             }
+
+            // The Accounts-screen totals vs the owner's screenshot: Total = Main only, second figure "₸2.35M".
+            val rates = db.rateDao().getAll().associate { (it.fromCurrencyCode to it.toCurrencyCode) to it.value }
+            val summary = summarize(db.accountDao().getAll().filter { !it.isRemoved }, shown, rates)
+            assertEquals(minor(cached.getDouble("main")), summary.counted)
+            assertTrue("all accounts ${summary.all}", summary.all in 234_500_000L..235_500_000L)
         } finally {
             db.close()
         }

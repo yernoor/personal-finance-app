@@ -86,16 +86,18 @@ python tools/mmbackup.py inspect data/<file>.mmbackup
 python tools/mmbackup.py extract data/<file>.mmbackup -o data/extracted
 ```
 ```bash
-# Gradle 9.6 runs on JDK 17..25 only (verified from Gradle docs); brew's default `openjdk` is 27 and will NOT work.
-export JAVA_HOME=/opt/homebrew/opt/openjdk@17 PATH=/opt/homebrew/opt/openjdk@17/bin:$PATH
+# Project JDK: 25 (owner's choice). Gradle 9.6 runs on JDK 17..25 only (Gradle docs), so brew's default `openjdk` (27) will NOT work.
+brew install openjdk@25   # once
+export JAVA_HOME=/opt/homebrew/opt/openjdk@25 PATH=/opt/homebrew/opt/openjdk@25/bin:$PATH
 ./gradlew testDebugUnitTest assembleDebug     # APK: app/build/outputs/apk/debug/app-debug.apk
 ```
 Toolchain (this Mac): SDK at /opt/homebrew/share/android-commandlinetools (path in git-ignored `local.properties`),
 platforms android-36 + android-37.0 (compileSdk 37 is required by current Compose libs; target/min stay 36),
-AGP 9.4.1, Kotlin 2.4.21, KSP 2.3.12, Room 2.8.5, Compose BOM 2026.09.00. Hilt/Navigation/WorkManager are added
-when the screens/sync that need them exist (M4/M7), not before.
-Room tests use Robolectric pinned to SDK 35 (`app/src/test/resources/robolectric.properties`) because SDK 36 needs Java 21.
-Not yet run: instrumented tests, the app on a device/emulator (no system image installed).
+AGP 9.4.1, Kotlin 2.4.21, KSP 2.3.12, Room 2.8.5, Compose BOM 2026.09.00, Navigation 2.10.2. DI is hand-wired
+(`AppContainer`), not Hilt: no concrete need yet and it adds AGP 9/KSP risk. WorkManager comes with sync (M7).
+Tests run on Robolectric simulating Android 36 (`app/src/test/resources/robolectric.properties`), which needs a Java 21+
+test JVM: JDK 25 covers it. UI tests (`ui/AppFlowTest`) drive the real navigation against an in-memory Room DB.
+Not yet run: instrumented tests and the app on a real device/emulator (no system image installed).
 
 ## Privacy
 `data/` holds real financial data and is git-ignored. Don't echo transaction rows into logs, commit messages,
