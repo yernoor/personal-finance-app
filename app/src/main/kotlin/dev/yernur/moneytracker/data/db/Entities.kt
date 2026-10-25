@@ -25,8 +25,6 @@ data class AccountEntity(
     val isActive: Boolean,
     val isArchived: Boolean,
     val isFavorite: Boolean,
-    /** Reconciles imported history with the original's cached balance; 0 for new accounts. */
-    val openingBalance: Long = 0,
     val created: String,
     val modified: String,
     val isRemoved: Boolean = false,
@@ -78,7 +76,10 @@ data class TransactionEntity(
     val amountInDefaultCurrency: Long?,
     val amountInRealCurrency: Long?,
     val realCurrencyCode: String?,
-    /** Nullable: 8 expense rows on one USD account have NULL here (docs/FORMAT.md 4b). */
+    /**
+     * Amount in the account's currency. The original leaves this NULL for 60 USD rows and keeps the amount in
+     * amountInRealCurrency; the importer copies it here (docs/FORMAT.md 4b). Null only if unresolvable.
+     */
     val amountInAccountCurrency: Long?,
     val accountCurrencyCode: String?,
     val date: String,

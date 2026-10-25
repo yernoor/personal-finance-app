@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "e9b94dc6b70750ae1b1abfcb9b0313db",
+    "identityHash": "6a27ef1ec6590af5bba571f736f605a3",
     "entities": [
       {
         "tableName": "account",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`uid` TEXT NOT NULL, `title` TEXT NOT NULL, `currencyCode` TEXT NOT NULL, `icon` TEXT, `color` INTEGER, `position` INTEGER, `comment` TEXT, `ignoreInBalance` INTEGER NOT NULL, `isActive` INTEGER NOT NULL, `isArchived` INTEGER NOT NULL, `isFavorite` INTEGER NOT NULL, `openingBalance` INTEGER NOT NULL, `created` TEXT NOT NULL, `modified` TEXT NOT NULL, `isRemoved` INTEGER NOT NULL, PRIMARY KEY(`uid`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`uid` TEXT NOT NULL, `title` TEXT NOT NULL, `currencyCode` TEXT NOT NULL, `icon` TEXT, `color` INTEGER, `position` INTEGER, `comment` TEXT, `ignoreInBalance` INTEGER NOT NULL, `isActive` INTEGER NOT NULL, `isArchived` INTEGER NOT NULL, `isFavorite` INTEGER NOT NULL, `created` TEXT NOT NULL, `modified` TEXT NOT NULL, `isRemoved` INTEGER NOT NULL, PRIMARY KEY(`uid`))",
         "fields": [
           {
             "fieldPath": "uid",
@@ -67,12 +67,6 @@
           {
             "fieldPath": "isFavorite",
             "columnName": "isFavorite",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "openingBalance",
-            "columnName": "openingBalance",
             "affinity": "INTEGER",
             "notNull": true
           },
@@ -719,7 +713,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e9b94dc6b70750ae1b1abfcb9b0313db')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6a27ef1ec6590af5bba571f736f605a3')"
     ]
   }
 }

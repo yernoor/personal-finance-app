@@ -89,12 +89,14 @@ Verified with `inspect` (counts are active rows):
   non-Main accounts and a "Total" that counts only Main, with a second figure including all: so it means "excluded from
   the headline Total". Verified against the screenshot, not against decompiled code.
 - Cached `account_balance` equals what the original app displays (Main 4,596.71, Deposit 36,138.22, Freedom USD 13.56).
-  Owner says Freedom USD's replay gap is unlogged investment purchases (owner's explanation, unverified).
+  A first replay differed on 2 USD accounts; cause found, see next paragraph.
 
-**Balance mismatch (unresolved):** cached `account_balance` differs from replayed history for 2 USD accounts
-(`8d72febf…` +0.78, `bf805b9e…` -1349.95). Known contributing cause: 8 active Expense rows on the
-Freedom USD account have `amountInAccountCurrency = NULL` (only the real/default amounts are set), so a replay
-on the account-currency field skips them. The remaining part is unexplained; do not design balance logic yet.
+**Balance mismatch (resolved 2026-10-25):** 60 live USD transactions (52 Income, 8 Expense) have
+`amountInAccountCurrency = NULL` and `accountCurrencyCode = NULL`; the amount is in `amountInRealCurrency` with
+`realCurrencyCode = 'USD'` (= the account's currency). Using it as the account amount makes every account's replayed
+balance equal the cached `account_balance` exactly (checked with raw SQL on all 7 accounts; transfers with NULL
+`toAmount` fall back to `fromAmount`). So there are no unlogged operations and no adjustment is needed. An earlier note
+here blamed unlogged investment purchases; that was wrong. The importer applies this rule (MmbackupMapper).
 
 ## 5. Reference numbers (OLD export, superseded by 4b) from the 2026-05-28 export (use as a smoke test, then replace with newest)
 

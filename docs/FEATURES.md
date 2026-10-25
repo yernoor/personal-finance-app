@@ -86,7 +86,7 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 1. Is `minSdk = 36` fine, or must the app also install on an older device?
 2. (Settled) Exclusion window: <2 operations per month over the trailing 3 full months. Default warning threshold 100%.
 3. Navigation: owner is open to newer designs. Proposal below, awaiting a yes/no.
-5. Should the Freedom USD correction (below) be an explicit "balance adjustment" entry?
+5. (Resolved: no balance adjustment needed.)
 6. Investments: keep "Инвестиции" as an expense category (current practice), or add a broker account for the ~$4000 of bonds?
 
 ## Navigation proposal (replaces the original's drawer; Material 3)
@@ -104,10 +104,8 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 - Rationale: the owner's daily actions (add, glance at balances/limits) are all reachable in one tap from the bar.
   This is a judgment call, not a verified usability finding.
 
-## Balance reconciliation (resolves FORMAT.md 4b, in part)
+## Balance reconciliation (resolved)
 - Screenshot totals match the backup's cached `account_balance`: Main 4,597 (459671), Deposit 36,138 (3613822),
   Deposit 2 2.31M (230507718), Freedom USD $13.56 (1356). So `account_balance` is what the original displays.
-- Owner confirms $13.56 is correct and says the replay gap on Freedom USD is likely investment purchases from this
-  account that were never logged. That is the owner's explanation, not verified from the data.
-- Proposed rule for the importer: show `account_balance` as the truth; store the replay difference per account as an
-  explicit **opening/adjustment balance** so that `adjustment + replayed history = cached`. Needs owner approval.
+- The replay gap was a data-format quirk, not missing operations: 60 USD rows keep their amount in the real-currency
+  field. With that rule every account reconciles to the cent (docs/FORMAT.md 4b). No opening-balance adjustment needed.
