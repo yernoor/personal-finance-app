@@ -1,0 +1,17 @@
+data/*
+!data/README.md
+*.mmbackup
+*.db
+*.keystore
+*.jks
+local.properties
+.gradle/
+build/
+.idea/
+__pycache__/
+
+# Screenshots of the original app show real balances and the owner name; keep local (README stays)
+docs/original-app/*
+!docs/original-app/README.md
+.DS_Store
+.kotlin/
