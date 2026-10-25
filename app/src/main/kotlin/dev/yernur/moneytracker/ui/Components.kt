@@ -97,11 +97,11 @@ fun IconBadge(iconName: String?, colorKey: Int?, size: Dp = 40.dp, modifier: Mod
         val side = this.size.minDimension
         val scale = side * 0.56f / 24f
         val inset = (side - 24f * scale) / 2f
-        val stroke = Stroke(width = GLYPH_STROKE, cap = StrokeCap.Round, join = StrokeJoin.Round)
-        fun glyphIn(strokeColor: Color, fill: Color? = null) = withTransform({
+        fun glyphIn(strokeColor: Color, fill: Color? = null, width: Float = GLYPH_STROKE) = withTransform({
             translate(inset, inset)
             scale(scale, scale, pivot = Offset.Zero)
         }) {
+            val stroke = Stroke(width = width, cap = StrokeCap.Round, join = StrokeJoin.Round)
             fill?.let { drawPath(pathOf(glyph.body), it) }
             drawPath(pathOf(glyph.body), strokeColor, style = stroke)
             if (glyph.detail.isNotEmpty()) drawPath(pathOf(glyph.detail), strokeColor, style = stroke)
@@ -122,17 +122,30 @@ fun IconBadge(iconName: String?, colorKey: Int?, size: Dp = 40.dp, modifier: Mod
                 drawRoundRect(outline, cornerRadius = tile, style = Stroke(1.dp.toPx()))
                 glyphIn(Color(AccentPalette.duotoneStroke(slot, hue, dark)), fill = Color(AccentPalette.duotoneFill(slot, hue, dark)))
             }
-            IconStyle.Glass -> {
-                val disc = AccentPalette.main(slot, hue, dark)
-                val tint = Color(disc)
-                drawCircle(Brush.radialGradient(listOf(tint.copy(alpha = 0.92f), tint.copy(alpha = 0.58f)), Offset(side * 0.36f, side * 0.28f), side * 0.85f))
-                // Light catching the top edge, and a bright rim, are what make it read as glass
-                drawOval(
-                    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.55f), Color.Transparent), 0f, side * 0.42f),
-                    topLeft = Offset(side * 0.18f, side * 0.06f), size = Size(side * 0.64f, side * 0.38f),
+            IconStyle.GlassTile -> {
+                // Frosted rounded tile, lit from within: the glyph is a hue color with a soft glow of the same hue behind it
+                val tint = Color(AccentPalette.tonalBackground(slot, hue, dark))
+                drawRoundRect(Color.Black.copy(alpha = 0.07f), topLeft = Offset(0f, 1.5.dp.toPx()), cornerRadius = tile)
+                drawRoundRect(tint.copy(alpha = if (dark) 0.55f else 0.78f), cornerRadius = tile)
+                drawRoundRect(Brush.verticalGradient(listOf(Color.White.copy(alpha = if (dark) 0.14f else 0.55f), Color.Transparent), 0f, side * 0.7f), cornerRadius = tile)
+                drawRoundRect(Color.White.copy(alpha = 0.7f), cornerRadius = tile, style = Stroke(1.dp.toPx()))
+                val glow = Color(AccentPalette.glassGlow(slot, hue))
+                glyphIn(glow.copy(alpha = 0.16f), width = 6.4f)
+                glyphIn(glow.copy(alpha = 0.30f), width = 4.2f)
+                glyphIn(Color(AccentPalette.glassGlyph(slot, hue, dark)))
+            }
+            IconStyle.GlassClear -> {
+                // Almost transparent disc with a bright edge, brightest at the top left; the color lives in the glyph
+                val tint = Color(AccentPalette.glassGlow(slot, hue))
+                drawCircle(Color.Black.copy(alpha = 0.06f), center = center + Offset(0f, 1.5.dp.toPx()))
+                drawCircle(tint.copy(alpha = 0.10f))
+                drawCircle(Color.White.copy(alpha = if (dark) 0.06f else 0.35f))
+                drawCircle(
+                    Brush.linearGradient(listOf(Color.White.copy(alpha = 0.95f), Color.White.copy(alpha = 0.25f)), Offset.Zero, Offset(side, side)),
+                    radius = side / 2 - 0.8.dp.toPx(), style = Stroke(1.6.dp.toPx()),
                 )
-                drawCircle(Color.White.copy(alpha = 0.8f), radius = side / 2 - 0.75.dp.toPx(), style = Stroke(1.2.dp.toPx()))
-                glyphIn(Color(AccentPalette.glyphOn(disc)))
+                drawCircle(outline.copy(alpha = 0.55f), radius = side / 2 - 0.4.dp.toPx(), style = Stroke(0.8.dp.toPx())) // keeps the edge visible on white
+                glyphIn(Color(AccentPalette.glassGlyph(slot, hue, dark)))
             }
         }
     }

@@ -4,9 +4,11 @@ import android.Manifest
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +29,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
@@ -41,6 +44,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,6 +67,7 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
     var showHistoryPeriod by remember { mutableStateOf(false) }
     var showIconStyle by remember { mutableStateOf(false) }
     val container = dev.yernur.moneytracker.LocalAppContainer.current
+    val glass by container.settings.glass.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var message by remember { mutableStateOf<String?>(null) }
@@ -103,12 +109,13 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
             leadingContent = { Icon(Icons.Outlined.Dashboard, null) }, headlineContent = { Text("Home layout") },
             supportingContent = { Text("Choose and order the Home cards") },
         )
-        val glass by container.settings.glass.collectAsStateWithLifecycle()
         val iconStyle by container.settings.iconStyle.collectAsStateWithLifecycle()
+        val glassIconStyle by container.settings.glassIconStyle.collectAsStateWithLifecycle()
         ListItem(
-            modifier = Modifier.clickable(enabled = !glass) { showIconStyle = true }.testTag("open-icon-style"),
+            modifier = Modifier.clickable { showIconStyle = true }.testTag("open-icon-style"),
             leadingContent = { Icon(Icons.Outlined.Palette, null) }, headlineContent = { Text("Icon style") },
-            supportingContent = { Text(if (glass) "Glass icons are used with liquid glass" else iconStyle.label) },
+            // Liquid glass has its own two looks; the everyday ones are not offered while it is on
+            supportingContent = { Text(if (glass) "${glassIconStyle.label} (liquid glass)" else iconStyle.label) },
         )
         ListItem(
             modifier = Modifier.clickable { container.settings.setGlass(!glass) }.testTag("glass-toggle"),
@@ -133,7 +140,7 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
             supportingContent = { Text("Adds or overwrites by id; nothing local is deleted") },
         )
     }
-    if (showIconStyle) IconStyleDialog(container.settings) { showIconStyle = false }
+    if (showIconStyle) IconStyleDialog(container.settings, glass) { showIconStyle = false }
     if (showHistoryPeriod) HistoryPeriodDialog(container.settings) { showHistoryPeriod = false }
     if (showWarnings) WarningSettingsDialog(container.settings) { showWarnings = false }
     message?.let {
@@ -200,12 +207,14 @@ private fun HistoryPeriodDialog(settings: AppSettings, onDismiss: () -> Unit) {
     )
 }
 
-/** Three looks to pick from, each previewed with a few real icons in its own style. */
+/** The looks to pick from (the glass pair while liquid glass is on, the everyday three otherwise), each previewed with real icons. */
 @Composable
-private fun IconStyleDialog(settings: AppSettings, onDismiss: () -> Unit) {
-    val current by settings.iconStyle.collectAsStateWithLifecycle()
-    val choices = listOf(IconStyle.Vivid, IconStyle.Tonal, IconStyle.Duotone)
-    val samples = listOf("cafe" to 8, "transport" to 4, "home" to 6, "products" to 5, "heart" to 1, "present" to 3)
+private fun IconStyleDialog(settings: AppSettings, glass: Boolean, onDismiss: () -> Unit) {
+    val current by (if (glass) settings.glassIconStyle else settings.iconStyle).collectAsStateWithLifecycle()
+    val choices = if (glass) listOf(IconStyle.GlassTile, IconStyle.GlassClear) else listOf(IconStyle.Vivid, IconStyle.Tonal, IconStyle.Duotone)
+    val samples = listOf("cafe" to 8, "transport" to 4, "home" to 6, "products" to 5, "heart" to 1)
+    fun choose(style: IconStyle) = if (glass) settings.setGlassIconStyle(style) else settings.setIconStyle(style)
+    val backdrop = Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.tertiaryContainer))
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = glassContainer(AlertDialogDefaults.containerColor),
@@ -214,13 +223,17 @@ private fun IconStyleDialog(settings: AppSettings, onDismiss: () -> Unit) {
             GlassWindowBlur()
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 choices.forEach { style ->
-                    Column(Modifier.fillMaxWidth().clickable { settings.setIconStyle(style) }.testTag("icon-style-${style.name}")) {
+                    Column(Modifier.fillMaxWidth().clickable { choose(style) }.testTag("icon-style-${style.name}")) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(current == style, { settings.setIconStyle(style) })
+                            RadioButton(current == style, { choose(style) })
                             Text(style.label)
                         }
                         CompositionLocalProvider(LocalIconStyle provides style) {
-                            Row(Modifier.padding(start = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            // Glass needs something colorful behind it to look like glass
+                            Row(
+                                Modifier.padding(start = 12.dp).then(if (glass) Modifier.clip(RoundedCornerShape(16.dp)).background(backdrop).padding(8.dp) else Modifier),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
                                 samples.forEach { (name, color) -> IconBadge(name, AccentPalette.KEYS[color], size = 36.dp) }
                             }
                         }

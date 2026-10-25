@@ -269,20 +269,24 @@ class PhoneScreenFlowTest {
     }
 
     @Test
-    fun iconStyleIsChosenInMore_andLiquidGlassLocksItToGlassIcons() {
+    fun iconStyleIsChosenInMore_withOneSetOfLooksForGlassAndAnotherForNot() {
         tap("more")
         compose.onNodeWithTag("open-icon-style").performScrollTo().performClick()
         waitForText("Vivid discs")
+        compose.onNodeWithTag("icon-style-GlassTile").assertDoesNotExist() // glass looks are not offered while glass is off
         tap("icon-style-Duotone")
         assertEquals(IconStyle.Duotone, container.settings.iconStyle.value)
         compose.onNodeWithText("Close").performClick()
         waitForText("Duotone")
 
-        compose.onNodeWithTag("glass-toggle").performScrollTo().performClick() // turn liquid glass on
+        compose.onNodeWithTag("glass-toggle").performScrollTo().performClick() // liquid glass on
         eventually { container.settings.glass.value }
-        waitForText("Glass icons are used with liquid glass")
+        waitForText("Frosted tile (liquid glass)") // the glass default
         compose.onNodeWithTag("open-icon-style").performScrollTo().performClick()
-        compose.onNodeWithTag("icon-style-Vivid").assertDoesNotExist() // locked: no dialog
-        assertEquals(IconStyle.Duotone, container.settings.iconStyle.value) // the choice is kept for when glass is off again
+        waitForText("Clear glass")
+        compose.onNodeWithTag("icon-style-Vivid").assertDoesNotExist() // the everyday looks are not offered with glass on
+        tap("icon-style-GlassClear")
+        assertEquals(IconStyle.GlassClear, container.settings.glassIconStyle.value)
+        assertEquals(IconStyle.Duotone, container.settings.iconStyle.value) // the everyday choice is kept for when glass is off again
     }
 }

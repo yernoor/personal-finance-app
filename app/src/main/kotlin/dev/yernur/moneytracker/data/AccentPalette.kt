@@ -69,5 +69,9 @@ object AccentPalette {
     fun duotoneStroke(slot: Int, baseHue: Float, dark: Boolean): Int = Oklch.toArgb(if (dark) 0.80f else 0.48f, 0.16f, hue(slot, baseHue))
     fun duotoneFill(slot: Int, baseHue: Float, dark: Boolean): Int = Oklch.toArgb(if (dark) 0.38f else 0.90f, if (dark) 0.08f else 0.07f, hue(slot, baseHue))
 
+    /** Glass styles: the glyph is a saturated hue color, and a lighter version of it makes the glow behind it. */
+    fun glassGlyph(slot: Int, baseHue: Float, dark: Boolean): Int = Oklch.toArgb(if (dark) 0.82f else 0.50f, if (dark) 0.15f else 0.19f, hue(slot, baseHue))
+    fun glassGlow(slot: Int, baseHue: Float): Int = Oklch.toArgb(0.80f, 0.15f, hue(slot, baseHue))
+
     private fun hue(slot: Int, baseHue: Float) = if (slot == SLOTS - 1) baseHue else (baseHue + slot * 360f / HUE_SLOTS) % 360f
 }

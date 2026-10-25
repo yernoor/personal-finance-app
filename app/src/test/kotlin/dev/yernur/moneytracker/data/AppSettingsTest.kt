@@ -52,18 +52,27 @@ class AppSettingsTest {
     }
 
     @Test
-    fun iconStyle_defaultsToVivid_persists_andNeverStoresGlass() {
+    fun iconStyles_haveSeparateChoicesForGlassAndNot_andNeverMixThem() {
         prefs.edit().clear().commit()
         val settings = AppSettings(prefs)
         assertEquals(IconStyle.Vivid, settings.iconStyle.value)
+        assertEquals(IconStyle.GlassTile, settings.glassIconStyle.value) // the frosted tile is the glass default
 
         settings.setIconStyle(IconStyle.Duotone)
-        assertEquals(IconStyle.Duotone, AppSettings(prefs).iconStyle.value)
+        settings.setGlassIconStyle(IconStyle.GlassClear)
+        val again = AppSettings(prefs)
+        assertEquals(IconStyle.Duotone, again.iconStyle.value)
+        assertEquals(IconStyle.GlassClear, again.glassIconStyle.value)
 
-        settings.setIconStyle(IconStyle.Glass) // glass icons are automatic with liquid glass, never a stored choice
+        settings.setIconStyle(IconStyle.GlassTile) // a glass look is not allowed as the everyday choice, and vice versa
+        settings.setGlassIconStyle(IconStyle.Tonal)
         assertEquals(IconStyle.Duotone, settings.iconStyle.value)
-        prefs.edit().putString("iconStyle", "Glass").commit()
-        assertEquals(IconStyle.Vivid, AppSettings(prefs).iconStyle.value)
+        assertEquals(IconStyle.GlassClear, settings.glassIconStyle.value)
+
+        prefs.edit().putString("iconStyle", "GlassClear").putString("glassIconStyle", "Vivid").commit()
+        val repaired = AppSettings(prefs)
+        assertEquals(IconStyle.Vivid, repaired.iconStyle.value)
+        assertEquals(IconStyle.GlassTile, repaired.glassIconStyle.value)
     }
 
     @Test

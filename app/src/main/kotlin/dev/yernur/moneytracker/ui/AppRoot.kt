@@ -116,11 +116,12 @@ fun AppRoot(nav: NavHostController = rememberNavController()) {
     val backdrop = rememberLayerBackdrop(onDraw = backdropDraw)
 
     val iconSetting by settings.iconStyle.collectAsStateWithLifecycle()
+    val glassIconSetting by settings.glassIconStyle.collectAsStateWithLifecycle()
     val accentHue = remember(scheme.primary) { Oklch.hueOf(scheme.primary.toArgb()) }
 
     CompositionLocalProvider(
         LocalGlass provides glass, LocalChromeInset provides if (glass && tab != null) GlassBarInset else 0.dp,
-        LocalIconStyle provides if (glass) IconStyle.Glass else iconSetting, // glass allows only glass-style icons
+        LocalIconStyle provides if (glass) glassIconSetting else iconSetting, // glass allows only glass-style icons
         LocalAccentHue provides accentHue,
     ) {
     Scaffold(

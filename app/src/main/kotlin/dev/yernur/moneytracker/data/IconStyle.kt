@@ -1,12 +1,13 @@
 package dev.yernur.moneytracker.data
 
 /**
- * How category and account icons are drawn. [Glass] is not a choice: it is used automatically while liquid glass is on,
- * and the three others are the owner's options (settings).
+ * How category and account icons are drawn. Two sets: the three everyday looks, and the two that go with liquid glass.
+ * With liquid glass on only the glass looks are used (the owner picks between them); with it off, only the others.
  */
-enum class IconStyle(val label: String) {
-    Tonal("Tonal tiles"),
-    Vivid("Vivid discs"),
-    Duotone("Duotone"),
-    Glass("Glass"),
+enum class IconStyle(val label: String, val forGlass: Boolean) {
+    Tonal("Tonal tiles", false),
+    Vivid("Vivid discs", false),
+    Duotone("Duotone", false),
+    GlassTile("Frosted tile", true),
+    GlassClear("Clear glass", true),
 }

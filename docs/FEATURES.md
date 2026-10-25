@@ -104,8 +104,10 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
   12 colors stay distinct for every accent hue in light and dark. The backup's 12 stored colors map to the 12 slots.
 - BUILT (experimental, off by default): More -> Liquid glass: floating glass bottom bar and add button (Kyant0 Backdrop 2.0.1: blur,
   vibrancy, lens refraction; needs Android 13+, we run on 16), frosted sheets and dialogs (system window blur, needs cross-window blur
-  enabled on the device), solid cards. With glass on, icons are forced to the glass style and the icon-style choice is locked.
-  The first glass icon look was rejected by the owner; being redesigned.
+  enabled on the device), solid cards. With glass on, only glass icon looks are used, and More -> Icon style then offers exactly those
+  two: frosted tile (default: frosted rounded tile, hue glyph with a soft glow) and clear glass (almost transparent disc with a bright
+  edge, hue glyph). The three everyday looks are kept for when glass is off; the two choices are stored separately.
+  (The first glass icon look, glossy blobs, was rejected by the owner and replaced.)
 - (original request) Redraw all category/account icons from scratch (original art). Colors derive from the Material 3 scheme / chosen accent,
   with enough chroma and hue spread that categories stay easy to tell apart.
 

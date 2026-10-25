@@ -20,9 +20,8 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _homeTotalsPeriod = MutableStateFlow(
         prefs?.getString(HOME_PERIOD, null)?.let { name -> PeriodUnit.entries.firstOrNull { it.name == name } } ?: PeriodUnit.Month,
     )
-    private val _iconStyle = MutableStateFlow(
-        IconStyle.entries.firstOrNull { it.name == prefs?.getString(ICON_STYLE, null) && it != IconStyle.Glass } ?: IconStyle.Vivid,
-    )
+    private val _iconStyle = MutableStateFlow(storedIconStyle(prefs, ICON_STYLE, glass = false, IconStyle.Vivid))
+    private val _glassIconStyle = MutableStateFlow(storedIconStyle(prefs, GLASS_ICON_STYLE, glass = true, IconStyle.GlassTile))
     private val _glass = MutableStateFlow(prefs?.getBoolean(GLASS, false) ?: false)
     private val warned = HashSet<String>(prefs?.getStringSet(WARNED, emptySet()).orEmpty())
 
@@ -33,13 +32,22 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     /** What the History tab opens on. The original app defaults to the day (`defaultPeriod = day` in its backup). */
     val historyPeriod: StateFlow<PeriodUnit> = _historyPeriod
 
-    /** The owner's chosen icon look (never Glass: that one is automatic with liquid glass). Defaults to vivid discs. */
+    /** The icon look while liquid glass is off. Defaults to vivid discs. */
     val iconStyle: StateFlow<IconStyle> = _iconStyle
 
     fun setIconStyle(style: IconStyle) {
-        if (style == IconStyle.Glass) return
+        if (style.forGlass) return
         _iconStyle.value = style
         prefs?.edit()?.putString(ICON_STYLE, style.name)?.apply()
+    }
+
+    /** The icon look while liquid glass is on (only glass looks are allowed there). Defaults to the frosted tile. */
+    val glassIconStyle: StateFlow<IconStyle> = _glassIconStyle
+
+    fun setGlassIconStyle(style: IconStyle) {
+        if (!style.forGlass) return
+        _glassIconStyle.value = style
+        prefs?.edit()?.putString(GLASS_ICON_STYLE, style.name)?.apply()
     }
 
     /** Experimental liquid glass look (floating glass bar, add button, sheets, dialogs). Off by default. */
@@ -113,7 +121,12 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val NAV_TABS = "navTabs"
         private const val GLASS = "glass"
         private const val ICON_STYLE = "iconStyle"
+        private const val GLASS_ICON_STYLE = "glassIconStyle"
         private const val HOME_CARDS = "homeCards"
         private const val HOME_PERIOD = "homeTotalsPeriod"
     }
 }
+
+/** A stored style, accepted only if it belongs to the right set (glass looks for glass, the others otherwise). */
+private fun storedIconStyle(prefs: SharedPreferences?, key: String, glass: Boolean, default: IconStyle): IconStyle =
+    IconStyle.entries.firstOrNull { it.name == prefs?.getString(key, null) && it.forGlass == glass } ?: default
