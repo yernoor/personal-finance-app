@@ -203,4 +203,17 @@ class AppFlowTest {
         assertEquals("KZT", created.currencyCode)
         assertEquals(false, created.ignoreInBalance)
     }
+
+    @Test
+    fun historyRowWithEmptyComment_showsJustTheAccount() {
+        val ledger = AppContainer(db).ledger
+        runBlocking {
+            ledger.saveTransaction(
+                dev.yernur.moneytracker.data.TransactionDraft(null, TransactionType.Expense, "main", "cafe", 80_000, java.time.LocalDate.now().toString(), "", emptySet())
+            )
+        }
+        tap("tab-history")
+        waitForText("-₸800")
+        compose.onNodeWithText("Main").assertIsDisplayed() // exact match: no trailing " · "
+    }
 }

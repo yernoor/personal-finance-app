@@ -1,5 +1,6 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -36,12 +38,15 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -182,6 +187,8 @@ fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
     var confirmDelete by remember { mutableStateOf(false) }
     var addingTag by remember { mutableStateOf(false) }
     val isTransfer = vm.kind == EntryKind.Transfer
+    val amountFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { if (!vm.isEditing) amountFocus.requestFocus() } // fast entry: keyboard is ready on open
 
     Scaffold(topBar = {
         TopAppBar(
@@ -216,7 +223,7 @@ fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
                 vm.amount, { vm.amount = it }, label = { Text(if (isTransfer) "Amount sent" else "Amount") },
                 suffix = { Text(vm.currencyOf(vm.accountUid).orEmpty()) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth().testTag("amount"),
+                modifier = Modifier.fillMaxWidth().focusRequester(amountFocus).testTag("amount"),
             )
 
             Text(if (isTransfer) "From account" else "Account", style = MaterialTheme.typography.labelLarge)
@@ -283,12 +290,11 @@ fun CategoryTile(category: CategoryEntity, selected: Boolean, onClick: () -> Uni
         Modifier.width(76.dp).clickable(onClick = onClick).testTag("category-${category.uid}"),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        val color = colorOf(category.color)
-        IconBadge(category.icon, if (selected) color else color.copy(alpha = 0.45f), size = 48.dp)
-        Text(
-            category.title, style = MaterialTheme.typography.labelMedium, maxLines = 1,
-            color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+        IconBadge(
+            category.icon, colorOf(category.color), size = 48.dp,
+            modifier = if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier,
         )
+        Text(category.title, style = MaterialTheme.typography.labelMedium, maxLines = 1)
     }
 }
 

@@ -68,7 +68,7 @@ fun CategoriesScreen(onOpen: (uid: String) -> Unit, onNew: (TransactionType) -> 
                 Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                categories.filter { it.type == tab && !it.isArchived }.forEach { c -> CategoryTile(c, selected = true) { onOpen(c.uid) } }
+                categories.filter { it.type == tab && !it.isArchived }.forEach { c -> CategoryTile(c, selected = false) { onOpen(c.uid) } }
                 AssistChip({ onNew(tab) }, label = { Text("Create") }, leadingIcon = { Icon(Icons.Outlined.Add, null) }, modifier = Modifier.testTag("new-category"))
             }
         }

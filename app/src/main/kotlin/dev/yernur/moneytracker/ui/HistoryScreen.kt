@@ -83,7 +83,7 @@ class HistoryViewModel(db: AppDatabase) : ViewModel() {
                 val amount = Money.format(t.amountInAccountCurrency ?: 0L, account?.currencyCode)
                 HistoryRow(
                     t.uid, false, t.date, t.created, category?.title ?: "No category",
-                    listOfNotNull(account?.title?.ifBlank { "Main" }, t.comment).joinToString(" · "),
+                    listOfNotNull(account?.title?.ifBlank { "Main" }, t.comment?.takeIf { it.isNotBlank() }).joinToString(" · "),
                     if (income) "+$amount" else "-$amount", if (income) Semantic.income else Semantic.expense,
                     category?.icon, category?.color,
                     listOfNotNull(category?.title, account?.title, t.comment).joinToString(" ").lowercase(),

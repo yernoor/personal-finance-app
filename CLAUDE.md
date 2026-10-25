@@ -97,7 +97,17 @@ AGP 9.4.1, Kotlin 2.4.21, KSP 2.3.12, Room 2.8.5, Compose BOM 2026.09.00, Naviga
 (`AppContainer`), not Hilt: no concrete need yet and it adds AGP 9/KSP risk. WorkManager comes with sync (M7).
 Tests run on Robolectric simulating Android 36 (`app/src/test/resources/robolectric.properties`), which needs a Java 21+
 test JVM: JDK 25 covers it. UI tests (`ui/AppFlowTest`) drive the real navigation against an in-memory Room DB.
-Not yet run: instrumented tests and the app on a real device/emulator (no system image installed).
+Emulator (AVD `moneytracker`, Pixel 8 profile, Android 16 / API 36 google_apis arm64; image is ~4 GB):
+```bash
+export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
+$ANDROID_HOME/emulator/emulator -avd moneytracker -no-snapshot-save -no-audio &
+adb -s emulator-5554 install -r app/build/outputs/apk/debug/app-debug.apk   # keeps app data
+adb -s emulator-5554 shell am start -n dev.yernur.moneytracker/.MainActivity
+adb -s emulator-5554 exec-out screencap -p > shot.png                       # screenshots Claude can read
+```
+Always pass `-s emulator-5554`: this network also exposes an unrelated adb device (a smart TV). The real backup was imported
+into the emulator through the app's own Import screen (push to /sdcard/Download, then media-scan it so the picker lists it).
+Not yet run: instrumented (androidTest) tests, and the app on the owner's physical phone.
 
 ## Privacy
 `data/` holds real financial data and is git-ignored. Don't echo transaction rows into logs, commit messages,
