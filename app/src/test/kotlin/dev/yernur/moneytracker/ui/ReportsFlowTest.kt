@@ -99,15 +99,19 @@ class ReportsFlowTest {
     }
 
     @Test
-    fun monthZoomShowsThreeMonths_andArrowsPageToOlderOnes() {
+    fun monthZoomShowsThreeMonths_andArrowsSlideOneMonthAtATime() {
         compose.onNodeWithTag("tab-charts").performClick()
         waitForText(today.format(DateTimeFormatter.ofPattern("LLLL yyyy")))
         // three bars: this month and the two before it; the month three back is not drawn
         val older = today.minusMonths(3).format(DateTimeFormatter.ofPattern("MMM"))
         assertEquals(0, compose.onAllNodesWithText(older).fetchSemanticsNodes().size)
         compose.onNodeWithTag("chart-older").performClick()
-        // one window back: the newest bar is now the month three months ago
-        waitForText(today.minusMonths(3).format(DateTimeFormatter.ofPattern("LLLL yyyy")))
+        // one step back: the newest bar is now last month, and the month three back becomes visible after two steps
+        waitForText(today.minusMonths(1).format(DateTimeFormatter.ofPattern("LLLL yyyy")))
+        compose.onNodeWithTag("chart-older").performClick()
+        waitForText(today.minusMonths(2).format(DateTimeFormatter.ofPattern("LLLL yyyy")))
+        compose.onNodeWithTag("chart-newer").performClick()
+        waitForText(today.minusMonths(1).format(DateTimeFormatter.ofPattern("LLLL yyyy")))
         compose.onNodeWithTag("chart-newer").performClick()
         waitForText(today.format(DateTimeFormatter.ofPattern("LLLL yyyy")))
     }

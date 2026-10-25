@@ -1,6 +1,7 @@
 package dev.yernur.moneytracker.ui
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -15,6 +16,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import dev.yernur.moneytracker.AppContainer
 import dev.yernur.moneytracker.LocalAppContainer
+import dev.yernur.moneytracker.data.TransactionDraft
 import dev.yernur.moneytracker.data.db.AccountEntity
 import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.db.CategoryEntity
@@ -77,7 +79,8 @@ class AppFlowTest {
         }
     }
 
-    private fun waitForText(text: String) = eventually { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
+    private fun waitForText(text: String, substring: Boolean = false) =
+        eventually { compose.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty() }
 
     private fun tap(tag: String) = compose.onNodeWithTag(tag).performClick()
 

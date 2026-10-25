@@ -66,7 +66,7 @@ enum class ChartTab(val label: String) { General("General"), Expenses("Expenses"
 
 data class ChartData(val unit: PeriodUnit, val buckets: List<Bucket>, val categories: Map<String?, CategoryEntity>)
 
-/** How many bars each zoom level shows; few bars stay readable, the arrows page back through older ones. */
+/** How many bars each zoom level shows; few bars stay readable, the arrows slide the window one period at a time. */
 private fun barCount(unit: PeriodUnit) = when (unit) {
     PeriodUnit.Day -> 7
     PeriodUnit.Week -> 4
@@ -79,11 +79,11 @@ class ChartsViewModel(db: AppDatabase, forecasts: ForecastRepository, private va
     var tab by mutableStateOf(ChartTab.General)
     var selected by mutableIntStateOf(-1) // -1 = the newest bar
     val unit = MutableStateFlow(PeriodUnit.Month)
-    /** 0 = the newest window of bars; each step back moves one full window into the past. */
+    /** 0 = the window ending today; each step moves the window back by one period (one month, one year, ...). */
     val page = MutableStateFlow(0)
 
     val data: StateFlow<ChartData?> = combine(unit, page) { u, p -> u to p }.flatMapLatest { (u, p) ->
-        val ranges = u.lastRanges(u.shift(today, -(p * barCount(u)).toLong()), barCount(u))
+        val ranges = u.lastRanges(u.shift(today, -p.toLong()), barCount(u))
         combine(
             db.transactionDao().observeLite(ranges.first().from.toString(), ranges.last().to.toString()),
             db.categoryDao().observeAll(),

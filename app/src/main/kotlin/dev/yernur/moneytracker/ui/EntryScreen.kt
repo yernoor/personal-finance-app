@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -221,11 +222,9 @@ fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
                 }
             }
 
-            OutlinedTextField(
-                vm.amount, { vm.amount = it }, label = { Text(if (isTransfer) "Amount sent" else "Amount") },
-                suffix = { Text(vm.currencyOf(vm.accountUid).orEmpty()) }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth().focusRequester(amountFocus).testTag("amount"),
+            AmountField(
+                vm.amount, { vm.amount = it }, if (isTransfer) "Amount sent" else "Amount", vm.currencyOf(vm.accountUid).orEmpty(), "amount",
+                Modifier.focusRequester(amountFocus),
             )
 
             Text(if (isTransfer) "From account" else "Account", style = MaterialTheme.typography.labelLarge)
@@ -233,12 +232,7 @@ fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
             if (isTransfer) {
                 Text("To account", style = MaterialTheme.typography.labelLarge)
                 AccountChips(options.accounts, vm.toAccountUid, tagPrefix = "to") { vm.toAccountUid = it }
-                if (vm.needsToAmount()) OutlinedTextField(
-                    vm.toAmount, { vm.toAmount = it }, label = { Text("Amount received") },
-                    suffix = { Text(vm.currencyOf(vm.toAccountUid).orEmpty()) }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth().testTag("to-amount"),
-                )
+                if (vm.needsToAmount()) AmountField(vm.toAmount, { vm.toAmount = it }, "Amount received", vm.currencyOf(vm.toAccountUid).orEmpty(), "to-amount")
             } else {
                 val type = if (vm.kind == EntryKind.Income) TransactionType.Income else TransactionType.Expense
                 Text("Category", style = MaterialTheme.typography.labelLarge)
@@ -284,6 +278,20 @@ private fun AccountChips(accounts: List<AccountEntity>, selected: String?, tagPr
             )
         }
     }
+}
+
+/** Decimal field with a calculator button (tags: `<tag>` for the field, `<tag>-calc` for the button). */
+@Composable
+private fun AmountField(value: String, onChange: (String) -> Unit, label: String, currency: String, tag: String, modifier: Modifier = Modifier) {
+    var calculating by remember { mutableStateOf(false) }
+    OutlinedTextField(
+        value, onChange, label = { Text(label) }, singleLine = true,
+        suffix = { Text(currency) },
+        trailingIcon = { IconButton({ calculating = true }, modifier = Modifier.testTag("$tag-calc")) { Icon(Icons.Outlined.Calculate, "Calculator") } },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        modifier = modifier.fillMaxWidth().testTag(tag),
+    )
+    if (calculating) CalculatorSheet(value, { onChange(it); calculating = false }, { calculating = false })
 }
 
 @Composable

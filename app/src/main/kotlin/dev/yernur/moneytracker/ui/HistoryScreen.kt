@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.SwapHoriz
+import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -21,6 +23,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -58,14 +62,45 @@ data class HistoryRow(
     val iconName: String?,
     val iconColor: Int?,
     val searchText: String,
+    val categoryUid: String? = null,
+    val isIncome: Boolean = false,
+    /** Default-currency amount, so groups can add up accounts in different currencies. */
+    val defaultAmount: Long = 0,
 )
 
-data class HistoryState(val rows: List<HistoryRow> = emptyList(), val income: Long = 0, val expense: Long = 0)
+/** All transactions of one category (and direction) in the shown period, added up. */
+data class HistoryGroup(
+    val key: String,
+    val title: String,
+    val iconName: String?,
+    val iconColor: Int?,
+    val isIncome: Boolean,
+    val total: Long,
+    val rows: List<HistoryRow>,
+)
+
+/** Transfers are not spending, so they stay out of the groups. Biggest group first. */
+fun groupByCategory(rows: List<HistoryRow>): List<HistoryGroup> =
+    rows.filter { !it.isTransfer }.groupBy { it.categoryUid to it.isIncome }.map { (key, list) ->
+        HistoryGroup(
+            "${key.first}-${key.second}", list.first().title, list.first().iconName, list.first().iconColor,
+            key.second, list.sumOf { it.defaultAmount }, list,
+        )
+    }.sortedByDescending { it.total }
+
+data class HistoryState(
+    val rows: List<HistoryRow> = emptyList(),
+    val income: Long = 0,
+    val expense: Long = 0,
+    val groups: List<HistoryGroup> = emptyList(),
+)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HistoryViewModel(db: AppDatabase) : ViewModel() {
     val month = MutableStateFlow(YearMonth.now())
     val query = MutableStateFlow("")
+    /** "Group by category" switch: one expandable line per category instead of every entry. */
+    val grouped = MutableStateFlow(false)
 
     private val monthData = month.flatMapLatest { m ->
         val from = m.atDay(1).toString()
@@ -87,6 +122,7 @@ class HistoryViewModel(db: AppDatabase) : ViewModel() {
                     if (income) "+$amount" else "-$amount", if (income) Semantic.income else Semantic.expense,
                     category?.icon, category?.color,
                     listOfNotNull(category?.title, account?.title, t.comment).joinToString(" ").lowercase(),
+                    categoryUid = t.categoryUid, isIncome = income, defaultAmount = t.amountInDefaultCurrency ?: 0L,
                 )
             } + transfers.map { t ->
                 val from = accountByUid[t.fromAccountUid]
@@ -109,7 +145,8 @@ class HistoryViewModel(db: AppDatabase) : ViewModel() {
 
     val state: StateFlow<HistoryState> = combine(monthData, query) { data, q ->
         val needle = q.trim().lowercase()
-        if (needle.isEmpty()) data else data.copy(rows = data.rows.filter { needle in it.searchText })
+        val rows = if (needle.isEmpty()) data.rows else data.rows.filter { needle in it.searchText }
+        data.copy(rows = rows, groups = groupByCategory(rows))
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryState())
 
     fun shiftMonth(by: Long) = month.update { it.plusMonths(by) }
@@ -121,6 +158,8 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
     val month by vm.month.collectAsStateWithLifecycle()
     val query by vm.query.collectAsStateWithLifecycle()
+    val grouped by vm.grouped.collectAsStateWithLifecycle()
+    val expanded = remember { mutableStateListOf<String>() }
     val dayFormat = DateTimeFormatter.ofPattern("EEE, MMM d")
 
     Column(Modifier.fillMaxSize()) {
@@ -136,11 +175,41 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
             Text("+${Money.format(state.income, DEFAULT_CURRENCY)}", color = Semantic.income)
             Text("-${Money.format(state.expense, DEFAULT_CURRENCY)}", color = Semantic.expense)
         }
-        OutlinedTextField(
-            query, { vm.query.value = it }, label = { Text("Search") }, singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(16.dp).testTag("search"),
-        )
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(query, { vm.query.value = it }, label = { Text("Search") }, singleLine = true, modifier = Modifier.weight(1f).testTag("search"))
+            FilledIconToggleButton(grouped, { vm.grouped.value = it }, modifier = Modifier.padding(start = 8.dp).testTag("group-toggle")) {
+                Icon(Icons.Outlined.Category, "Group by category")
+            }
+        }
         LazyColumn(Modifier.weight(1f)) {
+            if (grouped) {
+                state.groups.forEach { group ->
+                    val open = group.key in expanded
+                    item(key = "group-${group.key}") {
+                        ListItem(
+                            modifier = Modifier.clickable { if (open) expanded.remove(group.key) else expanded.add(group.key) }.testTag("group-${group.key}"),
+                            leadingContent = { IconBadge(group.iconName, colorOf(group.iconColor)) },
+                            headlineContent = { Text(group.title) },
+                            supportingContent = { Text(if (group.rows.size == 1) "1 operation" else "${group.rows.size} operations") },
+                            trailingContent = {
+                                Text(
+                                    (if (group.isIncome) "+" else "-") + Money.format(group.total, DEFAULT_CURRENCY),
+                                    color = if (group.isIncome) Semantic.income else Semantic.expense,
+                                )
+                            },
+                        )
+                    }
+                    if (open) items(group.rows, key = { "child-${it.uid}" }) { row -> HistoryItem(row, onOpen, Modifier.padding(start = 24.dp)) }
+                }
+                val transfers = state.rows.filter { it.isTransfer }
+                if (transfers.isNotEmpty()) {
+                    item(key = "transfers-header") {
+                        Text("Transfers", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                    }
+                    items(transfers, key = { "transfer-${it.uid}" }) { row -> HistoryItem(row, onOpen) }
+                }
+                return@LazyColumn
+            }
             var lastDate: String? = null
             state.rows.forEach { row ->
                 if (row.date != lastDate) {
@@ -152,18 +221,21 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
                         )
                     }
                 }
-                item(key = row.uid) {
-                    ListItem(
-                        modifier = Modifier.clickable { onOpen(row.uid, row.isTransfer) }.testTag("row-${row.uid}"),
-                        leadingContent = {
-                            if (row.isTransfer) Icon(Icons.Outlined.SwapHoriz, null) else IconBadge(row.iconName, colorOf(row.iconColor))
-                        },
-                        headlineContent = { Text(row.title) },
-                        supportingContent = { if (row.subtitle.isNotBlank()) Text(row.subtitle, maxLines = 1) },
-                        trailingContent = { Text(row.amount, color = row.amountColor ?: Color.Unspecified) },
-                    )
-                }
+                item(key = row.uid) { HistoryItem(row, onOpen) }
             }
         }
     }
+}
+
+@Composable
+private fun HistoryItem(row: HistoryRow, onOpen: (uid: String, isTransfer: Boolean) -> Unit, modifier: Modifier = Modifier) {
+    ListItem(
+        modifier = modifier.clickable { onOpen(row.uid, row.isTransfer) }.testTag("row-${row.uid}"),
+        leadingContent = {
+            if (row.isTransfer) Icon(Icons.Outlined.SwapHoriz, null) else IconBadge(row.iconName, colorOf(row.iconColor))
+        },
+        headlineContent = { Text(row.title) },
+        supportingContent = { if (row.subtitle.isNotBlank()) Text(row.subtitle, maxLines = 1) },
+        trailingContent = { Text(row.amount, color = row.amountColor ?: Color.Unspecified) },
+    )
 }

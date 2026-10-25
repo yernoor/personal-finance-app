@@ -102,7 +102,8 @@ platforms android-36 + android-37.0 (compileSdk 37 is required by current Compos
 AGP 9.4.1, Kotlin 2.4.21, KSP 2.3.12, Room 2.8.5, Compose BOM 2026.09.00, Navigation 2.10.2. DI is hand-wired
 (`AppContainer`), not Hilt: no concrete need yet and it adds AGP 9/KSP risk. WorkManager comes with sync (M7).
 Tests run on Robolectric simulating Android 36 (`app/src/test/resources/robolectric.properties`), which needs a Java 21+
-test JVM: JDK 25 covers it. UI tests (`ui/AppFlowTest`) drive the real navigation against an in-memory Room DB.
+test JVM: JDK 25 covers it. UI tests (`ui/AppFlowTest`, `ReportsFlowTest`) drive the real navigation against an in-memory Room DB on Robolectric's small default screen;
+`PhoneScreenFlowTest` uses a phone-sized one for flows that need room (calculator keypad). Do not set a big screen globally: text-field dialogs hang under it.
 Emulator (AVD `moneytracker`, Pixel 8 profile, Android 16 / API 36 google_apis arm64; image is ~4 GB):
 ```bash
 export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools

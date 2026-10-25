@@ -74,6 +74,13 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 - Warnings: Home card plus notifications (channel "Spending warnings"; one per month, category and level, escalating
   3-month average -> on track -> over the limit). Per-category threshold and "in overall projection" (Automatic / Always / Never) on the
   category screen; global threshold and notification switch under More -> Spending warnings. Schema is now v2 (migration tested).
+- Chart arrows slide the window one period at a time (one month, one year, ...); By month shows 3 bars, By day 7, By week 4, By year 3.
+- Amount calculator (owner request): a calculator button on every amount field opens a keypad sheet like the phone's calculator
+  (C, smart parentheses, %, ÷ × − +, decimals, backspace, =, live preview, "Use result"). Percent works like the phone's:
+  `1000 + 10%` = 1100, `200 × 10%` = 20. Results round to cents.
+- History "Group by category" (owner request): a toggle beside Search adds up each category (and direction) in the shown period,
+  with an operation count; tap a group to expand its entries; transfers stay listed separately. It works on whatever period History
+  shows (a month today; day/week/year arrive with the zoom in milestone 5b).
 - Not built yet: a daily background check (a warning is only evaluated when you save an entry; WorkManager arrives with sync/reminders),
   Income-side limits, charts for a custom period, per-account chart filter (original had one).
 - Unverified: for a ledger whose first month is partial, that month counts as a full month in the 3-month average.
