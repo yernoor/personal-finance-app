@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import dev.yernur.moneytracker.data.AccentPalette
 import dev.yernur.moneytracker.data.LedgerRepository
 import dev.yernur.moneytracker.data.Money
 import dev.yernur.moneytracker.data.TransactionDraft
@@ -315,6 +316,15 @@ private fun AmountField(value: String, onChange: (String) -> Unit, label: String
         modifier = modifier.fillMaxWidth().testTag(tag),
     )
     if (calculating) CalculatorSheet(value, { onChange(it); calculating = false }, { calculating = false })
+}
+
+/** The "create" tile of a grid: a plus drawn in the current icon style (accent colored), same size and label as a category tile. */
+@Composable
+fun CreateTile(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Column(modifier.width(76.dp).clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
+        IconBadge("add", AccentPalette.KEYS.first(), size = 48.dp) // the first palette slot sits exactly on the accent hue
+        Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+    }
 }
 
 @Composable

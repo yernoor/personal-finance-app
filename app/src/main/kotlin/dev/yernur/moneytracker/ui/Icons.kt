@@ -69,9 +69,10 @@ object AppIcons {
             "M12 9.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0 -5.6z",
             "M5.2 11.5a7 7 0 0 1 12 -4.3M18.8 12.5a7 7 0 0 1 -12 4.3M18.5 3.8v3.7H14.8M5.5 20.2v-3.7h3.7",
         ),
+        // A girl: round face, a bow on top, pigtails hanging at the sides
         "girl" to Glyph(
-            "M12 7.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0 -11z",
-            "M5.3 4.2a2.1 2.1 0 1 0 0 4.2 2.1 2.1 0 0 0 0 -4.2zM18.7 4.2a2.1 2.1 0 1 0 0 4.2 2.1 2.1 0 0 0 0 -4.2zM10 12.8h.01M14 12.8h.01M10.1 15.4c1.1 .9 2.7 .9 3.8 0",
+            "M12 8.4a5 5 0 1 0 0 10 5 5 0 0 0 0 -10zM12 5.7 8.7 3.9v3.6zM12 5.7l3.3 -1.8v3.6z",
+            "M7.5 12.4c-1.7 .9 -2.5 2.7 -2.3 4.6M16.5 12.4c1.7 .9 2.5 2.7 2.3 4.6M10.2 13.4h.01M13.8 13.4h.01M10.3 16c.9 .7 2.5 .7 3.4 0",
         ),
         "family" to Glyph(
             "M8.5 4.5a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0 -4.6zM17 8.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0 -3.6z",
@@ -120,11 +121,14 @@ object AppIcons {
         ),
     )
 
+    /** Glyphs for the app's own controls; they are not category icons, so the pickers do not list them. */
+    private val controls: Map<String, Glyph> = mapOf("add" to Glyph("", "M12 5v14M5 12h14"))
+
     /** Every icon name, in the order the pickers show them. */
     val names: List<String> = glyphs.keys.toList()
 
     /** Unknown names (e.g. from a newer backup) get the question-mark glyph. */
-    fun glyph(name: String?): Glyph = glyphs[name] ?: glyphs.getValue("other")
+    fun glyph(name: String?): Glyph = glyphs[name] ?: controls[name] ?: glyphs.getValue("other")
 }
 
 /** The 12 color keys as stored in the backup and shown in the color picker (see AccentPalette for what they look like). */
