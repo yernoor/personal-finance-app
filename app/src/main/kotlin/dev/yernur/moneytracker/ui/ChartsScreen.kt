@@ -9,12 +9,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ChevronLeft
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
@@ -44,6 +50,7 @@ import dev.yernur.moneytracker.data.buckets
 import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.db.CategoryEntity
 import dev.yernur.moneytracker.data.lastRanges
+import dev.yernur.moneytracker.data.shift
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -59,12 +66,12 @@ enum class ChartTab(val label: String) { General("General"), Expenses("Expenses"
 
 data class ChartData(val unit: PeriodUnit, val buckets: List<Bucket>, val categories: Map<String?, CategoryEntity>)
 
-/** How many bars each zoom level shows. */
+/** How many bars each zoom level shows; few bars stay readable, the arrows page back through older ones. */
 private fun barCount(unit: PeriodUnit) = when (unit) {
-    PeriodUnit.Day -> 14
-    PeriodUnit.Week -> 8
-    PeriodUnit.Month -> 12
-    PeriodUnit.Year -> 4
+    PeriodUnit.Day -> 7
+    PeriodUnit.Week -> 4
+    PeriodUnit.Month -> 3
+    PeriodUnit.Year -> 3
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -72,9 +79,11 @@ class ChartsViewModel(db: AppDatabase, forecasts: ForecastRepository, private va
     var tab by mutableStateOf(ChartTab.General)
     var selected by mutableIntStateOf(-1) // -1 = the newest bar
     val unit = MutableStateFlow(PeriodUnit.Month)
+    /** 0 = the newest window of bars; each step back moves one full window into the past. */
+    val page = MutableStateFlow(0)
 
-    val data: StateFlow<ChartData?> = unit.flatMapLatest { u ->
-        val ranges = u.lastRanges(today, barCount(u))
+    val data: StateFlow<ChartData?> = combine(unit, page) { u, p -> u to p }.flatMapLatest { (u, p) ->
+        val ranges = u.lastRanges(u.shift(today, -(p * barCount(u)).toLong()), barCount(u))
         combine(
             db.transactionDao().observeLite(ranges.first().from.toString(), ranges.last().to.toString()),
             db.categoryDao().observeAll(),
@@ -88,7 +97,13 @@ class ChartsViewModel(db: AppDatabase, forecasts: ForecastRepository, private va
 
     fun zoom(to: PeriodUnit) {
         selected = -1
+        page.value = 0
         unit.value = to
+    }
+
+    fun turnPage(by: Int) {
+        selected = -1
+        page.value = (page.value + by).coerceAtLeast(0)
     }
 }
 
@@ -100,6 +115,7 @@ fun ChartsScreen(onOpenCategory: (String) -> Unit) {
     val forecast by vm.forecast.collectAsStateWithLifecycle()
     val categories by vm.categories.collectAsStateWithLifecycle()
     val unit by vm.unit.collectAsStateWithLifecycle()
+    val page by vm.page.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize()) {
         PrimaryTabRow(selectedTabIndex = vm.tab.ordinal) {
@@ -117,6 +133,11 @@ fun ChartsScreen(onOpenCategory: (String) -> Unit) {
                     FilterChip(unit == u, { vm.zoom(u) }, label = { Text(label) }, modifier = Modifier.testTag("zoom-${u.name}"))
                 }
             }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                IconButton({ vm.turnPage(1) }, modifier = Modifier.testTag("chart-older")) { Icon(Icons.Outlined.ChevronLeft, "Older") }
+                Spacer(Modifier.weight(1f))
+                IconButton({ vm.turnPage(-1) }, enabled = page > 0, modifier = Modifier.testTag("chart-newer")) { Icon(Icons.Outlined.ChevronRight, "Newer") }
+            }
             data?.let { chart -> ChartBody(chart, vm.tab, vm.selected, onSelect = { vm.selected = it }) }
         }
     }
@@ -126,6 +147,7 @@ private val IncomeColor = Color(0xFF4CAF50)
 private val ExpenseColor = Color(0xFFFFC107)
 private val ProfitColor = Color(0xFF42A5F5)
 private val LossColor = Color(0xFFFF7043)
+private val SmallSlicesColor = Color(0xFF9E9E9E)
 
 @Composable
 private fun ChartBody(chart: ChartData, tab: ChartTab, selectedRaw: Int, onSelect: (Int) -> Unit) {
@@ -135,9 +157,15 @@ private fun ChartBody(chart: ChartData, tab: ChartTab, selectedRaw: Int, onSelec
             listOf(listOf(BarSegment(b.income, IncomeColor)), listOf(BarSegment(b.expense, ExpenseColor)),
                 listOf(BarSegment(kotlin.math.abs(b.net), if (b.net >= 0) ProfitColor else LossColor)))
         }
-        else -> chart.buckets.map { b ->
-            val byCategory = if (tab == ChartTab.Expenses) b.expenseByCategory else b.incomeByCategory
-            listOf(sortedCategories(byCategory, chart.categories).map { (uid, value) -> BarSegment(value, categoryColor(uid, chart.categories)) })
+        else -> {
+            val byBucket = chart.buckets.map { if (tab == ChartTab.Expenses) it.expenseByCategory else it.incomeByCategory }
+            val tallest = byBucket.maxOfOrNull { it.values.sum() }?.coerceAtLeast(1L) ?: 1L
+            byBucket.map { byCategory ->
+                // Slices thinner than ~2% of the tallest bar are unreadable: draw them as one grey slice (the list below keeps them all).
+                val (big, tiny) = sortedCategories(byCategory, chart.categories).partition { it.second * 50 >= tallest }
+                val segments = big.map { (uid, value) -> BarSegment(value, categoryColor(uid, chart.categories)) }
+                listOf(if (tiny.isEmpty()) segments else segments + BarSegment(tiny.sumOf { it.second }, SmallSlicesColor))
+            }
         }
     }
     BarChart(groups, chart.buckets.map { label(chart.unit, it.range) }, selected, onSelect)
@@ -154,7 +182,7 @@ private fun ChartBody(chart: ChartData, tab: ChartTab, selectedRaw: Int, onSelec
             val byCategory = if (tab == ChartTab.Expenses) bucket.expenseByCategory else bucket.incomeByCategory
             val total = byCategory.values.sum().coerceAtLeast(1L)
             sortedCategories(byCategory, chart.categories).sortedByDescending { it.second }.forEach { (uid, value) ->
-                AmountRow("${chart.categories[uid]?.title ?: "No category"} · ${value * 100 / total}%", value, categoryColor(uid, chart.categories))
+                CategoryAmountRow(chart.categories[uid], value, value * 100 / total)
             }
         }
     }
@@ -166,6 +194,18 @@ private fun AmountRow(label: String, amount: Long, color: Color) {
         Box(Modifier.size(12.dp).clip(CircleShape).background(color))
         Text(label, Modifier.weight(1f))
         Text(Money.format(amount, DEFAULT_CURRENCY))
+    }
+}
+
+@Composable
+private fun CategoryAmountRow(category: CategoryEntity?, amount: Long, percent: Long) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        IconBadge(category?.icon, colorOf(category?.color), size = 40.dp)
+        Column(Modifier.weight(1f)) {
+            Text(category?.title ?: "No category", style = MaterialTheme.typography.bodyLarge)
+            Text("$percent%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Text(Money.format(amount, DEFAULT_CURRENCY), style = MaterialTheme.typography.bodyLarge)
     }
 }
 

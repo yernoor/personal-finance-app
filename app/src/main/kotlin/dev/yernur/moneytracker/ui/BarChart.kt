@@ -35,7 +35,7 @@ fun BarChart(groups: List<BarGroup>, labels: List<String>, selected: Int, onSele
 
     Column(modifier) {
         Canvas(
-            Modifier.fillMaxWidth().height(180.dp).testTag("bar-chart").pointerInput(groups.size) {
+            Modifier.fillMaxWidth().height(260.dp).testTag("bar-chart").pointerInput(groups.size) {
                 detectTapGestures { offset -> onSelect((offset.x / (size.width / groups.size)).toInt().coerceIn(0, groups.size - 1)) }
             },
         ) {
@@ -59,7 +59,7 @@ fun BarChart(groups: List<BarGroup>, labels: List<String>, selected: Int, onSele
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
             labels.forEachIndexed { index, label ->
                 Text(
-                    label, Modifier.weight(1f), textAlign = TextAlign.Center, maxLines = 1, style = MaterialTheme.typography.labelSmall,
+                    label, Modifier.weight(1f), textAlign = TextAlign.Center, maxLines = 1, style = MaterialTheme.typography.labelLarge,
                     fontWeight = if (index == selected) FontWeight.Bold else FontWeight.Normal,
                 )
             }
