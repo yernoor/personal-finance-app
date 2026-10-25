@@ -52,12 +52,12 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun CategoriesScreen(onOpen: (uid: String) -> Unit, onNew: (TransactionType) -> Unit, onBack: () -> Unit) {
+fun CategoriesScreen(onOpen: (uid: String) -> Unit, onNew: (TransactionType) -> Unit, onBack: () -> Unit, embedded: Boolean = false) {
     val vm = appViewModel { CategoriesViewModel(it.db) }
     val categories by vm.categories.collectAsStateWithLifecycle(emptyList())
     var tab by remember { mutableStateOf(TransactionType.Expense) }
     Scaffold(topBar = {
-        TopAppBar(title = { Text("Categories") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
+        if (!embedded) TopAppBar(title = { Text("Categories") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
     }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             val tabs = listOf(TransactionType.Expense, TransactionType.Income)

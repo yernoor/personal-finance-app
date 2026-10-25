@@ -11,6 +11,15 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _historyPeriod = MutableStateFlow(
         prefs?.getString(HISTORY_PERIOD, null)?.let { name -> PeriodUnit.entries.firstOrNull { it.name == name } } ?: PeriodUnit.Day,
     )
+    private val _navTabs = MutableStateFlow(
+        OrderedChoice.sanitize(prefs?.getString(NAV_TABS, null)?.split(","), NAV_POOL, NAV_DEFAULT, NAV_MIN, NAV_MAX),
+    )
+    private val _homeCards = MutableStateFlow(
+        OrderedChoice.sanitize(prefs?.getString(HOME_CARDS, null)?.split(","), HOME_POOL, HOME_DEFAULT, HOME_MIN, HOME_POOL.size),
+    )
+    private val _homeTotalsPeriod = MutableStateFlow(
+        prefs?.getString(HOME_PERIOD, null)?.let { name -> PeriodUnit.entries.firstOrNull { it.name == name } } ?: PeriodUnit.Month,
+    )
     private val warned = HashSet<String>(prefs?.getStringSet(WARNED, emptySet()).orEmpty())
 
     /** Warn when a projection passes this percent of a category limit (categories can override). */
@@ -19,6 +28,30 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
 
     /** What the History tab opens on. The original app defaults to the day (`defaultPeriod = day` in its backup). */
     val historyPeriod: StateFlow<PeriodUnit> = _historyPeriod
+
+    /** Ids of the bottom-bar tabs, in order (2 to 5 of [NAV_POOL]). */
+    val navTabs: StateFlow<List<String>> = _navTabs
+
+    fun setNavTabs(tabs: List<String>) {
+        _navTabs.value = OrderedChoice.sanitize(tabs, NAV_POOL, NAV_DEFAULT, NAV_MIN, NAV_MAX)
+        prefs?.edit()?.putString(NAV_TABS, _navTabs.value.joinToString(","))?.apply()
+    }
+
+    /** Ids of the cards on Home, in order. The default keeps the original's monthly totals. */
+    val homeCards: StateFlow<List<String>> = _homeCards
+
+    fun setHomeCards(cards: List<String>) {
+        _homeCards.value = OrderedChoice.sanitize(cards, HOME_POOL, HOME_DEFAULT, HOME_MIN, HOME_POOL.size)
+        prefs?.edit()?.putString(HOME_CARDS, _homeCards.value.joinToString(","))?.apply()
+    }
+
+    /** The period the Home totals and top-categories cards cover. */
+    val homeTotalsPeriod: StateFlow<PeriodUnit> = _homeTotalsPeriod
+
+    fun setHomeTotalsPeriod(unit: PeriodUnit) {
+        _homeTotalsPeriod.value = unit
+        prefs?.edit()?.putString(HOME_PERIOD, unit.name)?.apply()
+    }
 
     fun setHistoryPeriod(unit: PeriodUnit) {
         _historyPeriod.value = unit
@@ -45,9 +78,19 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
 
     companion object {
         const val DEFAULT_THRESHOLD = 100
+        val NAV_POOL = listOf("home", "history", "charts", "accounts", "categories", "tags")
+        val NAV_DEFAULT = NAV_POOL.take(4)
+        const val NAV_MIN = 2
+        const val NAV_MAX = 5
+        val HOME_POOL = listOf("warnings", "balance", "totals", "top-categories", "recent")
+        val HOME_DEFAULT = listOf("warnings", "balance", "totals")
+        const val HOME_MIN = 1
         private const val WARN_THRESHOLD = "warnThreshold"
         private const val NOTIFICATIONS = "notifications"
         private const val WARNED = "warned"
         private const val HISTORY_PERIOD = "historyPeriod"
+        private const val NAV_TABS = "navTabs"
+        private const val HOME_CARDS = "homeCards"
+        private const val HOME_PERIOD = "homeTotalsPeriod"
     }
 }

@@ -13,9 +13,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -46,7 +48,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit) {
+fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit) {
     var showWarnings by remember { mutableStateOf(false) }
     var showHistoryPeriod by remember { mutableStateOf(false) }
     val container = dev.yernur.moneytracker.LocalAppContainer.current
@@ -80,6 +82,16 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit) {
         ListItem(
             modifier = Modifier.clickable(onClick = onTags).testTag("open-tags"),
             leadingContent = { Icon(Icons.AutoMirrored.Outlined.Label, null) }, headlineContent = { Text("Tags") },
+        )
+        ListItem(
+            modifier = Modifier.clickable(onClick = onNavbar).testTag("open-navbar-settings"),
+            leadingContent = { Icon(Icons.Outlined.Tune, null) }, headlineContent = { Text("Navigation bar") },
+            supportingContent = { Text("Choose and order the tabs") },
+        )
+        ListItem(
+            modifier = Modifier.clickable(onClick = onHomeLayout).testTag("open-home-settings"),
+            leadingContent = { Icon(Icons.Outlined.Dashboard, null) }, headlineContent = { Text("Home layout") },
+            supportingContent = { Text("Choose and order the Home cards") },
         )
         val historyPeriod by container.settings.historyPeriod.collectAsStateWithLifecycle()
         ListItem(

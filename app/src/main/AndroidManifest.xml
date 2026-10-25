@@ -4,6 +4,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
+        android:enableOnBackInvokedCallback="true"
         android:name=".MoneyApp"
         android:allowBackup="false"
         android:label="Money Tracker"

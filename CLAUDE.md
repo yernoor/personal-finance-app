@@ -58,8 +58,8 @@ Not known: reports/charts, budgets UI, recurring items, widgets, search, filters
 4. Core screens: accounts, add/edit transaction (fast entry is the daily habit), transfers, categories, tags, history list.
 5. Reports/budgets per FEATURES.md: period model, charts, projections (run-rate + 3-month average), limit warnings + notifications.
 5b. UX polish (owner requests, 2026-10-25):
-   - Navigation animations: no disappearing/abrupt transitions; polished enter/exit and shared-element feel.
-   - Customizable bottom navbar (which tabs, order) and configurable Home layout (default: monthly totals cards).
+   - Navigation animations: no disappearing/abrupt transitions; polished enter/exit and shared-element feel. DONE (overlapping transitions).
+   - Customizable bottom navbar (which tabs, order) and configurable Home layout (default: monthly totals cards). DONE (More screen).
    - History opens on the **daily** total by default and zooms out to week / month / year (reuses M5's period model). DONE (setting in More).
    - Completely redrawn category/account icons: original artwork, driven by the Material 3 scheme so they follow the
      user's accent color, but not muted: keep hues clearly distinguishable from each other.

@@ -132,6 +132,9 @@ interface TransactionDao {
     @Query("SELECT date, type, categoryUid, COALESCE(amountInDefaultCurrency, 0) AS amount FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to")
     suspend fun getLite(from: String, to: String): List<TxLite>
 
+    @Query("SELECT * FROM transactions WHERE isRemoved = 0 ORDER BY date DESC, created DESC LIMIT :limit")
+    fun observeRecent(limit: Int): Flow<List<TransactionEntity>>
+
     @Query("SELECT MIN(date) FROM transactions WHERE isRemoved = 0")
     fun observeEarliestDate(): Flow<String?>
 

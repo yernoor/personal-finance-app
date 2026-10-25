@@ -87,9 +87,15 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
   Income-side limits, charts for a custom period, per-account chart filter (original had one).
 - Unverified: for a ledger whose first month is partial, that month counts as a full month in the 3-month average.
 
-## UX polish requests (owner, 2026-10-25), scheduled as milestone 5b
-- Navigation transitions must not disappear/pop abruptly; polish enter/exit animations.
-- Customizable bottom navbar (tabs shown, order) and configurable Home layout; default Home keeps the monthly totals.
+## UX polish requests (owner, 2026-10-25), milestone 5b: all built except the icon redraw (waiting for a style choice)
+- Navigation transitions must not disappear/pop abruptly; polish enter/exit animations. BUILT: screens always overlap while swapping
+  (tab to tab: crossfade with a slight scale; into a detail screen: slide forward while fading; back reverses), the app bar, bottom bar and
+  add button animate in and out instead of vanishing, and predictive back is on. Unverified by eye: mid-animation frames could not be
+  captured on the emulator; judge the feel on the phone.
+- Customizable bottom navbar (tabs shown, order) and configurable Home layout; default Home keeps the monthly totals. BUILT: More ->
+  Navigation bar (2 to 5 of Home, History, Charts, Accounts, Categories, Tags; checkboxes and up/down arrows; the first tab opens with
+  the app) and More -> Home layout (cards: spending warnings, balance, income and expenses, top spending categories, latest entries;
+  the totals can cover a day, week, month or year; default month).
 - History defaults to the **day** period (matches the original's `defaultPeriod = day`) and zooms out to week / month / year.
   First weekday is Monday (backup `firstWeekday = monday`).
 - Redraw all category/account icons from scratch (original art). Colors derive from the Material 3 scheme / chosen accent,

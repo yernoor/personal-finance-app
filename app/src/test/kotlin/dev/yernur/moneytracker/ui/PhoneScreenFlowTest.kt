@@ -18,6 +18,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import dev.yernur.moneytracker.AppContainer
 import dev.yernur.moneytracker.LocalAppContainer
+import dev.yernur.moneytracker.data.AppSettings
 import dev.yernur.moneytracker.data.PeriodUnit
 import dev.yernur.moneytracker.data.TransactionDraft
 import dev.yernur.moneytracker.data.TransferDraft
@@ -196,5 +197,54 @@ class PhoneScreenFlowTest {
         waitForText("₸3,500") // 1,000 + 2,500, both sides the same currency
         waitForText("₸4,500 → $10") // cross-currency: sent and received sums
         compose.onNodeWithTag("transfer-child-placeholder").assertDoesNotExist()
+    }
+
+    private fun check(prefix: String, id: String) = tap("$prefix-check-$id")
+
+    @Test
+    fun navbar_canHideReorderAndAddTabs() {
+        tap("more")
+        tap("open-navbar-settings")
+        check("nav", "charts") // hide Charts
+        tap("nav-down-home") // Home after History
+        check("nav", "categories") // show Categories
+        assertEquals(listOf("history", "home", "accounts", "categories"), container.settings.navTabs.value)
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.onNodeWithContentDescription("Back").performClick()
+
+        compose.onNodeWithTag("tab-charts").assertDoesNotExist()
+        tap("tab-categories")
+        waitForText("Кафе") // the category grid, as a tab: the app bar above says "Categories", there is no back arrow
+        compose.onAllNodesWithText("Categories").assertCountEquals(2) // the bar title and the tab label
+        compose.onNodeWithContentDescription("Back").assertDoesNotExist()
+    }
+
+    @Test
+    fun navbar_keepsAtLeastTwoTabs() {
+        tap("more")
+        tap("open-navbar-settings")
+        listOf("history", "charts", "accounts", "home").forEach { check("nav", it) } // the last uncheck must be refused
+        assertEquals(2, container.settings.navTabs.value.size)
+        tap("nav-reset")
+        assertEquals(AppSettings.NAV_DEFAULT, container.settings.navTabs.value)
+    }
+
+    @Test
+    fun homeLayout_cardsAreChosenAndOrdered_andTheTotalsPeriodIsConfigurable() {
+        waitForText(periodTitle(PeriodUnit.Month, PeriodUnit.Month.rangeOf(today))) // default: monthly totals
+        compose.onNodeWithTag("home-balance").assertExists()
+
+        tap("more")
+        tap("open-home-settings")
+        check("home", "balance") // hide Balance
+        check("home", "recent") // show Latest entries
+        tap("home-period-Week")
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.onNodeWithContentDescription("Back").performClick()
+
+        waitForText(periodTitle(PeriodUnit.Week, PeriodUnit.Week.rangeOf(today)))
+        compose.onNodeWithTag("home-balance").assertDoesNotExist()
+        compose.onNodeWithTag("home-recent").assertExists()
+        assertEquals(listOf("warnings", "totals", "recent"), container.settings.homeCards.value)
     }
 }

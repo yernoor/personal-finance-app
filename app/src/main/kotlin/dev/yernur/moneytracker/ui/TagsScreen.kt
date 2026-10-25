@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TagsScreen(onBack: () -> Unit) {
+fun TagsScreen(embedded: Boolean = false, onBack: () -> Unit) {
     val container = dev.yernur.moneytracker.LocalAppContainer.current
     val tags by container.db.tagDao().observeLive().collectAsStateWithLifecycle(emptyList())
     val scope = rememberCoroutineScope()
@@ -41,7 +41,9 @@ fun TagsScreen(onBack: () -> Unit) {
     var adding by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Tags") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } }) },
+        topBar = {
+            if (!embedded) TopAppBar(title = { Text("Tags") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
+        },
         floatingActionButton = { FloatingActionButton({ adding = true }, modifier = Modifier.testTag("new-tag")) { Icon(Icons.Outlined.Add, "New tag") } },
     ) { padding ->
         LazyColumn(Modifier.padding(padding).fillMaxSize()) {

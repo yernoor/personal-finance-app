@@ -25,4 +25,29 @@ class AppSettingsTest {
         prefs.edit().putString("historyPeriod", "Fortnight").commit()
         assertEquals(PeriodUnit.Day, AppSettings(prefs).historyPeriod.value)
     }
+
+    @Test
+    fun navbarAndHomeLayout_defaultToTheOriginalShape_andPersist() {
+        prefs.edit().clear().commit()
+        val fresh = AppSettings(prefs)
+        assertEquals(listOf("home", "history", "charts", "accounts"), fresh.navTabs.value)
+        assertEquals(listOf("warnings", "balance", "totals"), fresh.homeCards.value)
+        assertEquals(PeriodUnit.Month, fresh.homeTotalsPeriod.value) // the monthly totals the owner likes
+
+        fresh.setNavTabs(listOf("history", "categories", "home"))
+        fresh.setHomeCards(listOf("recent", "balance"))
+        fresh.setHomeTotalsPeriod(PeriodUnit.Week)
+        val again = AppSettings(prefs)
+        assertEquals(listOf("history", "categories", "home"), again.navTabs.value)
+        assertEquals(listOf("recent", "balance"), again.homeCards.value)
+        assertEquals(PeriodUnit.Week, again.homeTotalsPeriod.value)
+    }
+
+    @Test
+    fun anInvalidNavbarIsIgnored() {
+        prefs.edit().clear().commit()
+        val settings = AppSettings(prefs)
+        settings.setNavTabs(listOf("home")) // one tab is not a navigation bar
+        assertEquals(AppSettings.NAV_DEFAULT, settings.navTabs.value)
+    }
 }
