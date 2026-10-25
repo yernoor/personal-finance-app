@@ -6,17 +6,17 @@
 - The Sheet must stay a **human-friendly spreadsheet**: decimals not minor units, names not UIDs
   where possible, so the existing analysis formulas keep working.
 
-## Auth and Drive scope (verify against current Google docs before building)
-- Prefer the **`drive.file`** scope plus Sheets API v4: the app **creates** the spreadsheet itself, so no
-  sensitive-scope verification should be needed. Wider `spreadsheets` scope is a sensitive scope.
-- Known gotcha to verify: OAuth clients in "Testing" publish status get refresh tokens that expire after
-  7 days. For a single-user app, either use non-sensitive scopes and publish "In production", or accept
-  re-consent. Do not guess; check https://developers.google.com/identity and report what you found.
-- On Android use Credential Manager for sign-in and the Google Identity Authorization API for the access token.
-  Check current library names and versions before adding dependencies.
-- The existing user-built sheet (from `mmbackup_to_xlsx.py`) is NOT reachable under `drive.file`
-  unless the user opens it via the Picker. Default plan: the app creates a fresh sheet and the
-  one-time `.mmbackup` import populates it. Offer a Picker flow only if the user wants to keep the old file.
+## Auth and Drive scope (verified 2026-10-26; sources and setup steps in docs/GOOGLE_SETUP.md)
+- Scope: **`drive.file`** (non-sensitive) plus Sheets API v4. The app **creates** the spreadsheet itself, so it can reach only that file.
+  `spreadsheets.create` accepts `drive.file`. The wider `spreadsheets` scope is sensitive and not needed.
+- On Android only the **Authorization API** is needed: a one-hour access token, no refresh token on the phone, silent renewal while the
+  permission stands. **Credential Manager sign-in is not used**: it proves identity (an ID token), and nothing here needs identity.
+  No client id or secret is in the app; the Google Cloud Android client is matched by package name + signing SHA-1.
+- **"Testing" status expires the authorization after 7 days** for any scope beyond name/email/profile, `drive.file` included. Publish the
+  consent screen **In production** (non-sensitive scope; the "Unverified app" warning is for sensitive/restricted scopes).
+- HTTP: plain `HttpURLConnection` (no client library); 429/5xx retried with exponential backoff, 401 gets one fresh token.
+- The existing user-built sheet (from `mmbackup_to_xlsx.py`) is NOT reachable under `drive.file` unless opened through the Picker.
+  The app creates a fresh sheet and uploads the local data (which came from the `.mmbackup` import) instead.
 
 ## Sheet layout (tab `Transactions` keeps the converter's column order so existing SUMIFS keep working)
 
@@ -28,8 +28,9 @@
 | Categories | Category, Type, Used, UID, Icon, Color, Limit, Position |
 | Tags | Tag, UID |
 | `_deleted` (hidden) | Entity, UID, DeletedAt |
-| `_meta` (hidden) | schemaVersion, lastSyncAt per device, deviceId list |
+| `_meta` (hidden) | Key, Value |
 
+- `_meta` rows (key / value): `schemaVersion` / 1, `deviceId` / this phone's id, `lastSyncAt:<deviceId>` / UTC time of its last sync.
 - Only live rows in `Transactions`/`Transfers`; deletions go to `_deleted` so analysis formulas never
   see tombstones.
 - Rows are keyed by `UID`. Names (account/category) are display columns; on pull, resolve by UID via

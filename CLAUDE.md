@@ -63,7 +63,8 @@ Not known: reports/charts, budgets UI, recurring items, widgets, search, filters
    - History opens on the **daily** total by default and zooms out to week / month / year (reuses M5's period model). DONE (setting in More).
    - Completely redrawn category/account icons: original artwork, driven by the Material 3 scheme so they follow the
      user's accent color, but not muted: keep hues clearly distinguishable from each other.
-6. Google sign-in + Sheet creation + initial full push. Sheet layout must keep the `Transactions` column order.
+6. Google sign-in + Sheet creation + initial full push. Sheet layout must keep the `Transactions` column order. BUILT and unit-tested
+   (fake network, real-backup totals vs snapshot); the live Google round trip needs the owner's Cloud OAuth client: docs/GOOGLE_SETUP.md.
 7. Two-way sync + Apps Script `onEdit` stamping (`/sheets/Code.gs`) + conflict log.
 8. Polish, backup/restore of the local DB, release APK signed with the owner's local keystore (sideload).
 

@@ -93,6 +93,9 @@ interface TagDao {
     @Query("SELECT * FROM tag WHERE isRemoved = 0")
     suspend fun getLive(): List<TagEntity>
 
+    @Query("SELECT * FROM tag")
+    suspend fun getAll(): List<TagEntity>
+
     @Query("SELECT * FROM tag WHERE isRemoved = 0 ORDER BY useCount DESC, name")
     fun observeLive(): Flow<List<TagEntity>>
 
@@ -113,6 +116,9 @@ interface TransactionDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTagLinks(items: List<TransactionTagEntity>)
+
+    @Query("SELECT * FROM transaction_tag")
+    suspend fun getAllTagLinks(): List<TransactionTagEntity>
 
     @Query("SELECT tagUid FROM transaction_tag WHERE transactionUid = :uid")
     suspend fun tagUidsOf(uid: String): List<String>

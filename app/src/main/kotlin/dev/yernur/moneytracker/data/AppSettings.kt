@@ -3,6 +3,7 @@ package dev.yernur.moneytracker.data
 import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import java.util.UUID
 
 /** User preferences. [prefs] null keeps everything in memory (tests). */
 class AppSettings(private val prefs: SharedPreferences? = null) {
@@ -22,6 +23,8 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     )
     private val _iconStyle = MutableStateFlow(storedIconStyle(prefs, ICON_STYLE, glass = false, IconStyle.Vivid))
     private val _glassIconStyle = MutableStateFlow(storedIconStyle(prefs, GLASS_ICON_STYLE, glass = true, IconStyle.GlassTile))
+    private val _spreadsheetId = MutableStateFlow(prefs?.getString(SPREADSHEET_ID, null))
+    private val _spreadsheetUrl = MutableStateFlow(prefs?.getString(SPREADSHEET_URL, null))
     private val _glass = MutableStateFlow(prefs?.getBoolean(GLASS, false) ?: false)
     private val warned = HashSet<String>(prefs?.getStringSet(WARNED, emptySet()).orEmpty())
 
@@ -31,6 +34,34 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
 
     /** What the History tab opens on. The original app defaults to the day (`defaultPeriod = day` in its backup). */
     val historyPeriod: StateFlow<PeriodUnit> = _historyPeriod
+
+    /** The spreadsheet this app created in Google Drive (only files the app created are reachable, by the drive.file scope). */
+    val spreadsheetId: StateFlow<String?> = _spreadsheetId
+    val spreadsheetUrl: StateFlow<String?> = _spreadsheetUrl
+
+    fun setSpreadsheet(id: String, url: String) {
+        _spreadsheetId.value = id
+        _spreadsheetUrl.value = url
+        prefs?.edit()?.putString(SPREADSHEET_ID, id)?.putString(SPREADSHEET_URL, url)?.apply()
+    }
+
+    /** Forgets the link; the spreadsheet itself stays in Drive. */
+    fun forgetSpreadsheet() {
+        _spreadsheetId.value = null
+        _spreadsheetUrl.value = null
+        prefs?.edit()?.remove(SPREADSHEET_ID)?.remove(SPREADSHEET_URL)?.apply()
+    }
+
+    /** Identifies this phone in the sheet's `_meta` tab; created once and kept. */
+    @Synchronized fun deviceId(): String {
+        deviceId?.let { return it }
+        val stored = prefs?.getString(DEVICE_ID, null)
+        val id = stored ?: UUID.randomUUID().toString().also { prefs?.edit()?.putString(DEVICE_ID, it)?.apply() }
+        deviceId = id
+        return id
+    }
+
+    private var deviceId: String? = null
 
     /** The icon look while liquid glass is off. Defaults to vivid discs. */
     val iconStyle: StateFlow<IconStyle> = _iconStyle
@@ -120,6 +151,9 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val HISTORY_PERIOD = "historyPeriod"
         private const val NAV_TABS = "navTabs"
         private const val GLASS = "glass"
+        private const val SPREADSHEET_ID = "spreadsheetId"
+        private const val SPREADSHEET_URL = "spreadsheetUrl"
+        private const val DEVICE_ID = "deviceId"
         private const val ICON_STYLE = "iconStyle"
         private const val GLASS_ICON_STYLE = "glassIconStyle"
         private const val HOME_CARDS = "homeCards"

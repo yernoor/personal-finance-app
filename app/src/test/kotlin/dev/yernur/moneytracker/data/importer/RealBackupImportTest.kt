@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.AccentPalette
+import dev.yernur.moneytracker.data.sheets.SheetRows
 import dev.yernur.moneytracker.data.summarize
 import dev.yernur.moneytracker.ui.AppIcons
 import dev.yernur.moneytracker.data.db.TransactionType
@@ -75,6 +76,21 @@ class RealBackupImportTest {
             // Every icon name in the backup has a drawn glyph (otherwise it would show as the question mark)
             val iconNames = (db.categoryDao().getAll().map { it.icon } + db.accountDao().getAll().map { it.icon }).filterNotNull().toSet()
             assertTrue("icons without a glyph: ${iconNames - AppIcons.names.toSet()}", AppIcons.names.containsAll(iconNames))
+
+            // The spreadsheet this data would produce, checked against the snapshot (computed independently by tools/mmbackup.py)
+            val tabs = SheetRows.build(
+                db.accountDao().getAll(), db.categoryDao().getAll(), db.tagDao().getAll(), db.transactionDao().getAll(),
+                db.transactionDao().getAllTagLinks(), db.transferDao().getAll(), shown, "device", "now",
+            ).associateBy { it.spec.title }
+            val sheetTransactions = tabs.getValue("Transactions").rows
+            assertEquals(counts.getInt("transactions"), sheetTransactions.size)
+            assertEquals(counts.getInt("transfers"), tabs.getValue("Transfers").rows.size)
+            val net = sheetTransactions.sumOf { it[7] as java.math.BigDecimal? ?: java.math.BigDecimal.ZERO }
+            assertEquals(minor(totals.getDouble("income")) - minor(totals.getDouble("expense")), net.movePointRight(2).toLong())
+            assertEquals(sheetTransactions.size, sheetTransactions.map { it.last() }.toSet().size) // UIDs are unique
+            for (tab in tabs.values) tab.rows.forEach { assertEquals(tab.spec.title, tab.spec.headers.size, it.size) }
+            val sheetBalances = tabs.getValue("Accounts").rows.associate { it[4] as String to (it[3] as java.math.BigDecimal).movePointRight(2).toLong() }
+            for (uid in cached.keys()) assertEquals("sheet balance of $uid", minor(cached.getDouble(uid)), sheetBalances[uid] ?: 0L)
 
             // The Accounts-screen totals vs the owner's screenshot: Total = Main only, second figure "₸2.35M".
             val rates = db.rateDao().getAll().associate { (it.fromCurrencyCode to it.toCurrencyCode) to it.value }
