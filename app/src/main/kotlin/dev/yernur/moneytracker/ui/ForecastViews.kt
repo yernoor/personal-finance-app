@@ -40,7 +40,7 @@ fun WarningKind.text(): String = when (this) {
 /** Projections for the current month: an overall card, then every category with its limit and warnings. */
 @Composable
 fun ForecastView(forecast: Forecast, categories: Map<String?, CategoryEntity>, onOpenCategory: (String) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + LocalChromeInset.current), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Card(Modifier.fillMaxWidth().testTag("forecast-overall")) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -75,7 +75,7 @@ private fun CategoryForecastCard(row: CategoryForecast, category: CategoryEntity
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                IconBadge(category?.icon, colorOf(category?.color), size = 36.dp)
+                IconBadge(category?.icon, category?.color, size = 36.dp)
                 Text(category?.title ?: "No category", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                 Text(money(row.spent))
             }

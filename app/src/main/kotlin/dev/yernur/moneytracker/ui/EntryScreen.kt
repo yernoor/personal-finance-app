@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -323,7 +324,7 @@ fun CategoryTile(category: CategoryEntity, selected: Boolean, onClick: () -> Uni
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         IconBadge(
-            category.icon, colorOf(category.color), size = 48.dp,
+            category.icon, category.color, size = 48.dp,
             modifier = if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier,
         )
         Text(category.title, style = MaterialTheme.typography.labelMedium, maxLines = 1)
@@ -346,6 +347,7 @@ private fun DateChips(date: LocalDate, today: LocalDate, onPick: (LocalDate) -> 
         val state = rememberDatePickerState(initialSelectedDateMillis = date.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
         DatePickerDialog(
             onDismissRequest = { picking = false },
+            colors = DatePickerDefaults.colors(containerColor = glassContainer(DatePickerDefaults.colors().containerColor)),
             confirmButton = {
                 TextButton({
                     state.selectedDateMillis?.let { onPick(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) }
@@ -353,6 +355,6 @@ private fun DateChips(date: LocalDate, today: LocalDate, onPick: (LocalDate) -> 
                 }) { Text("OK") }
             },
             dismissButton = { TextButton({ picking = false }) { Text("Cancel") } },
-        ) { DatePicker(state) }
+        ) { GlassWindowBlur(); DatePicker(state) }
     }
 }

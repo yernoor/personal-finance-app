@@ -41,6 +41,7 @@ dependencies {
     implementation(libs.compose.material.icons.extended)
     implementation(libs.activity.compose)
     implementation(libs.navigation.compose)
+    implementation(libs.backdrop) // liquid glass: backdrop blur, lens refraction (Android 13+; we run on 16)
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.lifecycle.runtime.compose)
     debugImplementation(libs.compose.ui.tooling)

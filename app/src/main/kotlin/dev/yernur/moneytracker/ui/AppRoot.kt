@@ -13,6 +13,8 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -29,17 +31,25 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -53,7 +63,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import dev.yernur.moneytracker.LocalAppContainer
+import dev.yernur.moneytracker.data.IconStyle
+import dev.yernur.moneytracker.data.Oklch
 import dev.yernur.moneytracker.data.db.TransactionType
 
 /** Everything that can sit in the bottom bar; which ones do, and in what order, is a setting (`AppSettings.navTabs`). */
@@ -95,11 +109,26 @@ fun AppRoot(nav: NavHostController = rememberNavController()) {
 
     fun isTab(entry: NavBackStackEntry) = entry.destination.route in tabRoutes
 
+    val glass by settings.glass.collectAsStateWithLifecycle()
+    val scheme = MaterialTheme.colorScheme
+    val glow = remember(scheme.surface, scheme.primary, scheme.tertiary) { glowBackground(scheme.surface, scheme.primary, scheme.tertiary) }
+    val backdropDraw = remember(glow) { val draw: ContentDrawScope.() -> Unit = { glow(); drawContent() }; draw }
+    val backdrop = rememberLayerBackdrop(onDraw = backdropDraw)
+
+    val iconSetting by settings.iconStyle.collectAsStateWithLifecycle()
+    val accentHue = remember(scheme.primary) { Oklch.hueOf(scheme.primary.toArgb()) }
+
+    CompositionLocalProvider(
+        LocalGlass provides glass, LocalChromeInset provides if (glass && tab != null) GlassBarInset else 0.dp,
+        LocalIconStyle provides if (glass) IconStyle.Glass else iconSetting, // glass allows only glass-style icons
+        LocalAccentHue provides accentHue,
+    ) {
     Scaffold(
         topBar = {
             AnimatedVisibility(tab != null, enter = fadeIn(tween(FADE_MS)) + expandVertically(), exit = fadeOut(tween(FADE_MS)) + shrinkVertically()) {
                 CenterAlignedTopAppBar(
                     title = { Text(lastTab.label) },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (glass) Color.Transparent else Color.Unspecified),
                     actions = { IconButton({ nav.navigate("more") }, modifier = Modifier.testTag("more")) { Icon(Icons.Outlined.MoreVert, "More") } },
                 )
             }
@@ -110,7 +139,7 @@ fun AppRoot(nav: NavHostController = rememberNavController()) {
         },
         bottomBar = {
             AnimatedVisibility(
-                tab != null,
+                tab != null && !glass,
                 enter = slideInVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeIn(tween(FADE_MS)),
                 exit = slideOutVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeOut(tween(FADE_MS)),
             ) {
@@ -126,15 +155,18 @@ fun AppRoot(nav: NavHostController = rememberNavController()) {
         },
         floatingActionButton = {
             AnimatedVisibility(
-                tab?.id == "home" || tab?.id == "history",
+                (tab?.id == "home" || tab?.id == "history") && !glass,
                 enter = scaleIn(tween(FADE_MS)) + fadeIn(tween(FADE_MS)), exit = scaleOut(tween(FADE_MS)) + fadeOut(tween(FADE_MS)),
             ) {
                 FloatingActionButton({ nav.navigate(entryRoute()) }, modifier = Modifier.testTag("add")) { Icon(Icons.Outlined.Add, "Add") }
             }
         },
     ) { padding ->
+      Box(Modifier.fillMaxSize().then(if (glass) Modifier.drawBehind { glow() } else Modifier)) {
         NavHost(
-            nav, startDestination = startRoute, modifier = Modifier.padding(padding),
+            nav, startDestination = startRoute,
+            // With glass the content runs under the floating bar (so there is something to blur); otherwise the bar owns that strip.
+            modifier = if (glass) Modifier.padding(top = padding.calculateTopPadding()).layerBackdrop(backdrop) else Modifier.padding(padding),
             // Between two tabs: a crossfade with a slight scale (no blank frame). Into a detail screen: slide forward while fading.
             enterTransition = {
                 if (isTab(initialState) && isTab(targetState)) fadeIn(tween(FADE_MS)) + scaleIn(tween(FADE_MS), initialScale = 0.96f)
@@ -206,6 +238,20 @@ fun AppRoot(nav: NavHostController = rememberNavController()) {
             }
             composable("tags") { TagsScreen(embedded = "tags" in tabRoutes) { nav.popBackStack() } }
         }
+        if (glass) {
+            val navInset = padding.calculateBottomPadding()
+            AnimatedVisibility(
+                tab != null, Modifier.align(Alignment.BottomCenter).padding(bottom = navInset + 8.dp),
+                enter = slideInVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeIn(tween(FADE_MS)),
+                exit = slideOutVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeOut(tween(FADE_MS)),
+            ) { GlassBottomBar(backdrop, tabs, lastTab, onSelect = { nav.navigateTop(it.id) }) }
+            AnimatedVisibility(
+                tab?.id == "home" || tab?.id == "history", Modifier.align(Alignment.BottomEnd).padding(end = 24.dp, bottom = navInset + 84.dp),
+                enter = scaleIn(tween(FADE_MS)) + fadeIn(tween(FADE_MS)), exit = scaleOut(tween(FADE_MS)) + fadeOut(tween(FADE_MS)),
+            ) { GlassAddButton(backdrop, { nav.navigate(entryRoute()) }) }
+        }
+      }
+    }
     }
 }
 

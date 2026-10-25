@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Backspace
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,7 +52,11 @@ fun CalculatorSheet(initial: String, onUse: (String) -> Unit, onDismiss: () -> U
     // Show a live preview only when it adds something over what is already on the display.
     val preview = result?.let(Calculator::format)?.takeIf { it != expression }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = glassContainer(BottomSheetDefaults.ContainerColor),
+    ) {
+        GlassWindowBlur()
         Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 expression.ifEmpty { "0" }, Modifier.fillMaxWidth().testTag("calc-expression"), textAlign = TextAlign.End,

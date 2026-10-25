@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,6 +26,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -39,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -90,11 +93,12 @@ fun AccountsScreen(onOpen: (String) -> Unit, onNew: () -> Unit, onNewTransfer: (
                 }
             }
         }
-        LazyColumn(Modifier.weight(1f)) {
+        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = LocalChromeInset.current)) {
             items(state.rows, key = { it.account.uid }) { row ->
                 ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
                     modifier = Modifier.clickable { onOpen(row.account.uid) },
-                    leadingContent = { IconBadge(row.account.icon, colorOf(row.account.color)) },
+                    leadingContent = { IconBadge(row.account.icon, row.account.color) },
                     headlineContent = { Text(row.account.title.ifBlank { "Main" }) },
                     trailingContent = {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -164,7 +168,7 @@ fun AccountEditScreen(uid: String?, onBack: () -> Unit) {
             Text("Icon", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ACCOUNT_ICONS.forEach { name ->
-                    IconButton({ vm.icon = name }) { IconBadge(name, if (vm.icon == name) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline) }
+                    IconButton({ vm.icon = name }) { PickableIcon(name, vm.color, vm.icon == name) }
                 }
             }
             Text("Color", style = MaterialTheme.typography.labelLarge)

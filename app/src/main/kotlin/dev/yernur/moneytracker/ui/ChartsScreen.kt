@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -139,6 +140,7 @@ fun ChartsScreen(onOpenCategory: (String) -> Unit) {
                 IconButton({ vm.turnPage(-1) }, enabled = page > 0, modifier = Modifier.testTag("chart-newer")) { Icon(Icons.Outlined.ChevronRight, "Newer") }
             }
             data?.let { chart -> ChartBody(chart, vm.tab, vm.selected, onSelect = { vm.selected = it }) }
+            Spacer(Modifier.height(LocalChromeInset.current))
         }
     }
 }
@@ -200,7 +202,7 @@ private fun AmountRow(label: String, amount: Long, color: Color) {
 @Composable
 private fun CategoryAmountRow(category: CategoryEntity?, amount: Long, percent: Long) {
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        IconBadge(category?.icon, colorOf(category?.color), size = 40.dp)
+        IconBadge(category?.icon, category?.color, size = 40.dp)
         Column(Modifier.weight(1f)) {
             Text(category?.title ?: "No category", style = MaterialTheme.typography.bodyLarge)
             Text("$percent%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -212,7 +214,8 @@ private fun CategoryAmountRow(category: CategoryEntity?, amount: Long, percent: 
 private fun sortedCategories(byCategory: Map<String?, Long>, categories: Map<String?, CategoryEntity>) =
     byCategory.entries.map { it.key to it.value }.sortedBy { categories[it.first]?.position ?: Int.MAX_VALUE }
 
-private fun categoryColor(uid: String?, categories: Map<String?, CategoryEntity>) = colorOf(categories[uid]?.color)
+@Composable
+private fun categoryColor(uid: String?, categories: Map<String?, CategoryEntity>) = themedColor(categories[uid]?.color)
 
 private val dayLabel = DateTimeFormatter.ofPattern("d")
 private val weekLabel = DateTimeFormatter.ofPattern("d MMM")

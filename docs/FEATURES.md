@@ -98,7 +98,15 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
   the totals can cover a day, week, month or year; default month).
 - History defaults to the **day** period (matches the original's `defaultPeriod = day`) and zooms out to week / month / year.
   First weekday is Monday (backup `firstWeekday = monday`).
-- Redraw all category/account icons from scratch (original art). Colors derive from the Material 3 scheme / chosen accent,
+- BUILT: all 32 category/account icons are original artwork (no Material or third-party icon paths), drawn on a 24-unit grid. Three
+  owner-selectable styles in More -> Icon style: vivid discs (default), tonal tiles, duotone. Colors come from the system accent
+  (OKLCH hue steps around it, lightness chosen per hue so yellow stays yellow, glyph white or near-black by contrast); tests check the
+  12 colors stay distinct for every accent hue in light and dark. The backup's 12 stored colors map to the 12 slots.
+- BUILT (experimental, off by default): More -> Liquid glass: floating glass bottom bar and add button (Kyant0 Backdrop 2.0.1: blur,
+  vibrancy, lens refraction; needs Android 13+, we run on 16), frosted sheets and dialogs (system window blur, needs cross-window blur
+  enabled on the device), solid cards. With glass on, icons are forced to the glass style and the icon-style choice is locked.
+  The first glass icon look was rejected by the owner; being redesigned.
+- (original request) Redraw all category/account icons from scratch (original art). Colors derive from the Material 3 scheme / chosen accent,
   with enough chroma and hue spread that categories stay easy to tell apart.
 
 ## Other / unverified, decide later

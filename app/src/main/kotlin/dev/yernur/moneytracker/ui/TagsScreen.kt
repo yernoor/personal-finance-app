@@ -1,5 +1,6 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,6 +15,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -25,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.yernur.moneytracker.data.db.TagEntity
@@ -46,9 +49,10 @@ fun TagsScreen(embedded: Boolean = false, onBack: () -> Unit) {
         },
         floatingActionButton = { FloatingActionButton({ adding = true }, modifier = Modifier.testTag("new-tag")) { Icon(Icons.Outlined.Add, "New tag") } },
     ) { padding ->
-        LazyColumn(Modifier.padding(padding).fillMaxSize()) {
+        LazyColumn(Modifier.padding(padding).fillMaxSize(), contentPadding = PaddingValues(bottom = LocalChromeInset.current)) {
             items(tags, key = { it.uid }) { tag ->
                 ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
                     headlineContent = { Text(tag.name) },
                     supportingContent = { Text("Used ${tag.useCount} times") },
                     trailingContent = {

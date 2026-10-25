@@ -19,6 +19,7 @@ import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
@@ -261,14 +262,15 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
             }
         }
         // Bottom padding keeps the last row's amount clear of the add button.
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 88.dp)) {
+        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
             if (grouped) {
                 state.groups.forEach { group ->
                     val open = group.key in expanded
                     item(key = "group-${group.key}") {
                         ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
                             modifier = Modifier.clickable { if (open) expanded.remove(group.key) else expanded.add(group.key) }.testTag("group-${group.key}"),
-                            leadingContent = { IconBadge(group.iconName, colorOf(group.iconColor)) },
+                            leadingContent = { IconBadge(group.iconName, group.iconColor) },
                             headlineContent = { Text(group.title) },
                             supportingContent = { Text(if (group.rows.size == 1) "1 operation" else "${group.rows.size} operations") },
                             trailingContent = {
@@ -289,6 +291,7 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
                         val open = group.key in expanded
                         item(key = "transfer-group-${group.key}") {
                             ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
                                 modifier = Modifier.clickable { if (open) expanded.remove(group.key) else expanded.add(group.key) }.testTag("transfer-group-${group.key}"),
                                 leadingContent = { Icon(Icons.Outlined.SwapHoriz, null) },
                                 headlineContent = { Text(group.title) },
@@ -321,9 +324,10 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
 @Composable
 private fun HistoryItem(row: HistoryRow, onOpen: (uid: String, isTransfer: Boolean) -> Unit, modifier: Modifier = Modifier) {
     ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
         modifier = modifier.clickable { onOpen(row.uid, row.isTransfer) }.testTag("row-${row.uid}"),
         leadingContent = {
-            if (row.isTransfer) Icon(Icons.Outlined.SwapHoriz, null) else IconBadge(row.iconName, colorOf(row.iconColor))
+            if (row.isTransfer) Icon(Icons.Outlined.SwapHoriz, null) else IconBadge(row.iconName, row.iconColor)
         },
         headlineContent = { Text(row.title) },
         supportingContent = { if (row.subtitle.isNotBlank()) Text(row.subtitle, maxLines = 1) },

@@ -20,6 +20,10 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _homeTotalsPeriod = MutableStateFlow(
         prefs?.getString(HOME_PERIOD, null)?.let { name -> PeriodUnit.entries.firstOrNull { it.name == name } } ?: PeriodUnit.Month,
     )
+    private val _iconStyle = MutableStateFlow(
+        IconStyle.entries.firstOrNull { it.name == prefs?.getString(ICON_STYLE, null) && it != IconStyle.Glass } ?: IconStyle.Vivid,
+    )
+    private val _glass = MutableStateFlow(prefs?.getBoolean(GLASS, false) ?: false)
     private val warned = HashSet<String>(prefs?.getStringSet(WARNED, emptySet()).orEmpty())
 
     /** Warn when a projection passes this percent of a category limit (categories can override). */
@@ -28,6 +32,23 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
 
     /** What the History tab opens on. The original app defaults to the day (`defaultPeriod = day` in its backup). */
     val historyPeriod: StateFlow<PeriodUnit> = _historyPeriod
+
+    /** The owner's chosen icon look (never Glass: that one is automatic with liquid glass). Defaults to vivid discs. */
+    val iconStyle: StateFlow<IconStyle> = _iconStyle
+
+    fun setIconStyle(style: IconStyle) {
+        if (style == IconStyle.Glass) return
+        _iconStyle.value = style
+        prefs?.edit()?.putString(ICON_STYLE, style.name)?.apply()
+    }
+
+    /** Experimental liquid glass look (floating glass bar, add button, sheets, dialogs). Off by default. */
+    val glass: StateFlow<Boolean> = _glass
+
+    fun setGlass(enabled: Boolean) {
+        _glass.value = enabled
+        prefs?.edit()?.putBoolean(GLASS, enabled)?.apply()
+    }
 
     /** Ids of the bottom-bar tabs, in order (2 to 5 of [NAV_POOL]). */
     val navTabs: StateFlow<List<String>> = _navTabs
@@ -90,6 +111,8 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val WARNED = "warned"
         private const val HISTORY_PERIOD = "historyPeriod"
         private const val NAV_TABS = "navTabs"
+        private const val GLASS = "glass"
+        private const val ICON_STYLE = "iconStyle"
         private const val HOME_CARDS = "homeCards"
         private const val HOME_PERIOD = "homeTotalsPeriod"
     }

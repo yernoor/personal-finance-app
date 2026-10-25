@@ -3,6 +3,8 @@ package dev.yernur.moneytracker.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -129,6 +131,7 @@ fun HomeScreen() {
                 "recent" -> RecentCard(state.recent)
             }
         }
+        Spacer(Modifier.height(LocalChromeInset.current)) // lets the cards scroll under the floating glass bar
     }
 }
 
@@ -178,7 +181,7 @@ private fun TopCategoriesCard(period: PeriodTotals) {
             if (period.top.isEmpty()) Text("Nothing spent yet", style = MaterialTheme.typography.bodyMedium)
             period.top.forEach { category ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    IconBadge(category.iconName, colorOf(category.iconColor), size = 32.dp)
+                    IconBadge(category.iconName, category.iconColor, size = 32.dp)
                     Text("${category.title} · ${category.percent}%", Modifier.weight(1f))
                     Text(Money.format(category.amount, DEFAULT_CURRENCY))
                 }
@@ -195,7 +198,7 @@ private fun RecentCard(recent: List<RecentEntry>) {
             if (recent.isEmpty()) Text("No entries yet", style = MaterialTheme.typography.bodyMedium)
             recent.forEach { entry ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    IconBadge(entry.iconName, colorOf(entry.iconColor), size = 32.dp)
+                    IconBadge(entry.iconName, entry.iconColor, size = 32.dp)
                     Column(Modifier.weight(1f)) {
                         Text(entry.title)
                         Text(entry.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

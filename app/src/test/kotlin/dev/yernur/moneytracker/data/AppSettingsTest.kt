@@ -50,4 +50,25 @@ class AppSettingsTest {
         settings.setNavTabs(listOf("home")) // one tab is not a navigation bar
         assertEquals(AppSettings.NAV_DEFAULT, settings.navTabs.value)
     }
+
+    @Test
+    fun iconStyle_defaultsToVivid_persists_andNeverStoresGlass() {
+        prefs.edit().clear().commit()
+        val settings = AppSettings(prefs)
+        assertEquals(IconStyle.Vivid, settings.iconStyle.value)
+
+        settings.setIconStyle(IconStyle.Duotone)
+        assertEquals(IconStyle.Duotone, AppSettings(prefs).iconStyle.value)
+
+        settings.setIconStyle(IconStyle.Glass) // glass icons are automatic with liquid glass, never a stored choice
+        assertEquals(IconStyle.Duotone, settings.iconStyle.value)
+        prefs.edit().putString("iconStyle", "Glass").commit()
+        assertEquals(IconStyle.Vivid, AppSettings(prefs).iconStyle.value)
+    }
+
+    @Test
+    fun liquidGlassIsOffByDefault() {
+        prefs.edit().clear().commit()
+        assertEquals(false, AppSettings(prefs).glass.value)
+    }
 }

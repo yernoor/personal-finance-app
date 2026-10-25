@@ -67,7 +67,7 @@ fun CategoriesScreen(onOpen: (uid: String) -> Unit, onNew: (TransactionType) -> 
                 }
             }
             FlowRow(
-                Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
+                Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + LocalChromeInset.current),
                 horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 categories.filter { it.type == tab && !it.isArchived }.forEach { c -> CategoryTile(c, selected = false) { onOpen(c.uid) } }
@@ -159,8 +159,8 @@ fun CategoryEditScreen(uid: String?, type: TransactionType, onBack: () -> Unit) 
             }
             Text("Icon", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                AppIcons.all.keys.forEach { name ->
-                    IconButton({ vm.icon = name }) { IconBadge(name, if (vm.icon == name) colorOf(vm.color) else MaterialTheme.colorScheme.outline) }
+                AppIcons.names.forEach { name ->
+                    IconButton({ vm.icon = name }) { PickableIcon(name, vm.color, vm.icon == name) }
                 }
             }
             Text("Color", style = MaterialTheme.typography.labelLarge)

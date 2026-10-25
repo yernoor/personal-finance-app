@@ -13,12 +13,14 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import dev.yernur.moneytracker.AppContainer
 import dev.yernur.moneytracker.LocalAppContainer
 import dev.yernur.moneytracker.data.AppSettings
+import dev.yernur.moneytracker.data.IconStyle
 import dev.yernur.moneytracker.data.PeriodUnit
 import dev.yernur.moneytracker.data.TransactionDraft
 import dev.yernur.moneytracker.data.TransferDraft
@@ -264,5 +266,23 @@ class PhoneScreenFlowTest {
         waitForText("Balance ₸50,000 · after ₸49,750")
         tap("kind-Income")
         waitForText("Balance ₸50,000 · after ₸50,250")
+    }
+
+    @Test
+    fun iconStyleIsChosenInMore_andLiquidGlassLocksItToGlassIcons() {
+        tap("more")
+        compose.onNodeWithTag("open-icon-style").performScrollTo().performClick()
+        waitForText("Vivid discs")
+        tap("icon-style-Duotone")
+        assertEquals(IconStyle.Duotone, container.settings.iconStyle.value)
+        compose.onNodeWithText("Close").performClick()
+        waitForText("Duotone")
+
+        compose.onNodeWithTag("glass-toggle").performScrollTo().performClick() // turn liquid glass on
+        eventually { container.settings.glass.value }
+        waitForText("Glass icons are used with liquid glass")
+        compose.onNodeWithTag("open-icon-style").performScrollTo().performClick()
+        compose.onNodeWithTag("icon-style-Vivid").assertDoesNotExist() // locked: no dialog
+        assertEquals(IconStyle.Duotone, container.settings.iconStyle.value) // the choice is kept for when glass is off again
     }
 }

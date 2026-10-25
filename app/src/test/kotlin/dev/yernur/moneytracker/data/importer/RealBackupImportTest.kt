@@ -3,7 +3,9 @@ package dev.yernur.moneytracker.data.importer
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import dev.yernur.moneytracker.data.db.AppDatabase
+import dev.yernur.moneytracker.data.AccentPalette
 import dev.yernur.moneytracker.data.summarize
+import dev.yernur.moneytracker.ui.AppIcons
 import dev.yernur.moneytracker.data.db.TransactionType
 import java.io.File
 import kotlin.math.roundToLong
@@ -65,6 +67,14 @@ class RealBackupImportTest {
             for (uid in cached.keys()) {
                 assertEquals("balance of $uid", minor(cached.getDouble(uid)), shown[uid] ?: 0L)
             }
+
+            // Every stored color must be one of the palette keys, or it would silently fall into the hash fallback
+            val stored = (db.categoryDao().getAll().map { it.color } + db.accountDao().getAll().map { it.color }).filterNotNull().toSet()
+            assertTrue("colors outside the palette: ${stored - AccentPalette.KEYS.toSet()}", AccentPalette.KEYS.containsAll(stored))
+
+            // Every icon name in the backup has a drawn glyph (otherwise it would show as the question mark)
+            val iconNames = (db.categoryDao().getAll().map { it.icon } + db.accountDao().getAll().map { it.icon }).filterNotNull().toSet()
+            assertTrue("icons without a glyph: ${iconNames - AppIcons.names.toSet()}", AppIcons.names.containsAll(iconNames))
 
             // The Accounts-screen totals vs the owner's screenshot: Total = Main only, second figure "₸2.35M".
             val rates = db.rateDao().getAll().associate { (it.fromCurrencyCode to it.toCurrencyCode) to it.value }

@@ -128,7 +128,7 @@ class ReportsFlowTest {
     @Test
     fun categoryEdit_savesWarningThresholdAndProjectionMode() {
         compose.onNodeWithTag("more").performClick()
-        compose.onNodeWithTag("open-categories").performClick()
+        compose.onNodeWithTag("open-categories").performScrollTo().performClick()
         waitForText("Кафе")
         compose.onNodeWithTag("category-cafe").performClick()
         waitForText("Warn at % of the limit (empty = default)")
@@ -142,7 +142,7 @@ class ReportsFlowTest {
     @Test
     fun warningSettings_saveTheGlobalThreshold() {
         compose.onNodeWithTag("more").performClick()
-        compose.onNodeWithTag("open-warnings").performClick()
+        compose.onNodeWithTag("open-warnings").performScrollTo().performClick()
         compose.onNodeWithTag("warn-threshold").performTextReplacement("90")
         compose.onNodeWithText("Save").performClick()
         eventually { container.settings.warnThreshold.value == 90 }
