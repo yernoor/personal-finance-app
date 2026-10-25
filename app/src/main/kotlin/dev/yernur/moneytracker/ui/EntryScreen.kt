@@ -70,6 +70,7 @@ import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -107,6 +108,11 @@ class EntryViewModel(
     ) { accounts, categories, tags ->
         EntryOptions(accounts.filter { it.isActive && !it.isArchived }, categories.filter { !it.isArchived }, tags)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EntryOptions())
+
+    /** Current balance of every account in its own currency; the form shows the one that is selected. */
+    val balances: StateFlow<Map<String, Long>> = db.accountDao().observeBalances()
+        .map { list -> list.associate { it.uid to it.balance } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     init {
         viewModelScope.launch { if (uid == null) preselectAccount() else load(uid) }
@@ -187,6 +193,7 @@ class EntryViewModel(
 fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
     val vm = appViewModel(key = "entry-$uid-$kind") { EntryViewModel(it.db, it.ledger, uid, kind, it::afterLedgerChange) }
     val options by vm.options.collectAsStateWithLifecycle()
+    val balances by vm.balances.collectAsStateWithLifecycle()
     var confirmDelete by remember { mutableStateOf(false) }
     var addingTag by remember { mutableStateOf(false) }
     val isTransfer = vm.kind == EntryKind.Transfer
@@ -229,9 +236,13 @@ fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
 
             Text(if (isTransfer) "From account" else "Account", style = MaterialTheme.typography.labelLarge)
             AccountChips(options.accounts, vm.accountUid, tagPrefix = if (isTransfer) "from" else "account") { vm.accountUid = it }
+            val sign = if (vm.kind == EntryKind.Income) 1 else -1 // an expense and a transfer both take money out of this account
+            BalanceLine(balances[vm.accountUid], vm.currencyOf(vm.accountUid), Money.parseMinor(vm.amount)?.takeIf { it > 0 && !vm.isEditing }?.times(sign), "account-balance")
             if (isTransfer) {
                 Text("To account", style = MaterialTheme.typography.labelLarge)
                 AccountChips(options.accounts, vm.toAccountUid, tagPrefix = "to") { vm.toAccountUid = it }
+                val received = if (vm.needsToAmount()) Money.parseMinor(vm.toAmount) else Money.parseMinor(vm.amount)
+                BalanceLine(balances[vm.toAccountUid], vm.currencyOf(vm.toAccountUid), received?.takeIf { it > 0 && !vm.isEditing }, "to-balance")
                 if (vm.needsToAmount()) AmountField(vm.toAmount, { vm.toAmount = it }, "Amount received", vm.currencyOf(vm.toAccountUid).orEmpty(), "to-amount")
             } else {
                 val type = if (vm.kind == EntryKind.Income) TransactionType.Income else TransactionType.Expense
@@ -278,6 +289,17 @@ private fun AccountChips(accounts: List<AccountEntity>, selected: String?, tagPr
             )
         }
     }
+}
+
+/**
+ * The balance of the selected account only, in its currency. For a new entry it also shows what it would be after
+ * the typed amount ([change] is signed); an edited entry is already part of the balance, so no preview then.
+ */
+@Composable
+private fun BalanceLine(balance: Long?, currency: String?, change: Long?, tag: String) {
+    if (balance == null || currency == null) return
+    val text = "Balance ${Money.format(balance, currency)}" + (change?.let { " · after ${Money.format(balance + it, currency)}" } ?: "")
+    Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag(tag))
 }
 
 /** Decimal field with a calculator button (tags: `<tag>` for the field, `<tag>-calc` for the button). */

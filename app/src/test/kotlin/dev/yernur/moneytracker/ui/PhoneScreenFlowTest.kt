@@ -247,4 +247,22 @@ class PhoneScreenFlowTest {
         compose.onNodeWithTag("home-recent").assertExists()
         assertEquals(listOf("warnings", "totals", "recent"), container.settings.homeCards.value)
     }
+
+    @Test
+    fun addScreenShowsOnlyTheSelectedAccountsBalance_andWhatItWillBeAfter() {
+        runBlocking { // Main: +1,000.00; Deposit: +50,000.00
+            container.ledger.saveTransaction(TransactionDraft(null, TransactionType.Income, "main", "cafe", 100_000, today.toString(), null, emptySet()))
+            container.ledger.saveTransaction(TransactionDraft(null, TransactionType.Income, "dep", "cafe", 5_000_000, today.toString(), null, emptySet()))
+        }
+        tap("add")
+        waitForText("Balance ₸1,000") // the default account only
+        compose.onAllNodesWithText("Balance", substring = true).assertCountEquals(1)
+        compose.onNodeWithTag("amount").performTextInput("250")
+        waitForText("Balance ₸1,000 · after ₸750")
+
+        tap("account-dep") // switching the account switches the balance
+        waitForText("Balance ₸50,000 · after ₸49,750")
+        tap("kind-Income")
+        waitForText("Balance ₸50,000 · after ₸50,250")
+    }
 }
