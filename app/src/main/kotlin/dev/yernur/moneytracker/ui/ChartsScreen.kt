@@ -171,7 +171,7 @@ private fun ChartBody(chart: ChartData, tab: ChartTab, selectedRaw: Int, onSelec
     BarChart(groups, chart.buckets.map { label(chart.unit, it.range) }, selected, onSelect)
 
     val bucket = chart.buckets[selected]
-    Text(title(chart.unit, bucket.range), style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("bucket-title"))
+    Text(periodTitle(chart.unit, bucket.range), style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("bucket-title"))
     when (tab) {
         ChartTab.General -> {
             AmountRow("Income", bucket.income, IncomeColor)
@@ -222,12 +222,5 @@ private fun label(unit: PeriodUnit, range: DateRange): String = when (unit) {
     PeriodUnit.Day -> range.from.format(dayLabel)
     PeriodUnit.Week -> range.from.format(weekLabel)
     PeriodUnit.Month -> range.from.format(monthLabel)
-    PeriodUnit.Year -> range.from.year.toString()
-}
-
-private fun title(unit: PeriodUnit, range: DateRange): String = when (unit) {
-    PeriodUnit.Day -> range.from.format(DateTimeFormatter.ofPattern("EEE, MMM d, yyyy"))
-    PeriodUnit.Week -> "${range.from.format(DateTimeFormatter.ofPattern("MMM d"))} – ${range.to.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))}"
-    PeriodUnit.Month -> range.from.format(DateTimeFormatter.ofPattern("LLLL yyyy"))
     PeriodUnit.Year -> range.from.year.toString()
 }

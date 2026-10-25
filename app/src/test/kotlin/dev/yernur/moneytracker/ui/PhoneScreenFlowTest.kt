@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -17,12 +18,16 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import dev.yernur.moneytracker.AppContainer
 import dev.yernur.moneytracker.LocalAppContainer
+import dev.yernur.moneytracker.data.PeriodUnit
 import dev.yernur.moneytracker.data.TransactionDraft
+import dev.yernur.moneytracker.data.TransferDraft
+import dev.yernur.moneytracker.data.rangeOf
 import dev.yernur.moneytracker.data.db.AccountEntity
 import dev.yernur.moneytracker.data.db.CategoryEntity
 import dev.yernur.moneytracker.data.db.TransactionType
 import dev.yernur.moneytracker.data.db.AppDatabase
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -37,15 +42,23 @@ import kotlinx.coroutines.runBlocking
 class PhoneScreenFlowTest {
     @get:Rule val compose = createComposeRule()
     private lateinit var db: AppDatabase
+    private lateinit var container: AppContainer
 
     @Before
     fun setUp() = runBlocking {
         db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java)
             .allowMainThreadQueries().build()
-        db.accountDao().insertAll(listOf(AccountEntity("main", "Main", "KZT", "cash", null, 0, null, false, true, false, false, "", "")))
+        container = AppContainer(db)
+        db.accountDao().insertAll(
+            listOf(
+                AccountEntity("main", "Main", "KZT", "cash", null, 0, null, false, true, false, false, "", ""),
+                AccountEntity("dep", "Deposit", "KZT", "bank", null, 1, null, false, true, false, false, "", ""),
+                AccountEntity("usd", "Dollars", "USD", "dollar", null, 2, null, false, true, false, false, "", ""),
+            )
+        )
         db.categoryDao().insertAll(listOf(CategoryEntity("cafe", "Кафе", TransactionType.Expense, "cafe", null, 0, null, null, 0, false, "", "")))
         compose.setContent {
-            CompositionLocalProvider(LocalAppContainer provides AppContainer(db)) { AppTheme { AppRoot() } }
+            CompositionLocalProvider(LocalAppContainer provides container) { AppTheme { AppRoot() } }
         }
     }
 
@@ -100,7 +113,7 @@ class PhoneScreenFlowTest {
 
     @Test
     fun historyGroupsByCategory_andExpandsToTheEntries() {
-        val ledger = AppContainer(db).ledger
+        val ledger = container.ledger
         val date = java.time.LocalDate.now().toString()
         runBlocking {
             ledger.saveTransaction(TransactionDraft(null, TransactionType.Expense, "main", "cafe", 100_000, date, "latte", emptySet()))
@@ -116,5 +129,72 @@ class PhoneScreenFlowTest {
         tap("group-cafe-false")
         waitForText("latte", substring = true)
         compose.onNodeWithText("dinner", substring = true).assertExists()
+    }
+
+    private fun spend(comment: String, date: java.time.LocalDate) = runBlocking {
+        container.ledger.saveTransaction(TransactionDraft(null, TransactionType.Expense, "main", "cafe", 100_000, date.toString(), comment, emptySet()))
+    }
+
+    private val today = java.time.LocalDate.now()
+
+    @Test
+    fun historyOpensOnTheDay_andArrowsWalkThroughDays() {
+        spend("today-coffee", today)
+        spend("yesterday-coffee", today.minusDays(1))
+        spend("old-coffee", today.minusYears(1))
+        tap("tab-history")
+        waitForText(periodTitle(PeriodUnit.Day, PeriodUnit.Day.rangeOf(today)))
+        waitForText("today-coffee", substring = true)
+        compose.onAllNodesWithText("yesterday-coffee", substring = true).assertCountEquals(0)
+
+        tap("prev-period")
+        waitForText("yesterday-coffee", substring = true)
+        compose.onAllNodesWithText("today-coffee", substring = true).assertCountEquals(0)
+
+        tap("period-label") // tapping the title jumps back to today
+        waitForText("today-coffee", substring = true)
+
+        tap("period-Year") // zoomed out: this year only, the old entry is still a year away
+        waitForText(today.year.toString())
+        compose.onAllNodesWithText("old-coffee", substring = true).assertCountEquals(0)
+        tap("prev-period")
+        waitForText("old-coffee", substring = true)
+    }
+
+    @Test
+    fun nextArrowStopsAtThePresent() {
+        tap("tab-history")
+        waitForText(periodTitle(PeriodUnit.Day, PeriodUnit.Day.rangeOf(today)))
+        compose.onNodeWithTag("next-period").assertIsNotEnabled()
+        tap("prev-period")
+        compose.onNodeWithTag("next-period").assertIsEnabled()
+    }
+
+    @Test
+    fun theDefaultPeriodIsConfigurableInMore() {
+        tap("more")
+        tap("open-history-period")
+        tap("history-default-Month") // choosing closes the dialog
+        compose.onNodeWithContentDescription("Back").performClick()
+        tap("tab-history")
+        waitForText(periodTitle(PeriodUnit.Month, PeriodUnit.Month.rangeOf(today)))
+        assertEquals(PeriodUnit.Month, container.settings.historyPeriod.value)
+    }
+
+    @Test
+    fun groupedHistoryAddsUpTransfersBetweenTheSameAccounts() {
+        runBlocking {
+            val date = today.toString()
+            container.ledger.saveTransfer(TransferDraft(null, "main", "dep", 100_000, null, date, null))
+            container.ledger.saveTransfer(TransferDraft(null, "main", "dep", 250_000, null, date, null))
+            container.ledger.saveTransfer(TransferDraft(null, "main", "usd", 450_000, 1_000, date, null)) // 4,500 KZT -> $10
+        }
+        tap("tab-history")
+        waitForText("Main → Deposit")
+        tap("group-toggle")
+        waitForText("2 transfers")
+        waitForText("₸3,500") // 1,000 + 2,500, both sides the same currency
+        waitForText("₸4,500 → $10") // cross-currency: sent and received sums
+        compose.onNodeWithTag("transfer-child-placeholder").assertDoesNotExist()
     }
 }

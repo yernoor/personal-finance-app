@@ -27,4 +27,27 @@ class HistoryGroupingTest {
         val groups = groupByCategory(listOf(row("a", null, false, 500), row("b", null, true, 200)))
         assertEquals(2, groups.size)
     }
+
+    private fun transfer(uid: String, from: String, to: String, sent: Long, received: Long? = null, receivedCurrency: String? = null) = HistoryRow(
+        uid, true, "2026-10-25", uid, "$from → $to", "", "", null, null, null, "",
+        transfer = TransferSides(from, to, from, to, sent, "KZT", received, receivedCurrency),
+    )
+
+    @Test
+    fun transfersBetweenTheSameAccounts_areAddedUp_onBothSides() {
+        val groups = groupTransfers(
+            listOf(
+                transfer("a", "Main", "Deposit", 100_000), transfer("b", "Main", "Deposit", 250_000),
+                transfer("c", "Main", "USD", 450_000, received = 1_000, receivedCurrency = "USD"),
+                transfer("d", "Main", "USD", 225_000, received = 500, receivedCurrency = "USD"),
+                transfer("e", "Deposit", "Main", 7_000), // the reverse direction is its own flow
+                row("x", "cafe", false, 5_000), // not a transfer
+            )
+        )
+        assertEquals(listOf("Main-Deposit", "Main-USD", "Deposit-Main"), groups.map { it.key })
+        assertEquals("₸3,500", groups[0].amount) // 1,000 + 2,500 sent; same currency: no received side
+        assertEquals("₸6,750 → $15", groups[1].amount) // 4,500 + 2,250 sent, $10 + $5 received
+        assertEquals(2, groups[1].rows.size)
+        assertEquals("Main → Deposit", groups[0].title)
+    }
 }

@@ -8,16 +8,19 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.FileUpload
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,6 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.yernur.moneytracker.data.AppSettings
+import dev.yernur.moneytracker.data.PeriodUnit
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import dev.yernur.moneytracker.data.importer.MmbackupMapper
@@ -44,6 +48,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit) {
     var showWarnings by remember { mutableStateOf(false) }
+    var showHistoryPeriod by remember { mutableStateOf(false) }
     val container = dev.yernur.moneytracker.LocalAppContainer.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -76,6 +81,12 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit) {
             modifier = Modifier.clickable(onClick = onTags).testTag("open-tags"),
             leadingContent = { Icon(Icons.AutoMirrored.Outlined.Label, null) }, headlineContent = { Text("Tags") },
         )
+        val historyPeriod by container.settings.historyPeriod.collectAsStateWithLifecycle()
+        ListItem(
+            modifier = Modifier.clickable { showHistoryPeriod = true }.testTag("open-history-period"),
+            leadingContent = { Icon(Icons.Outlined.History, null) }, headlineContent = { Text("History opens on") },
+            supportingContent = { Text(historyPeriod.name) },
+        )
         ListItem(
             modifier = Modifier.clickable { showWarnings = true }.testTag("open-warnings"),
             leadingContent = { Icon(Icons.Outlined.NotificationsActive, null) }, headlineContent = { Text("Spending warnings") },
@@ -87,6 +98,7 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit) {
             supportingContent = { Text("Adds or overwrites by id; nothing local is deleted") },
         )
     }
+    if (showHistoryPeriod) HistoryPeriodDialog(container.settings) { showHistoryPeriod = false }
     if (showWarnings) WarningSettingsDialog(container.settings) { showWarnings = false }
     message?.let { AlertDialog({ message = null }, confirmButton = { TextButton({ message = null }) { Text("OK") } }, text = { Text(it) }) }
 }
@@ -119,5 +131,28 @@ private fun WarningSettingsDialog(settings: AppSettings, onDismiss: () -> Unit) 
             TextButton({ text.toIntOrNull()?.takeIf { it > 0 }?.let(settings::setWarnThreshold); onDismiss() }) { Text("Save") }
         },
         dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun HistoryPeriodDialog(settings: AppSettings, onDismiss: () -> Unit) {
+    val current by settings.historyPeriod.collectAsStateWithLifecycle()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("History opens on") },
+        text = {
+            Column {
+                PeriodUnit.entries.forEach { unit ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable { settings.setHistoryPeriod(unit); onDismiss() }.testTag("history-default-${unit.name}"),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(current == unit, { settings.setHistoryPeriod(unit); onDismiss() })
+                        Text(unit.name)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onDismiss) { Text("Close") } },
     )
 }

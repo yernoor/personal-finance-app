@@ -78,9 +78,11 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 - Amount calculator (owner request): a calculator button on every amount field opens a keypad sheet like the phone's calculator
   (C, smart parentheses, %, ÷ × − +, decimals, backspace, =, live preview, "Use result"). Percent works like the phone's:
   `1000 + 10%` = 1100, `200 × 10%` = 20. Results round to cents.
+- History periods (owner request): Day / Week / Month / Year switch with arrows (the next arrow stops at the present; tapping the title
+  jumps back to today). Opens on the **day** by default, matching the original; More -> "History opens on" changes the default.
 - History "Group by category" (owner request): a toggle beside Search adds up each category (and direction) in the shown period,
-  with an operation count; tap a group to expand its entries; transfers stay listed separately. It works on whatever period History
-  shows (a month today; day/week/year arrive with the zoom in milestone 5b).
+  with an operation count; tap a group to expand its entries. Transfers are grouped too, by account pair ("Main -> Deposit 2"),
+  with both sides summed ("₸4,500 -> $10" for cross-currency); the reverse direction is its own group.
 - Not built yet: a daily background check (a warning is only evaluated when you save an entry; WorkManager arrives with sync/reminders),
   Income-side limits, charts for a custom period, per-account chart filter (original had one).
 - Unverified: for a ledger whose first month is partial, that month counts as a full month in the 3-month average.

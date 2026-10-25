@@ -60,7 +60,7 @@ Not known: reports/charts, budgets UI, recurring items, widgets, search, filters
 5b. UX polish (owner requests, 2026-10-25):
    - Navigation animations: no disappearing/abrupt transitions; polished enter/exit and shared-element feel.
    - Customizable bottom navbar (which tabs, order) and configurable Home layout (default: monthly totals cards).
-   - History opens on the **daily** total by default and zooms out to week / month / year (reuses M5's period model).
+   - History opens on the **daily** total by default and zooms out to week / month / year (reuses M5's period model). DONE (setting in More).
    - Completely redrawn category/account icons: original artwork, driven by the Material 3 scheme so they follow the
      user's accent color, but not muted: keep hues clearly distinguishable from each other.
 6. Google sign-in + Sheet creation + initial full push. Sheet layout must keep the `Transactions` column order.
