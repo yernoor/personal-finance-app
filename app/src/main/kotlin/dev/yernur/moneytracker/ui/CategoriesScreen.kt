@@ -18,6 +18,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +46,7 @@ import dev.yernur.moneytracker.data.LedgerRepository
 import dev.yernur.moneytracker.data.Money
 import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.db.CategoryEntity
+import dev.yernur.moneytracker.data.db.ProjectionMode
 import dev.yernur.moneytracker.data.db.TransactionType
 import kotlinx.coroutines.launch
 
@@ -89,6 +91,8 @@ class CategoryEditViewModel(
     var icon by mutableStateOf("other")
     var color by mutableStateOf(CategoryPalette[6])
     var limit by mutableStateOf("")
+    var threshold by mutableStateOf("")
+    var mode by mutableStateOf(ProjectionMode.Auto)
     private var original: CategoryEntity? = null
     val isEditing get() = uid != null
 
@@ -98,6 +102,8 @@ class CategoryEditViewModel(
                 original = it
                 title = it.title; icon = it.icon ?: "other"; color = it.color ?: color
                 limit = it.limitAmount?.let(Money::editable).orEmpty()
+                threshold = it.warnThresholdPercent?.toString().orEmpty()
+                mode = it.projectionMode
             }
         }
     }
@@ -107,7 +113,9 @@ class CategoryEditViewModel(
             uid = ledger.newCategoryUid(), title = "", type = type, icon = null, color = null, useCount = 0, lastUse = null,
             limitAmount = null, position = db.categoryDao().nextPosition(type), isArchived = false, created = "", modified = "",
         )
-        ledger.saveCategory(base.copy(title = title.trim(), icon = icon, color = color, limitAmount = Money.parseMinor(limit)?.takeIf { it > 0 }))
+        ledger.saveCategory(base.copy(title = title.trim(), icon = icon, color = color, limitAmount = Money.parseMinor(limit)?.takeIf { it > 0 },
+            warnThresholdPercent = threshold.trim().toIntOrNull()?.takeIf { it > 0 }, projectionMode = mode,
+        ))
         onDone()
     }
 
@@ -136,6 +144,19 @@ fun CategoryEditScreen(uid: String?, type: TransactionType, onBack: () -> Unit) 
                 singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth().testTag("category-limit"),
             )
+            if (type == TransactionType.Expense) {
+                OutlinedTextField(
+                    vm.threshold, { vm.threshold = it.filter(Char::isDigit) }, label = { Text("Warn at % of the limit (empty = default)") },
+                    singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth().testTag("category-threshold"),
+                )
+                Text("In the overall projection", style = MaterialTheme.typography.labelLarge)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(ProjectionMode.Auto to "Automatic", ProjectionMode.Include to "Always", ProjectionMode.Exclude to "Never").forEach { (m, label) ->
+                        FilterChip(vm.mode == m, { vm.mode = m }, label = { Text(label) }, modifier = Modifier.testTag("mode-$m"))
+                    }
+                }
+            }
             Text("Icon", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AppIcons.all.keys.forEach { name ->

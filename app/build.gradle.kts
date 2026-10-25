@@ -23,6 +23,9 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
     }
+
+    // Exported Room schemas feed the migration test (Robolectric reads them as assets). Debug builds only; ~30 KB.
+    sourceSets.getByName("debug").assets.directories.add("$projectDir/schemas")
 }
 
 // Room schema JSON is committed so migrations can be tested from version 1.
@@ -50,6 +53,7 @@ dependencies {
     testImplementation(libs.coroutines.test)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    testImplementation(libs.room.testing)
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)
     debugImplementation(libs.compose.ui.test.manifest)

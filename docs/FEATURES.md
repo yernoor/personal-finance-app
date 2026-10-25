@@ -31,7 +31,7 @@ Target device: Android 16 (API 36) -> `minSdk = 36` is possible; owner to confir
 | **Projected expenses per category and overall** | must | New (owner request). Projection for the current month from spending so far; method to be agreed (see below). |
 | **Limit warnings** | must | New (owner request). Warn when the projection for a category (Досуг, Кафе, Другое, ...) exceeds its limit; threshold configurable. |
 
-### Projection design (owner chose: linear run-rate primary, trailing 3-month average secondary)
+### Projection design (owner chose: linear run-rate primary, trailing 3-month average secondary). IMPLEMENTED in milestone 5
 - **Primary (run-rate)**, per category, current month: `projected = spent_so_far / days_elapsed * days_in_month`.
 - **Secondary (3-month average)**, per category: mean of the previous 3 full calendar months' spending. Shown next to the
   primary figure as a reference, never mixed into it. Useful early in the month, when the run-rate is noisy.
@@ -66,6 +66,25 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 | Google Sheets sync | must | Milestones 6-7, per docs/SYNC_DESIGN.md. |
 | Local DB backup / restore | must | Milestone 8. |
 | Multi-currency (KZT, USD), stored rates | must | `rates` table has 3 rows; how the original uses them for totals is unverified. |
+
+## Milestone 5 as built (verified on the emulator with the real backup)
+- Charts: General (income / expenses / profit-loss bars), Expenses and Income stacked by category, zoom By year / month / week / day,
+  tap a bar for its totals and category shares. Forecast tab: overall run-rate and 3-month average, per-category cards with limit bars,
+  warned categories first.
+- Warnings: Home card plus notifications (channel "Spending warnings"; one per month, category and level, escalating
+  3-month average -> on track -> over the limit). Per-category threshold and "in overall projection" (Automatic / Always / Never) on the
+  category screen; global threshold and notification switch under More -> Spending warnings. Schema is now v2 (migration tested).
+- Not built yet: a daily background check (a warning is only evaluated when you save an entry; WorkManager arrives with sync/reminders),
+  Income-side limits, charts for a custom period, per-account chart filter (original had one).
+- Unverified: for a ledger whose first month is partial, that month counts as a full month in the 3-month average.
+
+## UX polish requests (owner, 2026-10-25), scheduled as milestone 5b
+- Navigation transitions must not disappear/pop abruptly; polish enter/exit animations.
+- Customizable bottom navbar (tabs shown, order) and configurable Home layout; default Home keeps the monthly totals.
+- History defaults to the **day** period (matches the original's `defaultPeriod = day`) and zooms out to week / month / year.
+  First weekday is Monday (backup `firstWeekday = monday`).
+- Redraw all category/account icons from scratch (original art). Colors derive from the Material 3 scheme / chosen accent,
+  with enough chroma and hue spread that categories stay easy to tell apart.
 
 ## Other / unverified, decide later
 

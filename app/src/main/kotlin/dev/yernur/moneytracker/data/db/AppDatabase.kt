@@ -2,6 +2,9 @@ package dev.yernur.moneytracker.data.db
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.SQLiteConnection
+import androidx.sqlite.execSQL
 
 @Database(
     entities = [
@@ -14,7 +17,7 @@ import androidx.room.RoomDatabase
         ReminderEntity::class,
         RateEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -25,4 +28,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun transferDao(): TransferDao
     abstract fun reminderDao(): ReminderDao
     abstract fun rateDao(): RateDao
+}
+
+/** Adds the per-category warning threshold and projection mode (milestone 5). */
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE category ADD COLUMN warnThresholdPercent INTEGER")
+        connection.execSQL("ALTER TABLE category ADD COLUMN projectionMode TEXT NOT NULL DEFAULT 'Auto'")
+    }
 }

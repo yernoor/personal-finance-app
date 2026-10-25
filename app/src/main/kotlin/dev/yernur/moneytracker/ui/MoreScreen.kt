@@ -1,17 +1,24 @@
 package dev.yernur.moneytracker.ui
 
+import android.Manifest
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.FileUpload
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -20,7 +27,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.yernur.moneytracker.data.AppSettings
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import dev.yernur.moneytracker.data.importer.MmbackupMapper
@@ -31,6 +43,7 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit) {
+    var showWarnings by remember { mutableStateOf(false) }
     val container = dev.yernur.moneytracker.LocalAppContainer.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -64,10 +77,47 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit) {
             leadingContent = { Icon(Icons.AutoMirrored.Outlined.Label, null) }, headlineContent = { Text("Tags") },
         )
         ListItem(
+            modifier = Modifier.clickable { showWarnings = true }.testTag("open-warnings"),
+            leadingContent = { Icon(Icons.Outlined.NotificationsActive, null) }, headlineContent = { Text("Spending warnings") },
+            supportingContent = { Text("Threshold and notifications") },
+        )
+        ListItem(
             modifier = Modifier.clickable { picker.launch(arrayOf("*/*")) }.testTag("import"),
             leadingContent = { Icon(Icons.Outlined.FileUpload, null) }, headlineContent = { Text("Import .mmbackup") },
             supportingContent = { Text("Adds or overwrites by id; nothing local is deleted") },
         )
     }
+    if (showWarnings) WarningSettingsDialog(container.settings) { showWarnings = false }
     message?.let { AlertDialog({ message = null }, confirmButton = { TextButton({ message = null }) { Text("OK") } }, text = { Text(it) }) }
+}
+
+@Composable
+private fun WarningSettingsDialog(settings: AppSettings, onDismiss: () -> Unit) {
+    val threshold by settings.warnThreshold.collectAsStateWithLifecycle()
+    val notifications by settings.notifications.collectAsStateWithLifecycle()
+    var text by remember { mutableStateOf(threshold.toString()) }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Spending warnings") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    text, { text = it.filter(Char::isDigit) }, label = { Text("Warn at % of a category limit") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.testTag("warn-threshold"),
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Notifications", Modifier.weight(1f))
+                    Switch(notifications, {
+                        settings.setNotifications(it)
+                        if (it) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    })
+                }
+            }
+        },
+        confirmButton = {
+            TextButton({ text.toIntOrNull()?.takeIf { it > 0 }?.let(settings::setWarnThreshold); onDismiss() }) { Text("Save") }
+        },
+        dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
+    )
 }

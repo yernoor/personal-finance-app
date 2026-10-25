@@ -1,5 +1,6 @@
 package dev.yernur.moneytracker.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -10,6 +11,9 @@ import androidx.room.PrimaryKey
 // `isRemoved` is the tombstone that sync propagates (docs/SYNC_DESIGN.md).
 
 enum class TransactionType { Income, Expense }
+
+/** Whether a category counts toward the overall spending projection: Auto = by the "fewer than 2 operations a month" rule. */
+enum class ProjectionMode { Auto, Include, Exclude }
 
 @Entity(tableName = "account")
 data class AccountEntity(
@@ -46,6 +50,9 @@ data class CategoryEntity(
     val created: String,
     val modified: String,
     val isRemoved: Boolean = false,
+    /** Added in schema 2. Warn when a projection passes this share of [limitAmount]; null = the global setting. */
+    val warnThresholdPercent: Int? = null,
+    @ColumnInfo(defaultValue = "Auto") val projectionMode: ProjectionMode = ProjectionMode.Auto,
 )
 
 @Entity(tableName = "tag")

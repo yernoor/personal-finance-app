@@ -86,6 +86,7 @@ class EntryViewModel(
     private val ledger: LedgerRepository,
     private val uid: String?,
     initialKind: EntryKind,
+    private val afterSave: suspend () -> Unit = {},
     private val today: () -> LocalDate = LocalDate::now,
 ) : ViewModel() {
     var kind by mutableStateOf(initialKind)
@@ -166,6 +167,7 @@ class EntryViewModel(
                 val type = if (kind == EntryKind.Income) TransactionType.Income else TransactionType.Expense
                 ledger.saveTransaction(TransactionDraft(uid, type, account, categoryUid, minor, date.toString(), comment, tagUids))
             }
+            afterSave() // may post a spending warning
             onDone()
         }
     }
@@ -182,7 +184,7 @@ class EntryViewModel(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
-    val vm = appViewModel(key = "entry-$uid-$kind") { EntryViewModel(it.db, it.ledger, uid, kind) }
+    val vm = appViewModel(key = "entry-$uid-$kind") { EntryViewModel(it.db, it.ledger, uid, kind, it::afterLedgerChange) }
     val options by vm.options.collectAsStateWithLifecycle()
     var confirmDelete by remember { mutableStateOf(false) }
     var addingTag by remember { mutableStateOf(false) }

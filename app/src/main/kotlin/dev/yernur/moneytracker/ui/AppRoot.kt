@@ -86,7 +86,7 @@ fun AppRoot(nav: NavHostController = rememberNavController()) {
             composable(Tab.History.route) {
                 HistoryScreen { uid, isTransfer -> nav.navigate(entryRoute(uid, if (isTransfer) EntryKind.Transfer else EntryKind.Expense)) }
             }
-            composable(Tab.Charts.route) { Text("Charts and projections arrive in the next milestone.", Modifier.padding(16.dp)) }
+            composable(Tab.Charts.route) { ChartsScreen(onOpenCategory = { nav.navigate("category/$it?type=Expense") }) }
             composable(Tab.Accounts.route) {
                 AccountsScreen(
                     onOpen = { nav.navigate("account/$it") }, onNew = { nav.navigate("account/new") },

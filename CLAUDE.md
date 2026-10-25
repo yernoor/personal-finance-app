@@ -56,7 +56,13 @@ Not known: reports/charts, budgets UI, recurring items, widgets, search, filters
 3. `.mmbackup` importer + tests. Acceptance: imported counts, totals and per-account balances equal
    `snapshot.json` to the cent, including cross-currency transfers and removed rows excluded.
 4. Core screens: accounts, add/edit transaction (fast entry is the daily habit), transfers, categories, tags, history list.
-5. Reports/budgets per FEATURES.md.
+5. Reports/budgets per FEATURES.md: period model, charts, projections (run-rate + 3-month average), limit warnings + notifications.
+5b. UX polish (owner requests, 2026-10-25):
+   - Navigation animations: no disappearing/abrupt transitions; polished enter/exit and shared-element feel.
+   - Customizable bottom navbar (which tabs, order) and configurable Home layout (default: monthly totals cards).
+   - History opens on the **daily** total by default and zooms out to week / month / year (reuses M5's period model).
+   - Completely redrawn category/account icons: original artwork, driven by the Material 3 scheme so they follow the
+     user's accent color, but not muted: keep hues clearly distinguishable from each other.
 6. Google sign-in + Sheet creation + initial full push. Sheet layout must keep the `Transactions` column order.
 7. Two-way sync + Apps Script `onEdit` stamping (`/sheets/Code.gs`) + conflict log.
 8. Polish, backup/restore of the local DB, release APK signed with the owner's local keystore (sideload).

@@ -15,6 +15,9 @@ data class AccountBalance(val uid: String, val balance: Long)
 
 data class TypeTotal(val type: TransactionType, val total: Long)
 
+/** The few columns reports need; a missing default-currency amount counts as 0. */
+data class TxLite(val date: String, val type: TransactionType, val categoryUid: String?, val amount: Long)
+
 @Dao
 interface AccountDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -122,6 +125,18 @@ interface TransactionDao {
 
     @Query("SELECT type, SUM(amountInDefaultCurrency) AS total FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to GROUP BY type")
     fun observeTotals(from: String, to: String): Flow<List<TypeTotal>>
+
+    @Query("SELECT date, type, categoryUid, COALESCE(amountInDefaultCurrency, 0) AS amount FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to")
+    fun observeLite(from: String, to: String): Flow<List<TxLite>>
+
+    @Query("SELECT date, type, categoryUid, COALESCE(amountInDefaultCurrency, 0) AS amount FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to")
+    suspend fun getLite(from: String, to: String): List<TxLite>
+
+    @Query("SELECT MIN(date) FROM transactions WHERE isRemoved = 0")
+    fun observeEarliestDate(): Flow<String?>
+
+    @Query("SELECT MIN(date) FROM transactions WHERE isRemoved = 0")
+    suspend fun earliestDate(): String?
 
     @Query("SELECT * FROM transactions")
     suspend fun getAll(): List<TransactionEntity>
