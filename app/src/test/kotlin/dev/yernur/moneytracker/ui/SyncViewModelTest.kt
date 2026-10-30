@@ -26,6 +26,7 @@ import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -81,10 +82,36 @@ class SyncViewModelTest {
     }
 
     @Test
-    fun alreadyGranted_createsAndUploadsTheSheetAtOnce_withoutAskingAgain() {
+    fun connect_onlyRecordsTheGrant_andCreatesNothing() {
         val vm = SyncViewModel(db, settings, googleOk)
-        val authorizer = FakeAuthorizer({ AuthResult("token", null) })
+        vm.connect(FakeAuthorizer({ AuthResult("token", null) }))
+        waitFor { settings.googleConnected.value }
+        waitFor { vm.state == SyncState.Idle }
+        assertNull(settings.spreadsheetId.value)
+        assertTrue(googleOk.requests.isEmpty())
+    }
+
+    @Test
+    fun connect_needsConsent_pausesForTheConsentScreen_thenRecordsTheGrant() {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        val consent = PendingIntent.getActivity(context, 0, Intent(), PendingIntent.FLAG_IMMUTABLE).intentSender
+        val vm = SyncViewModel(db, settings, googleOk)
+        val authorizer = FakeAuthorizer({ AuthResult(null, consent) })
         vm.connect(authorizer)
+        waitFor { vm.state is SyncState.NeedsConsent }
+        assertFalse(settings.googleConnected.value)
+
+        vm.onConsentResult(authorizer, Intent())
+        waitFor { settings.googleConnected.value }
+        assertNull(settings.spreadsheetId.value) // still no sheet: that is step 2
+        assertTrue(googleOk.requests.isEmpty())
+    }
+
+    @Test
+    fun createSheet_createsAndUploads_usingTheTokenGoogleGaveForThatCall() {
+        settings.setGoogleConnected(true)
+        val vm = SyncViewModel(db, settings, googleOk)
+        vm.createSheet(FakeAuthorizer({ AuthResult("token", null) }))
         waitFor { settings.spreadsheetId.value != null }
         assertEquals("sid", settings.spreadsheetId.value)
         assertTrue(googleOk.requests.all { it.headers["Authorization"] == "Bearer token" })
@@ -92,18 +119,16 @@ class SyncViewModelTest {
     }
 
     @Test
-    fun needsConsent_pausesForTheConsentScreen_thenFinishesWithTheGrantedToken() {
+    fun createSheet_afterTheAccessWasRevoked_asksToConnectAgain_andCreatesNothing() {
+        settings.setGoogleConnected(true)
         val context = ApplicationProvider.getApplicationContext<Application>()
         val consent = PendingIntent.getActivity(context, 0, Intent(), PendingIntent.FLAG_IMMUTABLE).intentSender
         val vm = SyncViewModel(db, settings, googleOk)
-        val authorizer = FakeAuthorizer({ AuthResult(null, consent) })
-        vm.connect(authorizer)
-        waitFor { vm.state is SyncState.NeedsConsent }
-        assertNull(settings.spreadsheetId.value) // nothing is created before the owner agrees
-
-        vm.onConsentResult(authorizer, Intent())
-        waitFor { settings.spreadsheetId.value != null }
-        assertTrue(googleOk.requests.all { it.headers["Authorization"] == "Bearer granted-token" })
+        vm.createSheet(FakeAuthorizer({ AuthResult(null, consent) }))
+        waitFor { vm.state is SyncState.Failed }
+        assertFalse(settings.googleConnected.value)
+        assertTrue((vm.state as SyncState.Failed).message.contains("Connect Google"))
+        assertTrue(googleOk.requests.isEmpty())
     }
 
     @Test
@@ -113,7 +138,7 @@ class SyncViewModelTest {
             if (calls++ == 0) HttpResponse(401, "{}") else googleOk.execute(request)
         }
         val authorizer = FakeAuthorizer({ AuthResult("stale", null) })
-        SyncViewModel(db, settings, transport).connect(authorizer)
+        SyncViewModel(db, settings, transport).createSheet(authorizer)
         waitFor { settings.spreadsheetId.value != null }
         assertEquals(listOf("stale"), authorizer.refreshed)
         assertEquals("Bearer fresh", transport.requests[1].headers["Authorization"])

@@ -25,6 +25,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _glassIconStyle = MutableStateFlow(storedIconStyle(prefs, GLASS_ICON_STYLE, glass = true, IconStyle.GlassTile))
     private val _spreadsheetId = MutableStateFlow(prefs?.getString(SPREADSHEET_ID, null))
     private val _spreadsheetUrl = MutableStateFlow(prefs?.getString(SPREADSHEET_URL, null))
+    private val _googleConnected = MutableStateFlow(prefs?.getBoolean(GOOGLE_CONNECTED, false) ?: false)
     private val _glass = MutableStateFlow(prefs?.getBoolean(GLASS, false) ?: false)
     private val warned = HashSet<String>(prefs?.getStringSet(WARNED, emptySet()).orEmpty())
 
@@ -38,6 +39,14 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     /** The spreadsheet this app created in Google Drive (only files the app created are reachable, by the drive.file scope). */
     val spreadsheetId: StateFlow<String?> = _spreadsheetId
     val spreadsheetUrl: StateFlow<String?> = _spreadsheetUrl
+
+    /** The owner approved Google access (step 1). Only a hint for the screen: the permission itself lives with Google and can be revoked. */
+    val googleConnected: StateFlow<Boolean> = _googleConnected
+
+    fun setGoogleConnected(connected: Boolean) {
+        _googleConnected.value = connected
+        prefs?.edit()?.putBoolean(GOOGLE_CONNECTED, connected)?.apply()
+    }
 
     fun setSpreadsheet(id: String, url: String) {
         _spreadsheetId.value = id
@@ -151,6 +160,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val HISTORY_PERIOD = "historyPeriod"
         private const val NAV_TABS = "navTabs"
         private const val GLASS = "glass"
+        private const val GOOGLE_CONNECTED = "googleConnected"
         private const val SPREADSHEET_ID = "spreadsheetId"
         private const val SPREADSHEET_URL = "spreadsheetUrl"
         private const val DEVICE_ID = "deviceId"

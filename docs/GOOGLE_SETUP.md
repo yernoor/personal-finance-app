@@ -31,13 +31,15 @@ Google's verification. The docs say the "Unverified app" warning appears for *se
      (from `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`).
    - The release APK you sideload later (milestone 8) has a different keystore: create a second Android client for its SHA-1.
 6. **Audience → Publish app** (status *In production*). Without this, the permission lapses every 7 days and you must reconnect.
-7. In the app: **More → Google Sheets → Connect Google and create the sheet**.
+7. In the app: **More → Google Sheets**. Step 1 **Connect Google** (consent screen, creates nothing), then step 2 **Create the sheet and upload my data**.
 
 ## If something goes wrong
 
 | What the app says | Cause |
 |---|---|
 | "Google sign-in is not set up for this build yet" (error code 10) | No Android OAuth client for this package + SHA-1, or the SHA-1 does not match the build you installed. |
+| Google screen "Access blocked … developer-approved testers" (403 access_denied) | The consent screen is in *Testing* and your account is not under Audience → Test users (step 4), or publish it (step 6). |
+| "Range … exceeds grid limits" | Fixed in the app: each tab is now sized to its data when the sheet is created. |
 | "Google refused access … Sheets API" (HTTP 403) | The Google Sheets API is not enabled in the project (step 2). |
 | "Google rejected the sign-in" (HTTP 401) | The token was revoked; connect again. |
 | Asked to connect again after a week | The consent screen is still in *Testing* (step 6). |

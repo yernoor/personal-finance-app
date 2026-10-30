@@ -87,6 +87,7 @@ class SyncViewModel(
     var state by mutableStateOf<SyncState>(SyncState.Idle)
         private set
 
+    /** Step 1: get Google's permission (shows the consent screen if needed). Creates nothing. */
     fun connect(authorizer: Authorizer) {
         viewModelScope.launch {
             state = SyncState.Working("Asking Google for access")
@@ -94,17 +95,37 @@ class SyncViewModel(
                 val result = authorizer.authorize()
                 val consent = result.consent
                 if (consent != null) state = SyncState.NeedsConsent(IntentSenderRequest.Builder(consent).build())
-                else push(authorizer, result.accessToken ?: error("Google gave no access token"))
+                else markConnected(result.accessToken)
             }.onFailure { state = SyncState.Failed(describeError(it)) }
         }
     }
 
     fun onConsentResult(authorizer: Authorizer, data: Intent?) {
         viewModelScope.launch {
-            state = SyncState.Working("Checking the permission")
-            runCatching { push(authorizer, authorizer.resultFrom(data).accessToken ?: error("Access was not granted")) }
+            runCatching { markConnected(authorizer.resultFrom(data).accessToken) }
                 .onFailure { state = SyncState.Failed(describeError(it)) }
         }
+    }
+
+    /** Step 2: create the spreadsheet and upload everything. Asks Google again without a screen when the permission still stands. */
+    fun createSheet(authorizer: Authorizer) {
+        viewModelScope.launch {
+            state = SyncState.Working("Asking Google for access")
+            runCatching {
+                val result = authorizer.authorize()
+                val token = result.accessToken
+                if (result.consent != null || token == null) {
+                    settings.setGoogleConnected(false) // revoked or expired since step 1
+                    state = SyncState.Failed("Google access has to be approved again. Tap Connect Google.")
+                } else push(authorizer, token)
+            }.onFailure { state = SyncState.Failed(describeError(it)) }
+        }
+    }
+
+    private fun markConnected(token: String?) {
+        requireNotNull(token) { "Google did not grant access" }
+        settings.setGoogleConnected(true)
+        state = SyncState.Idle
     }
 
     fun forget() {
@@ -132,6 +153,7 @@ fun SyncScreen(onBack: () -> Unit) {
     val container = dev.yernur.moneytracker.LocalAppContainer.current
     val context = LocalContext.current
     val spreadsheetUrl by container.settings.spreadsheetUrl.collectAsStateWithLifecycle()
+    val googleConnected by container.settings.googleConnected.collectAsStateWithLifecycle()
     // Null on a device without Google Play services (the Authorization API cannot be created there)
     val authorizer = remember(context) { runCatching { context.findActivity()?.let(::GoogleAuthorizer) }.getOrNull() }
     val consentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
@@ -149,12 +171,22 @@ fun SyncScreen(onBack: () -> Unit) {
                     "(the drive.file permission), never the rest of your Drive.",
                 style = MaterialTheme.typography.bodyMedium,
             )
+            val idle = state !is SyncState.Working
             if (spreadsheetUrl == null) {
-                Button(
-                    { authorizer?.let(vm::connect) }, enabled = state !is SyncState.Working && authorizer != null,
-                    modifier = Modifier.fillMaxWidth().testTag("sync-connect"),
-                ) { Text("Connect Google and create the sheet") }
-                if (authorizer == null) Text("Google Play services are not available on this device.", color = MaterialTheme.colorScheme.error)
+                if (!googleConnected) {
+                    Text("Step 1 of 2", style = MaterialTheme.typography.labelLarge)
+                    Button(
+                        { authorizer?.let(vm::connect) }, enabled = idle && authorizer != null,
+                        modifier = Modifier.fillMaxWidth().testTag("sync-connect"),
+                    ) { Text("Connect Google") }
+                    if (authorizer == null) Text("Google Play services are not available on this device.", color = MaterialTheme.colorScheme.error)
+                } else {
+                    Text("Google is connected. Step 2 of 2", style = MaterialTheme.typography.labelLarge, modifier = Modifier.testTag("sync-google-connected"))
+                    Button(
+                        { authorizer?.let(vm::createSheet) }, enabled = idle && authorizer != null,
+                        modifier = Modifier.fillMaxWidth().testTag("sync-create"),
+                    ) { Text("Create the sheet and upload my data") }
+                }
             } else {
                 Card(Modifier.fillMaxWidth().testTag("sync-connected")) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

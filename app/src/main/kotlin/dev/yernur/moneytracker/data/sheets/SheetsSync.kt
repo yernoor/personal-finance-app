@@ -24,7 +24,7 @@ class SheetsSync(
         )
 
         onProgress("Creating the spreadsheet")
-        val created = api.createSpreadsheet(TITLE, SheetLayout.ALL)
+        val created = api.createSpreadsheet(TITLE, SheetLayout.ALL, tabs.associate { it.spec.title to it.rows.size + 1 })
 
         for (tab in tabs) {
             onProgress("Uploading ${tab.spec.title} (${tab.rows.size} rows)")

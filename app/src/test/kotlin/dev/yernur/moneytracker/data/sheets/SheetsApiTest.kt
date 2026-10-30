@@ -23,6 +23,19 @@ class SheetsApiTest {
         "sheets":[{"properties":{"sheetId":0,"title":"Transactions"}},{"properties":{"sheetId":11,"title":"_deleted"}}]}"""
 
     @Test
+    fun createSpreadsheet_sizesEachGridToItsRows_becauseWritesDoNotGrowIt() = runBlocking {
+        val transport = FakeTransport { ok(created) }
+        api(transport).createSpreadsheet("t", SheetLayout.ALL, mapOf("Transactions" to 4_498, "Tags" to 1))
+
+        val sheets = JSONObject(transport.requests.single().body!!).getJSONArray("sheets")
+        fun grid(title: String) = (0 until sheets.length()).map { sheets.getJSONObject(it).getJSONObject("properties") }
+            .first { it.getString("title") == title }.getJSONObject("gridProperties")
+        assertEquals(4_998, grid("Transactions").getInt("rowCount")) // data + header spare room, past the 1,500-row batch
+        assertEquals(501, grid("Tags").getInt("rowCount"))
+        assertTrue(!grid("Accounts").has("rowCount")) // no size given: Google's default
+    }
+
+    @Test
     fun createSpreadsheet_sendsTheTabsInOrder_hidesTheBookkeepingOnes_andParsesTheIds() = runBlocking {
         val transport = FakeTransport { ok(created) }
         val result = api(transport).createSpreadsheet("Money Tracker", SheetLayout.ALL)

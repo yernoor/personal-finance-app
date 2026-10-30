@@ -26,14 +26,17 @@ class SheetsApi(
     private val sleep: suspend (millis: Long) -> Unit = { delay(it) },
     private val jitter: () -> Long = { (Math.random() * 1000).toLong() },
 ) {
-    suspend fun createSpreadsheet(title: String, tabs: List<TabSpec>): CreatedSpreadsheet {
+    /**
+     * [rowCounts] is the number of rows (header included) each tab will hold. The grid must be that big up front:
+     * values:batchUpdate does not grow it, so a write past the default grid fails ("exceeds grid limits", seen on the first live push).
+     */
+    suspend fun createSpreadsheet(title: String, tabs: List<TabSpec>, rowCounts: Map<String, Int> = emptyMap()): CreatedSpreadsheet {
         val body = JSONObject()
             .put("properties", JSONObject().put("title", title))
             .put("sheets", JSONArray(tabs.map { tab ->
-                JSONObject().put(
-                    "properties",
-                    JSONObject().put("title", tab.title).put("hidden", tab.hidden).put("gridProperties", JSONObject().put("frozenRowCount", 1)),
-                )
+                val grid = JSONObject().put("frozenRowCount", 1)
+                rowCounts[tab.title]?.let { grid.put("rowCount", maxOf(it + SPARE_ROWS, MIN_ROWS)) }
+                JSONObject().put("properties", JSONObject().put("title", tab.title).put("hidden", tab.hidden).put("gridProperties", grid))
             }))
         val response = call("POST", "/spreadsheets", body)
         val sheetIds = response.getJSONArray("sheets").let { sheets ->
@@ -102,6 +105,8 @@ class SheetsApi(
         const val BASE_URL = "https://sheets.googleapis.com/v4"
         /** Docs recommend payloads up to about 2 MB; 1,500 rows of 12 short cells is far below that. */
         const val ROWS_PER_REQUEST = 1_500
+        const val SPARE_ROWS = 500 // room to type new rows by hand on a PC
+        const val MIN_ROWS = 2 // a frozen header needs at least one more row
         const val MAX_RETRIES = 6
         const val MAX_BACKOFF_SECONDS = 32L
     }
