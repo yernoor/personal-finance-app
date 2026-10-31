@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pink piggy bank, side view facing right, coin dropping into the slot. Artwork stays inside the 21..87 safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- legs and ear sit behind the body -->
+    <path android:fillColor="#FFC23A74" android:strokeColor="#FFC23A74" android:strokeWidth="3" android:strokeLineJoin="round"
+        android:pathData="M35,73 h8 v10 h-8 z M62,73 h8 v10 h-8 z" />
+    <path android:fillColor="#FFE04C8B" android:strokeColor="#FFE04C8B" android:strokeWidth="4.5" android:strokeLineJoin="round"
+        android:pathData="M57,47 L68,47 L64.5,36.5 z" />
+    <!-- curly tail -->
+    <path android:strokeColor="#FFC23A74" android:strokeWidth="3.2" android:strokeLineCap="round"
+        android:pathData="M29.5,58 C23,58.5 20.5,52.5 24.5,50 C28,48 29.5,52 27,53" />
+    <!-- body and its soft highlight -->
+    <path android:fillColor="#FFF5679F" android:pathData="M28,60 a25,20 0 1 0 50,0 a25,20 0 1 0 -50,0 z" />
+    <path android:fillColor="#29FFFFFF" android:pathData="M32,52 a13,6 0 1 0 26,0 a13,6 0 1 0 -26,0 z" />
+    <!-- inner ear -->
+    <path android:fillColor="#FFFF8DBA" android:strokeColor="#FFFF8DBA" android:strokeWidth="1.8" android:strokeLineJoin="round"
+        android:pathData="M60.8,43 L66.4,43 L64.2,38.6 z" />
+    <!-- snout with two vertical nostrils -->
+    <path android:fillColor="#FFFFA3C4"
+        android:pathData="M79.5,50 a6.5,6.5 0 0 1 6.5,6.5 v6 a6.5,6.5 0 0 1 -6.5,6.5 a6.5,6.5 0 0 1 -6.5,-6.5 v-6 a6.5,6.5 0 0 1 6.5,-6.5 z" />
+    <path android:fillColor="#FF8A1F52"
+        android:pathData="M79.1,56 a1.4,2.2 0 1 0 2.8,0 a1.4,2.2 0 1 0 -2.8,0 z M79.1,63 a1.4,2.2 0 1 0 2.8,0 a1.4,2.2 0 1 0 -2.8,0 z" />
+    <!-- eye and cheek -->
+    <path android:fillColor="#FF3A1230" android:pathData="M64.6,54 a2.4,2.4 0 1 0 4.8,0 a2.4,2.4 0 1 0 -4.8,0 z" />
+    <path android:fillColor="#CCFF9FC2" android:pathData="M58.5,62 a4.5,2.8 0 1 0 9,0 a4.5,2.8 0 1 0 -9,0 z" />
+    <!-- coin slot and the coin -->
+    <path android:fillColor="#FF4A1637" android:pathData="M42.8,43.5 h13.4 a1.8,1.8 0 0 1 0,3.6 h-13.4 a1.8,1.8 0 0 1 0,-3.6 z" />
+    <path android:fillColor="#FFFFD23F" android:pathData="M42,30 a7.5,7.5 0 1 0 15,0 a7.5,7.5 0 1 0 -15,0 z" />
+    <path android:strokeColor="#FFE5A100" android:strokeWidth="1.8" android:pathData="M44.9,30 a4.6,4.6 0 1 0 9.2,0 a4.6,4.6 0 1 0 -9.2,0 z" />
+</vector>

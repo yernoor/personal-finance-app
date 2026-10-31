@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One-colour piggy bank for Android's themed icons: eye, slot and nostrils are cut out with evenOdd. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FF000000" android:strokeColor="#FF000000" android:strokeWidth="3" android:strokeLineJoin="round"
+        android:pathData="M35,73 h8 v10 h-8 z M62,73 h8 v10 h-8 z" />
+    <path android:fillColor="#FF000000" android:strokeColor="#FF000000" android:strokeWidth="4.5" android:strokeLineJoin="round"
+        android:pathData="M57,47 L68,47 L64.5,36.5 z" />
+    <path android:strokeColor="#FF000000" android:strokeWidth="3.2" android:strokeLineCap="round"
+        android:pathData="M29.5,58 C23,58.5 20.5,52.5 24.5,50 C28,48 29.5,52 27,53" />
+    <!-- body with the eye and the slot cut out -->
+    <path android:fillColor="#FF000000" android:fillType="evenOdd"
+        android:pathData="M28,60 a25,20 0 1 0 50,0 a25,20 0 1 0 -50,0 z M64.6,54 a2.4,2.4 0 1 0 4.8,0 a2.4,2.4 0 1 0 -4.8,0 z M42.8,43.5 h13.4 a1.8,1.8 0 0 1 0,3.6 h-13.4 a1.8,1.8 0 0 1 0,-3.6 z" />
+    <!-- snout with the nostrils cut out -->
+    <path android:fillColor="#FF000000" android:fillType="evenOdd"
+        android:pathData="M79.5,50 a6.5,6.5 0 0 1 6.5,6.5 v6 a6.5,6.5 0 0 1 -6.5,6.5 a6.5,6.5 0 0 1 -6.5,-6.5 v-6 a6.5,6.5 0 0 1 6.5,-6.5 z M79.1,56 a1.4,2.2 0 1 0 2.8,0 a1.4,2.2 0 1 0 -2.8,0 z M79.1,63 a1.4,2.2 0 1 0 2.8,0 a1.4,2.2 0 1 0 -2.8,0 z" />
+    <!-- coin as a ring -->
+    <path android:fillColor="#FF000000" android:fillType="evenOdd"
+        android:pathData="M42,30 a7.5,7.5 0 1 0 15,0 a7.5,7.5 0 1 0 -15,0 z M46.3,30 a3.2,3.2 0 1 0 6.4,0 a3.2,3.2 0 1 0 -6.4,0 z" />
+</vector>
