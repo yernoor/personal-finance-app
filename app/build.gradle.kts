@@ -12,8 +12,27 @@ android {
         applicationId = "dev.yernur.moneytracker"
         minSdk = 36
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+    }
+
+    // Release signing comes from the environment (CI secrets, or exported locally); nothing about the key is in git.
+    // Without RELEASE_KEYSTORE_FILE the release build is simply unsigned.
+    signingConfigs {
+        System.getenv("RELEASE_KEYSTORE_FILE")?.let { keystore ->
+            create("release") {
+                storeFile = file(keystore)
+                storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.findByName("release")
+        }
     }
 
     buildFeatures {
