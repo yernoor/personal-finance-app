@@ -19,6 +19,7 @@
 
 ## One-time setup: the signing key (never in git)
 ```bash
+export PATH=/opt/homebrew/opt/openjdk@25/bin:$PATH   # the system `java` is only a stub; keytool ships with the project JDK
 mkdir -p ~/keys && keytool -genkeypair -v -keystore ~/keys/money-tracker-release.jks -alias release \
   -keyalg RSA -keysize 4096 -validity 36500
 base64 -i ~/keys/money-tracker-release.jks | pbcopy        # the keystore as one line, for the secret below
