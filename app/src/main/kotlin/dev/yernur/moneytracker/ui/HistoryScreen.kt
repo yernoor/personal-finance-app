@@ -29,6 +29,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import dev.yernur.moneytracker.LocalAppContainer
 import dev.yernur.moneytracker.data.AppSettings
 import dev.yernur.moneytracker.data.DEFAULT_CURRENCY
 import dev.yernur.moneytracker.data.DateRange
@@ -231,6 +234,10 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
     val query by vm.query.collectAsStateWithLifecycle()
     val grouped by vm.grouped.collectAsStateWithLifecycle()
     val expanded = remember { mutableStateListOf<String>() }
+    val settings = LocalAppContainer.current.settings
+    val chartOpen by settings.historyChartOpen.collectAsStateWithLifecycle()
+    var chartIncome by remember { mutableStateOf(false) }
+    val slices = remember(state.groups, chartIncome) { chartSlices(state.groups, chartIncome) }
     val dayFormat = DateTimeFormatter.ofPattern("EEE, MMM d")
 
     Column(Modifier.fillMaxSize()) {
@@ -263,6 +270,13 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
         }
         // Bottom padding keeps the last row's amount clear of the add button.
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
+            // Inside the list, so an expanded ring scrolls away instead of squeezing the entries on a small screen.
+            item(key = "chart") {
+                HistoryChart(
+                    slices, chartIncome, { chartIncome = it }, chartOpen, { settings.setHistoryChartOpen(!chartOpen) },
+                    Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
             if (grouped) {
                 state.groups.forEach { group ->
                     val open = group.key in expanded
