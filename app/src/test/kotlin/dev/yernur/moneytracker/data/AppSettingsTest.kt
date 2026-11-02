@@ -55,24 +55,29 @@ class AppSettingsTest {
     fun iconStyles_haveSeparateChoicesForGlassAndNot_andNeverMixThem() {
         prefs.edit().clear().commit()
         val settings = AppSettings(prefs)
-        assertEquals(IconStyle.Vivid, settings.iconStyle.value)
-        assertEquals(IconStyle.GlassTile, settings.glassIconStyle.value) // the frosted tile is the glass default
+        assertEquals(IconStyle.Springboard, settings.iconStyle.value)
+        assertEquals(IconStyle.LiquidTile, settings.glassIconStyle.value) // the liquid tile is the glass default
 
-        settings.setIconStyle(IconStyle.Duotone)
-        settings.setGlassIconStyle(IconStyle.GlassClear)
+        settings.setIconStyle(IconStyle.SoftFill)
+        settings.setGlassIconStyle(IconStyle.ClearGlass)
         val again = AppSettings(prefs)
-        assertEquals(IconStyle.Duotone, again.iconStyle.value)
-        assertEquals(IconStyle.GlassClear, again.glassIconStyle.value)
+        assertEquals(IconStyle.SoftFill, again.iconStyle.value)
+        assertEquals(IconStyle.ClearGlass, again.glassIconStyle.value)
 
-        settings.setIconStyle(IconStyle.GlassTile) // a glass look is not allowed as the everyday choice, and vice versa
-        settings.setGlassIconStyle(IconStyle.Tonal)
-        assertEquals(IconStyle.Duotone, settings.iconStyle.value)
-        assertEquals(IconStyle.GlassClear, settings.glassIconStyle.value)
+        settings.setIconStyle(IconStyle.LiquidTile) // a glass look is not allowed as the everyday choice, and vice versa
+        settings.setGlassIconStyle(IconStyle.SoftFill)
+        assertEquals(IconStyle.SoftFill, settings.iconStyle.value)
+        assertEquals(IconStyle.ClearGlass, settings.glassIconStyle.value)
 
-        prefs.edit().putString("iconStyle", "GlassClear").putString("glassIconStyle", "Vivid").commit()
+        prefs.edit().putString("iconStyle", "ClearGlass").putString("glassIconStyle", "Springboard").commit()
         val repaired = AppSettings(prefs)
-        assertEquals(IconStyle.Vivid, repaired.iconStyle.value)
-        assertEquals(IconStyle.GlassTile, repaired.glassIconStyle.value)
+        assertEquals(IconStyle.Springboard, repaired.iconStyle.value)
+        assertEquals(IconStyle.LiquidTile, repaired.glassIconStyle.value)
+
+        prefs.edit().putString("iconStyle", "Vivid").putString("glassIconStyle", "GlassTile").commit() // removed looks fall back to the defaults
+        val migrated = AppSettings(prefs)
+        assertEquals(IconStyle.Springboard, migrated.iconStyle.value)
+        assertEquals(IconStyle.LiquidTile, migrated.glassIconStyle.value)
     }
 
     @Test

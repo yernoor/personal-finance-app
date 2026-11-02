@@ -4,7 +4,7 @@ import androidx.compose.ui.graphics.Color
 import dev.yernur.moneytracker.data.AccentPalette
 
 /**
- * One icon, drawn on a 24 x 24 grid with round strokes. [body] holds the closed shapes (the duotone style fills them);
+ * One icon, drawn on a 24 x 24 grid with round strokes. [body] holds the closed shapes (every style fills them);
  * [detail] holds lines and small marks. Original artwork: no Material or third-party icon paths.
  */
 class Glyph(val body: String, val detail: String = "")
@@ -69,10 +69,10 @@ object AppIcons {
             "M12 9.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0 -5.6z",
             "M5.2 11.5a7 7 0 0 1 12 -4.3M18.8 12.5a7 7 0 0 1 -12 4.3M18.5 3.8v3.7H14.8M5.5 20.2v-3.7h3.7",
         ),
-        // A girl: round face, a bow on top, pigtails hanging at the sides
+        // Stored as "girl" in the backup; drawn as love: a big heart with a small one floating at its upper right
         "girl" to Glyph(
-            "M12 8.4a5 5 0 1 0 0 10 5 5 0 0 0 0 -10zM12 5.7 8.7 3.9v3.6zM12 5.7l3.3 -1.8v3.6z",
-            "M7.5 12.4c-1.7 .9 -2.5 2.7 -2.3 4.6M16.5 12.4c1.7 .9 2.5 2.7 2.3 4.6M10.2 13.4h.01M13.8 13.4h.01M10.3 16c.9 .7 2.5 .7 3.4 0",
+            "M9.5 21s-6.5 -3.9 -6.5 -9A3.6 3.6 0 0 1 9.5 9.8 3.6 3.6 0 0 1 16 12c0 5.1 -6.5 9 -6.5 9zM18.4 10.2s-3.6 -2.1 -3.6 -4.7A2 2 0 0 1 18.4 4.4 2 2 0 0 1 22 5.5c0 2.6 -3.6 4.7 -3.6 4.7z",
+            "M6.2 12.6c0 -1.1 .8 -1.9 1.9 -1.9",
         ),
         "family" to Glyph(
             "M8.5 4.5a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0 -4.6zM17 8.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0 -3.6z",
