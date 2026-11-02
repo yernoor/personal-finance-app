@@ -262,12 +262,6 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
             Text("+${Money.format(state.income, DEFAULT_CURRENCY)}", color = Semantic.income)
             Text("-${Money.format(state.expense, DEFAULT_CURRENCY)}", color = Semantic.expense)
         }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(query, { vm.query.value = it }, label = { Text("Search") }, singleLine = true, modifier = Modifier.weight(1f).testTag("search"))
-            FilledIconToggleButton(grouped, { vm.grouped.value = it }, modifier = Modifier.padding(start = 8.dp).testTag("group-toggle")) {
-                Icon(Icons.Outlined.Category, "Group by category")
-            }
-        }
         // Bottom padding keeps the last row's amount clear of the add button.
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
             // Inside the list, so an expanded ring scrolls away instead of squeezing the entries on a small screen.
@@ -276,6 +270,14 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
                     slices, chartIncome, { chartIncome = it }, chartOpen, { settings.setHistoryChartOpen(!chartOpen) },
                     Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
+            }
+            item(key = "search") {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(query, { vm.query.value = it }, label = { Text("Search") }, singleLine = true, modifier = Modifier.weight(1f).testTag("search"))
+                FilledIconToggleButton(grouped, { vm.grouped.value = it }, modifier = Modifier.padding(start = 8.dp).testTag("group-toggle")) {
+                    Icon(Icons.Outlined.Category, "Group by category")
+                }
+            }
             }
             if (grouped) {
                 state.groups.forEach { group ->
