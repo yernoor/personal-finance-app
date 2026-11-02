@@ -29,7 +29,8 @@ Google's verification. The docs say the "Unverified app" warning appears for *se
    - SHA-1 certificate fingerprint of the build you run. For the debug build made on this Mac:
      `2A:12:B0:39:94:8E:7D:0A:BD:09:6E:A5:A3:F1:EA:EC:5F:C8:62:53`
      (from `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`).
-   - The release APK you sideload later (milestone 8) has a different keystore: create a second Android client for its SHA-1.
+   - The release APK (signed with the key in docs/RELEASING.md) has a different keystore: create a second Android client, same package name, with SHA-1
+     `03:4B:6A:06:BC:C9:F8:8E:D7:52:54:EE:41:BF:65:9E:0A:0B:E5:5C` (a public fingerprint, not a secret).
 6. **Audience → Publish app** (status *In production*). Without this, the permission lapses every 7 days and you must reconnect.
 7. In the app: **More → Google Sheets**. Step 1 **Connect Google** (consent screen, creates nothing), then step 2 **Create the sheet and upload my data**.
 
