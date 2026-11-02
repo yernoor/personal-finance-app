@@ -25,6 +25,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _glassIconStyle = MutableStateFlow(storedIconStyle(prefs, GLASS_ICON_STYLE, glass = true, IconStyle.GlassTile))
     private val _spreadsheetId = MutableStateFlow(prefs?.getString(SPREADSHEET_ID, null))
     private val _spreadsheetUrl = MutableStateFlow(prefs?.getString(SPREADSHEET_URL, null))
+    private val _pendingSpreadsheetId = MutableStateFlow(prefs?.getString(PENDING_SPREADSHEET_ID, null))
     private val _googleConnected = MutableStateFlow(prefs?.getBoolean(GOOGLE_CONNECTED, false) ?: false)
     private val _glass = MutableStateFlow(prefs?.getBoolean(GLASS, false) ?: false)
     private val warned = HashSet<String>(prefs?.getStringSet(WARNED, emptySet()).orEmpty())
@@ -46,6 +47,14 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     fun setGoogleConnected(connected: Boolean) {
         _googleConnected.value = connected
         prefs?.edit()?.putBoolean(GOOGLE_CONNECTED, connected)?.apply()
+    }
+
+    /** A spreadsheet created by a push that has not finished: the next push fills this one instead of making another. */
+    val pendingSpreadsheetId: StateFlow<String?> = _pendingSpreadsheetId
+
+    fun setPendingSpreadsheet(id: String?) {
+        _pendingSpreadsheetId.value = id
+        prefs?.edit()?.apply { if (id != null) putString(PENDING_SPREADSHEET_ID, id) else remove(PENDING_SPREADSHEET_ID) }?.apply()
     }
 
     fun setSpreadsheet(id: String, url: String) {
@@ -161,6 +170,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val NAV_TABS = "navTabs"
         private const val GLASS = "glass"
         private const val GOOGLE_CONNECTED = "googleConnected"
+        private const val PENDING_SPREADSHEET_ID = "pendingSpreadsheetId"
         private const val SPREADSHEET_ID = "spreadsheetId"
         private const val SPREADSHEET_URL = "spreadsheetUrl"
         private const val DEVICE_ID = "deviceId"

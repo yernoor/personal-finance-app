@@ -1,7 +1,10 @@
 package dev.yernur.moneytracker.data.sheets
 
 /** One tab of the spreadsheet. [dateColumn] (0-based) holds dates that are written as serial numbers and shown as yyyy-mm-dd. */
-class TabSpec(val title: String, val headers: List<String>, val hidden: Boolean = false, val dateColumn: Int? = null)
+class TabSpec(val title: String, val headers: List<String>, val hidden: Boolean = false, val dateColumn: Int? = null) {
+    /** The tab's own columns in A1 notation (`'Tags'!A:B`); anything the owner added to the right of them is not ours to touch. */
+    val columnsRange: String get() = "'$title'!A:${'A' + headers.size - 1}"
+}
 
 /**
  * The spreadsheet's tabs and column order, exactly as docs/SYNC_DESIGN.md lists them (a test compares the two).

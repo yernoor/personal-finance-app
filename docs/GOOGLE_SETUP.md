@@ -21,7 +21,7 @@ Google's verification. The docs say the "Unverified app" warning appears for *se
 ## Steps for the owner (about 10 minutes)
 
 1. Open [console.cloud.google.com](https://console.cloud.google.com) and create a project (e.g. "Money Tracker").
-2. **APIs & Services → Library → Google Sheets API → Enable.** (If the app later reports that the Drive API is disabled, enable that too.)
+2. **APIs & Services → Library → Google Sheets API → Enable.** Also enable the **Google Drive API**: the app uses it only to look for a sheet named "Money Tracker" that it made earlier, so a retry or reinstall refreshes that sheet instead of making another. Without the Drive API it still works but creates a new sheet when it has forgotten the old one. Unverified: whether Drive shows a sheet made by the other signing key's OAuth client (debug vs release).
 3. **Google Auth platform → Branding:** app name, your email as support and developer contact.
 4. **Audience:** user type *External*. Add your own Google account as a *test user*.
 5. **Clients → Create client → Android:**

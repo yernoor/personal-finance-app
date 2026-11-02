@@ -135,7 +135,7 @@ class SyncViewModel(
 
     private suspend fun push(authorizer: Authorizer, firstToken: String) {
         val api = SheetsApi(transport, { refresh -> if (refresh) authorizer.freshToken(firstToken) else firstToken })
-        SheetsSync(db, api, settings).initialPush { state = SyncState.Working(it) }
+        SheetsSync(db, api, settings).pushAll { state = SyncState.Working(it) }
         state = SyncState.Idle
     }
 }
@@ -185,7 +185,7 @@ fun SyncScreen(onBack: () -> Unit) {
                     Button(
                         { authorizer?.let(vm::createSheet) }, enabled = idle && authorizer != null,
                         modifier = Modifier.fillMaxWidth().testTag("sync-create"),
-                    ) { Text("Create the sheet and upload my data") }
+                    ) { Text("Create or refresh the sheet") }
                 }
             } else {
                 Card(Modifier.fillMaxWidth().testTag("sync-connected")) {
