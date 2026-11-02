@@ -1,6 +1,7 @@
 package dev.yernur.moneytracker.ui
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -92,5 +93,14 @@ class HistoryChartFlowTest {
 
         compose.onNodeWithTag("chart-income").performClick()
         eventually { compose.onAllNodes(hasContentDescription("Income ₸10,000, Зарплата 100%")).fetchSemanticsNodes().isNotEmpty() }
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h600dp")
+    fun onAShortScreen_theRingIsScaledToFitItsArea_insteadOfBeingCutOff() {
+        compose.onNodeWithTag("tab-history").performClick()
+        eventually { exists("history-chart-ring") }
+        val ring = compose.onNodeWithTag("history-chart-ring").getUnclippedBoundsInRoot()
+        assertEquals(true, (ring.bottom - ring.top).value <= 600 * 0.28f) // the chart area is 28% of a short screen; the ring used to stay 200dp
     }
 }

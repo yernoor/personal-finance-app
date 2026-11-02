@@ -66,9 +66,10 @@ fun chartSlices(groups: List<HistoryGroup>, income: Boolean): List<ChartSlice> {
 private const val COLLAPSED_DP = 46f
 private const val FLICK = 300f // px/s: slower than this is a slow drag that was let go
 private const val RING_DP = 200f
+private const val RING_MARGIN_DP = 8f
 
 /** Height of the chart area when fully open: the full ring on a phone, scaled down on a short screen so the list keeps room. */
-private fun expandedDp(screenHeightDp: Int) = minOf(RING_DP + 8f, screenHeightDp * 0.28f).coerceAtLeast(COLLAPSED_DP + 24f)
+private fun expandedDp(screenHeightDp: Int) = minOf(RING_DP + RING_MARGIN_DP, screenHeightDp * 0.28f).coerceAtLeast(COLLAPSED_DP + 24f)
 
 /**
  * Collapsing-toolbar behaviour for the chart: scrolling the list up first shrinks the ring into the bar ([fraction] 0 = ring, 1 = bar),
@@ -128,7 +129,7 @@ fun HistoryChart(
     val f = collapse.fraction
     val total = Money.format(slices.sumOf { it.amount }, DEFAULT_CURRENCY)
     val summary = (if (income) "Income " else "Expenses ") + total + slices.joinToString("") { ", ${it.title} ${it.percent}%" }
-    val drawn = drawInProgress(slices)
+    val drawn = drawInProgress(income)
     val expanded = expandedDp(LocalConfiguration.current.screenHeightDp)
     Card(modifier.fillMaxWidth().testTag("history-chart")) {
         Column(Modifier.padding(12.dp)) {
@@ -145,7 +146,7 @@ fun HistoryChart(
                 Modifier.fillMaxWidth().height(lerp(expanded, COLLAPSED_DP, f).dp).clipToBounds().semantics { contentDescription = summary },
                 contentAlignment = Alignment.TopCenter,
             ) {
-                if (f < 1f) Ring(slices, total, drawn, Modifier.graphicsLayer {
+                if (f < 1f) Ring(slices, total, drawn, expanded - RING_MARGIN_DP, Modifier.graphicsLayer {
                     // fades and lifts away while the bar takes over
                     alpha = (1f - f * 1.6f).coerceIn(0f, 1f)
                     translationY = -f * 60.dp.toPx()
@@ -156,11 +157,11 @@ fun HistoryChart(
     }
 }
 
-/** 0 -> 1 whenever the slices change, so the chart draws itself in (once, not each time it is scrolled between ring and bar). */
+/** 0 -> 1 when the chart first shows and when switching between expenses and income (not when scrolled between ring and bar). */
 @Composable
-private fun drawInProgress(slices: List<ChartSlice>): Float {
+private fun drawInProgress(income: Boolean): Float {
     val progress = remember { Animatable(0f) }
-    LaunchedEffect(slices) {
+    LaunchedEffect(income) { // not on every data edit: adding an entry should not make the chart redraw from zero
         progress.snapTo(0f)
         progress.animateTo(1f, tween(650, easing = FastOutSlowInEasing))
     }
@@ -180,11 +181,11 @@ private fun Bar(slices: List<ChartSlice>, total: String, drawn: Float) {
 }
 
 @Composable
-private fun Ring(slices: List<ChartSlice>, total: String, drawn: Float, modifier: Modifier) {
+private fun Ring(slices: List<ChartSlice>, total: String, drawn: Float, sizeDp: Float, modifier: Modifier) {
     val colors = slices.map { themedColor(it.colorKey) }
-    Box(modifier.size(RING_DP.dp).testTag("history-chart-ring"), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.size(RING_DP.dp)) {
-            val stroke = 28.dp.toPx()
+    Box(modifier.size(sizeDp.dp).testTag("history-chart-ring"), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.size(sizeDp.dp)) {
+            val stroke = size.minDimension * 0.14f
             val gap = if (slices.size > 1) 1.5f else 0f // a hairline between neighbours so equal colors do not merge
             var from = 0f // fraction of the circle where this slice starts
             slices.forEachIndexed { i, slice ->
