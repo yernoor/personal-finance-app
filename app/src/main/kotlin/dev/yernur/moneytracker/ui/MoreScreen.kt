@@ -214,11 +214,11 @@ private fun HistoryPeriodDialog(settings: AppSettings, onDismiss: () -> Unit) {
     )
 }
 
-/** The looks to pick from (the glass pair while liquid glass is on, the everyday three otherwise), each previewed with real icons. */
+/** The looks to pick from (the glass pair while liquid glass is on, the everyday pair otherwise), each previewed with real icons. */
 @Composable
 private fun IconStyleDialog(settings: AppSettings, glass: Boolean, onDismiss: () -> Unit) {
     val current by (if (glass) settings.glassIconStyle else settings.iconStyle).collectAsStateWithLifecycle()
-    val choices = if (glass) listOf(IconStyle.GlassTile, IconStyle.GlassClear) else listOf(IconStyle.Vivid, IconStyle.Tonal, IconStyle.Duotone)
+    val choices = if (glass) listOf(IconStyle.LiquidTile, IconStyle.ClearGlass) else listOf(IconStyle.Springboard, IconStyle.SoftFill)
     val samples = listOf("cafe" to 8, "transport" to 4, "home" to 6, "products" to 5, "heart" to 1)
     fun choose(style: IconStyle) = if (glass) settings.setGlassIconStyle(style) else settings.setIconStyle(style)
     val backdrop = Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.tertiaryContainer))

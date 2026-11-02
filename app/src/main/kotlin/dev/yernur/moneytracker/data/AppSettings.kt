@@ -21,8 +21,8 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _homeTotalsPeriod = MutableStateFlow(
         prefs?.getString(HOME_PERIOD, null)?.let { name -> PeriodUnit.entries.firstOrNull { it.name == name } } ?: PeriodUnit.Month,
     )
-    private val _iconStyle = MutableStateFlow(storedIconStyle(prefs, ICON_STYLE, glass = false, IconStyle.Vivid))
-    private val _glassIconStyle = MutableStateFlow(storedIconStyle(prefs, GLASS_ICON_STYLE, glass = true, IconStyle.GlassTile))
+    private val _iconStyle = MutableStateFlow(storedIconStyle(prefs, ICON_STYLE, glass = false, IconStyle.Springboard))
+    private val _glassIconStyle = MutableStateFlow(storedIconStyle(prefs, GLASS_ICON_STYLE, glass = true, IconStyle.LiquidTile))
     private val _spreadsheetId = MutableStateFlow(prefs?.getString(SPREADSHEET_ID, null))
     private val _spreadsheetUrl = MutableStateFlow(prefs?.getString(SPREADSHEET_URL, null))
     private val _pendingSpreadsheetId = MutableStateFlow(prefs?.getString(PENDING_SPREADSHEET_ID, null))
