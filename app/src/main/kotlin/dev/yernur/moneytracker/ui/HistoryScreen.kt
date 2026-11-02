@@ -29,10 +29,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -231,6 +234,9 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
     val query by vm.query.collectAsStateWithLifecycle()
     val grouped by vm.grouped.collectAsStateWithLifecycle()
     val expanded = remember { mutableStateListOf<String>() }
+    val collapse = rememberChartCollapse()
+    var chartIncome by remember { mutableStateOf(false) }
+    val slices = remember(state.groups, chartIncome) { chartSlices(state.groups, chartIncome) }
     val dayFormat = DateTimeFormatter.ofPattern("EEE, MMM d")
 
     Column(Modifier.fillMaxSize()) {
@@ -255,14 +261,18 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
             Text("+${Money.format(state.income, DEFAULT_CURRENCY)}", color = Semantic.income)
             Text("-${Money.format(state.expense, DEFAULT_CURRENCY)}", color = Semantic.expense)
         }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(query, { vm.query.value = it }, label = { Text("Search") }, singleLine = true, modifier = Modifier.weight(1f).testTag("search"))
-            FilledIconToggleButton(grouped, { vm.grouped.value = it }, modifier = Modifier.padding(start = 8.dp).testTag("group-toggle")) {
-                Icon(Icons.Outlined.Category, "Group by category")
-            }
-        }
+        // Pinned above the list: scrolling the list shrinks the ring into the bar first (nestedScroll), so there is no toggle button.
+        HistoryChart(slices, chartIncome, { chartIncome = it }, collapse, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
         // Bottom padding keeps the last row's amount clear of the add button.
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
+        LazyColumn(Modifier.weight(1f).nestedScroll(collapse).testTag("history-list"), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
+            item(key = "search") {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(query, { vm.query.value = it }, label = { Text("Search") }, singleLine = true, modifier = Modifier.weight(1f).testTag("search"))
+                FilledIconToggleButton(grouped, { vm.grouped.value = it }, modifier = Modifier.padding(start = 8.dp).testTag("group-toggle")) {
+                    Icon(Icons.Outlined.Category, "Group by category")
+                }
+            }
+            }
             if (grouped) {
                 state.groups.forEach { group ->
                     val open = group.key in expanded

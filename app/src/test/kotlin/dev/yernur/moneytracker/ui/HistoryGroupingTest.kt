@@ -50,4 +50,20 @@ class HistoryGroupingTest {
         assertEquals(2, groups[1].rows.size)
         assertEquals("Main → Deposit", groups[0].title)
     }
+
+    @Test
+    fun chartSlices_areSharesOfTheirOwnDirection_withTheCategoryColors_andSkipTransfers() {
+        val groups = groupByCategory(
+            listOf(
+                row("a", "cafe", false, 1_000), row("b", "taxi", false, 3_000), row("c", "salary", true, 50_000),
+                row("t", null, false, 9_999, transfer = true),
+            )
+        )
+        val expenses = chartSlices(groups, income = false)
+        assertEquals(listOf("taxi", "cafe"), expenses.map { it.title })
+        assertEquals(listOf(75, 25), expenses.map { it.percent })
+        assertEquals(1f, expenses.sumOf { it.fraction.toDouble() }.toFloat(), 0.0001f)
+        assertEquals(listOf(100), chartSlices(groups, income = true).map { it.percent })
+        assertEquals(emptyList<ChartSlice>(), chartSlices(emptyList(), income = false))
+    }
 }

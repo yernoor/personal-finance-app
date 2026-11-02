@@ -31,6 +31,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /** Drives the real navigation and screens against an in-memory database (no emulator needed). */
 @RunWith(RobolectricTestRunner::class)
@@ -90,6 +91,7 @@ class AppFlowTest {
     private fun transactions() = runBlocking { db.transactionDao().getAll() }
 
     @Test
+    @Config(qualifiers = "w411dp-h891dp") // the pinned History chart leaves a list too short to show rows on the default tiny screen
     fun addEditDeleteExpense_andHistoryShowsIt() {
         tap("add")
         compose.onNodeWithTag("amount").performTextInput("1 500,50")
@@ -208,6 +210,7 @@ class AppFlowTest {
     }
 
     @Test
+    @Config(qualifiers = "w411dp-h891dp") // the pinned History chart leaves a list too short to show rows on the default tiny screen
     fun historyRowWithEmptyComment_showsJustTheAccount() {
         val ledger = AppContainer(db).ledger
         runBlocking {
