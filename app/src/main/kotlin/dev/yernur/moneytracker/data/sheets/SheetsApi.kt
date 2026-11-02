@@ -110,6 +110,23 @@ class SheetsApi(
         }
     }
 
+    /**
+     * Reads the whole of each tab's own columns ([TabSpec.columnsRange]) as typed values (numbers stay numbers, dates come as serial numbers).
+     * Trailing empty cells and rows are left out by the API, so rows can be shorter than the header. Missing tabs come back empty.
+     */
+    suspend fun readTabs(spreadsheetId: String, tabs: List<TabSpec>): Map<String, List<List<Any?>>> {
+        val ranges = tabs.joinToString("&") { "ranges=" + encode(it.columnsRange) }
+        val path = "/spreadsheets/$spreadsheetId/values:batchGet?$ranges&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER"
+        val valueRanges = call("GET", path, null).optJSONArray("valueRanges") ?: JSONArray()
+        return tabs.mapIndexed { i, tab ->
+            val rows = valueRanges.optJSONObject(i)?.optJSONArray("values")
+            tab.title to (0 until (rows?.length() ?: 0)).map { r ->
+                val row = rows!!.getJSONArray(r)
+                (0 until row.length()).map { c -> row.get(c).takeIf { it != JSONObject.NULL } }
+            }
+        }.toMap()
+    }
+
     /** spreadsheets.batchUpdate with ready-made request objects (formatting). */
     suspend fun batchUpdate(spreadsheetId: String, requests: List<JSONObject>) {
         if (requests.isEmpty()) return

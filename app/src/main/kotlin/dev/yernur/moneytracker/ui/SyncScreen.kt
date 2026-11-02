@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,8 +49,10 @@ import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.google.Authorizer
 import dev.yernur.moneytracker.data.google.GoogleAuthorizer
 import dev.yernur.moneytracker.data.sheets.HttpTransport
+import dev.yernur.moneytracker.data.sheets.PullResult
 import dev.yernur.moneytracker.data.sheets.SheetsApi
 import dev.yernur.moneytracker.data.sheets.SheetsException
+import dev.yernur.moneytracker.data.sheets.SheetsPull
 import dev.yernur.moneytracker.data.sheets.SheetsSync
 import dev.yernur.moneytracker.data.sheets.UrlConnectionTransport
 import java.io.IOException
@@ -60,6 +64,8 @@ sealed interface SyncState {
     /** Google wants the owner to approve access first; the screen launches [request]. */
     data class NeedsConsent(val request: IntentSenderRequest) : SyncState
     data class Failed(val message: String) : SyncState
+    /** An import from the sheet finished; [summary] says what changed. */
+    data class Imported(val summary: String) : SyncState
 }
 
 /** A plain-language reason for a failure, with what to do about it. */
@@ -122,6 +128,31 @@ class SyncViewModel(
         }
     }
 
+    /** Reads the linked sheet into this phone (the sheet wins for the rows it has). */
+    fun importFromSheet(authorizer: Authorizer) {
+        viewModelScope.launch {
+            state = SyncState.Working("Asking Google for access")
+            runCatching {
+                val result = authorizer.authorize()
+                val token = result.accessToken
+                if (result.consent != null || token == null) {
+                    settings.setGoogleConnected(false)
+                    state = SyncState.Failed("Google access has to be approved again. Forget the sheet, then Connect Google.")
+                } else {
+                    val api = SheetsApi(transport, { refresh -> if (refresh) authorizer.freshToken(token) else token })
+                    val pulled = SheetsPull(db, api, settings).pull { state = SyncState.Working(it) }
+                    state = SyncState.Imported(summary(pulled))
+                }
+            }.onFailure { state = SyncState.Failed(describeError(it)) }
+        }
+    }
+
+    private fun summary(p: PullResult): String {
+        val lines = mutableListOf("Imported: ${p.added} new, ${p.updated} changed, ${p.deleted} deleted.")
+        if (p.warnings.isNotEmpty()) lines += "${p.warnings.size} row(s) skipped or patched:" + p.warnings.take(5).joinToString("") { "\n- $it" }
+        return lines.joinToString("\n")
+    }
+
     private fun markConnected(token: String?) {
         requireNotNull(token) { "Google did not grant access" }
         settings.setGoogleConnected(true)
@@ -160,6 +191,16 @@ fun SyncScreen(onBack: () -> Unit) {
         authorizer?.let { vm.onConsentResult(it, result.data) }
     }
     val state = vm.state
+    var confirmImport by remember { mutableStateOf(false) }
+    if (confirmImport) {
+        AlertDialog(
+            onDismissRequest = { confirmImport = false },
+            title = { Text("Import from the sheet?") },
+            text = { Text("Rows in the sheet replace the matching rows on this phone, and new rows are added. Rows only the phone has stay. Transactions and transfers deleted in the sheet are deleted here.") },
+            confirmButton = { TextButton({ confirmImport = false; authorizer?.let(vm::importFromSheet) }, Modifier.testTag("sync-import-confirm")) { Text("Import") } },
+            dismissButton = { TextButton({ confirmImport = false }) { Text("Cancel") } },
+        )
+    }
     LaunchedEffect(state) { if (state is SyncState.NeedsConsent) consentLauncher.launch(state.request) }
 
     Scaffold(topBar = {
@@ -192,8 +233,11 @@ fun SyncScreen(onBack: () -> Unit) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Connected", style = MaterialTheme.typography.titleMedium)
                         Text(spreadsheetUrl.orEmpty(), style = MaterialTheme.typography.bodySmall)
-                        Text("This is a one-time copy for now; keeping both sides in step comes next.", style = MaterialTheme.typography.bodySmall)
+                        Text("Push overwrites the sheet with this phone's data; import does the opposite for the rows the sheet has.", style = MaterialTheme.typography.bodySmall)
                         Button({ context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(spreadsheetUrl))) }, Modifier.fillMaxWidth().testTag("sync-open")) { Text("Open the sheet") }
+                        OutlinedButton({ confirmImport = true }, enabled = idle && authorizer != null, modifier = Modifier.fillMaxWidth().testTag("sync-import")) {
+                            Text("Import from the sheet")
+                        }
                         OutlinedButton(vm::forget, Modifier.fillMaxWidth().testTag("sync-forget")) { Text("Forget this sheet (it stays in Drive)") }
                     }
                 }
@@ -203,6 +247,7 @@ fun SyncScreen(onBack: () -> Unit) {
                     CircularProgressIndicator()
                     Text(state.step, Modifier.testTag("sync-step"))
                 }
+                is SyncState.Imported -> Text(state.summary, modifier = Modifier.testTag("sync-imported"))
                 is SyncState.Failed -> Text(state.message, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("sync-error"))
                 else -> Unit
             }

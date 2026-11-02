@@ -47,6 +47,14 @@
    (a few thousand rows).
 5. Clock skew: compare using the stored UTC timestamps; on ties, prefer remote.
 
+## Import from the sheet (built, one-way pull)
+"Import from the sheet" on the Google Sheets screen reads every tab (`values:batchGet`, unformatted values) and merges it into Room by UID
+(`SheetParser`, `SheetsPull`). The sheet wins for the rows it has; rows only the phone has stay. Account/category/tag names resolve to UIDs
+through the tabs; a row typed by hand without a UID gets one; an unknown tag name creates a tag; an unknown account skips the row (warning).
+Columns the sheet does not show (account icon/colour/flags, real-currency amounts) are kept from the phone's row. UIDs in `_deleted` that are
+not in their tab tombstone the transaction/transfer (accounts, categories and tags are never deleted by an import). Unverified against a live
+Google round trip; covered by `SheetsPullTest` with a fake transport. Not done: automatic two-way sync (M7), writing `.mmbackup`.
+
 ## PC edits
 A person editing in the Sheet will not update `Modified`. Ship an **Apps Script `onEdit`** (in `/sheets/Code.gs`)
 that stamps `Modified` on edited rows and generates a UID for rows added by hand. Sync must tolerate
