@@ -6,6 +6,9 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.swipeUp
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import dev.yernur.moneytracker.AppContainer
@@ -68,15 +71,24 @@ class HistoryChartFlowTest {
     private fun exists(tag: String) = compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
 
     @Test
-    fun theChartStartsAsABar_expandsToARing_remembersIt_andSwitchesToIncome() {
+    fun theRingShrinksIntoTheBarWhenTheListIsScrolled_comesBackAtTheTop_andSwitchesToIncome() {
+        // enough rows that the list can scroll on any screen
+        runBlocking {
+            repeat(30) {
+                container.ledger.saveTransaction(
+                    TransactionDraft(null, TransactionType.Expense, "main", "cafe", 1_000, LocalDate.now().toString(), "row $it", emptySet()),
+                )
+            }
+        }
         compose.onNodeWithTag("tab-history").performClick()
-        eventually { exists("history-chart-bar") }
-        compose.onNode(hasContentDescription("Expenses ₸4,000, Такси 75%, Кафе 25%")).assertExists()
+        eventually { exists("history-chart-ring") }
+        assertEquals(false, exists("history-chart-bar"))
 
-        compose.onNodeWithTag("chart-toggle").performClick()
-        compose.mainClock.advanceTimeBy(1_000) // lets the expand animation finish: the bar leaves, the ring draws itself in
+        compose.onNodeWithTag("history-list").performTouchInput { swipeUp() }
+        eventually { exists("history-chart-bar") && !exists("history-chart-ring") }
+
+        compose.onNodeWithTag("history-list").performTouchInput { repeat(4) { swipeDown() } }
         eventually { exists("history-chart-ring") && !exists("history-chart-bar") }
-        assertEquals(true, container.settings.historyChartOpen.value)
 
         compose.onNodeWithTag("chart-income").performClick()
         eventually { compose.onAllNodes(hasContentDescription("Income ₸10,000, Зарплата 100%")).fetchSemanticsNodes().isNotEmpty() }

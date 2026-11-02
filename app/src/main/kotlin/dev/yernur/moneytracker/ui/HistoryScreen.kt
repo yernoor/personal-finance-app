@@ -35,13 +35,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import dev.yernur.moneytracker.LocalAppContainer
 import dev.yernur.moneytracker.data.AppSettings
 import dev.yernur.moneytracker.data.DEFAULT_CURRENCY
 import dev.yernur.moneytracker.data.DateRange
@@ -234,8 +234,7 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
     val query by vm.query.collectAsStateWithLifecycle()
     val grouped by vm.grouped.collectAsStateWithLifecycle()
     val expanded = remember { mutableStateListOf<String>() }
-    val settings = LocalAppContainer.current.settings
-    val chartOpen by settings.historyChartOpen.collectAsStateWithLifecycle()
+    val collapse = rememberChartCollapse()
     var chartIncome by remember { mutableStateOf(false) }
     val slices = remember(state.groups, chartIncome) { chartSlices(state.groups, chartIncome) }
     val dayFormat = DateTimeFormatter.ofPattern("EEE, MMM d")
@@ -262,15 +261,10 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
             Text("+${Money.format(state.income, DEFAULT_CURRENCY)}", color = Semantic.income)
             Text("-${Money.format(state.expense, DEFAULT_CURRENCY)}", color = Semantic.expense)
         }
+        // Pinned above the list: scrolling the list shrinks the ring into the bar first (nestedScroll), so there is no toggle button.
+        HistoryChart(slices, chartIncome, { chartIncome = it }, collapse, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
         // Bottom padding keeps the last row's amount clear of the add button.
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
-            // Inside the list, so an expanded ring scrolls away instead of squeezing the entries on a small screen.
-            item(key = "chart") {
-                HistoryChart(
-                    slices, chartIncome, { chartIncome = it }, chartOpen, { settings.setHistoryChartOpen(!chartOpen) },
-                    Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-            }
+        LazyColumn(Modifier.weight(1f).nestedScroll(collapse).testTag("history-list"), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
             item(key = "search") {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(query, { vm.query.value = it }, label = { Text("Search") }, singleLine = true, modifier = Modifier.weight(1f).testTag("search"))

@@ -80,12 +80,4 @@ class AppSettingsTest {
         prefs.edit().clear().commit()
         assertEquals(false, AppSettings(prefs).glass.value)
     }
-
-    @Test
-    fun historyChart_startsAsTheThinBar_andRemembersTheRing() {
-        prefs.edit().clear().commit()
-        assertEquals(false, AppSettings(prefs).historyChartOpen.value)
-        AppSettings(prefs).setHistoryChartOpen(true)
-        assertEquals(true, AppSettings(prefs).historyChartOpen.value)
-    }
 }

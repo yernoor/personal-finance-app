@@ -1,23 +1,13 @@
 package dev.yernur.moneytracker.ui
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -26,30 +16,36 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ExpandLess
-import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import dev.yernur.moneytracker.data.DEFAULT_CURRENCY
 import dev.yernur.moneytracker.data.Money
 import kotlin.math.roundToInt
@@ -67,67 +63,100 @@ fun chartSlices(groups: List<HistoryGroup>, income: Boolean): List<ChartSlice> {
     return shown.map { ChartSlice(it.title, it.iconColor, it.total, it.total.toFloat() / total) }
 }
 
-/** Collapsed it is a thin stacked bar with the total; expanded, a ring in the category colors with the total in the middle. */
-@OptIn(ExperimentalLayoutApi::class, ExperimentalAnimationApi::class)
+private const val COLLAPSED_DP = 46f
+private const val FLICK = 300f // px/s: slower than this is a slow drag that was let go
+private const val RING_DP = 200f
+
+/** Height of the chart area when fully open: the full ring on a phone, scaled down on a short screen so the list keeps room. */
+private fun expandedDp(screenHeightDp: Int) = minOf(RING_DP + 8f, screenHeightDp * 0.28f).coerceAtLeast(COLLAPSED_DP + 24f)
+
+/**
+ * Collapsing-toolbar behaviour for the chart: scrolling the list up first shrinks the ring into the bar ([fraction] 0 = ring, 1 = bar),
+ * and only then moves the list; dragging down at the top of the list opens the ring again.
+ */
+@Stable
+class ChartCollapse(private val rangePx: Float) : NestedScrollConnection {
+    var fraction by mutableFloatStateOf(0f)
+        private set
+
+    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+        if (available.y >= 0f || fraction >= 1f || rangePx <= 0f) return Offset.Zero
+        val next = (fraction - available.y / rangePx).coerceAtMost(1f)
+        val used = -(next - fraction) * rangePx
+        fraction = next
+        return Offset(0f, used)
+    }
+
+    /** Let go halfway and the chart settles on the ring or the bar (the way the flick points, else the nearer one); the list may still fling. */
+    override suspend fun onPreFling(available: Velocity): Velocity {
+        if (rangePx <= 0f || fraction <= 0f || fraction >= 1f) return Velocity.Zero
+        val target = when {
+            available.y < -FLICK -> 1f
+            available.y > FLICK -> 0f
+            else -> if (fraction > 0.5f) 1f else 0f
+        }
+        animate(fraction, target, animationSpec = tween(200, easing = FastOutSlowInEasing)) { value, _ -> fraction = value }
+        return Velocity.Zero
+    }
+
+    // What the list could not take (it is at the top) opens the chart again.
+    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+        if (available.y <= 0f || fraction <= 0f || rangePx <= 0f) return Offset.Zero
+        val next = (fraction - available.y / rangePx).coerceAtLeast(0f)
+        val used = (fraction - next) * rangePx
+        fraction = next
+        return Offset(0f, used)
+    }
+}
+
+@Composable
+fun rememberChartCollapse(): ChartCollapse {
+    val screenHeight = LocalConfiguration.current.screenHeightDp
+    val rangePx = with(LocalDensity.current) { (expandedDp(screenHeight) - COLLAPSED_DP).dp.toPx() }
+    return remember(rangePx) { ChartCollapse(rangePx) }
+}
+
+/** A ring in the category colors with the total in the middle that shrinks into a thin stacked bar as [collapse] closes. */
 @Composable
 fun HistoryChart(
     slices: List<ChartSlice>,
     income: Boolean,
     onKind: (income: Boolean) -> Unit,
-    open: Boolean,
-    onToggle: () -> Unit,
+    collapse: ChartCollapse,
     modifier: Modifier = Modifier,
 ) {
+    val f = collapse.fraction
     val total = Money.format(slices.sumOf { it.amount }, DEFAULT_CURRENCY)
     val summary = (if (income) "Income " else "Expenses ") + total + slices.joinToString("") { ", ${it.title} ${it.percent}%" }
+    val drawn = drawInProgress(slices)
+    val expanded = expandedDp(LocalConfiguration.current.screenHeightDp)
     Card(modifier.fillMaxWidth().testTag("history-chart")) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 FilterChip(!income, { onKind(false) }, label = { Text("Expenses") }, modifier = Modifier.testTag("chart-expenses"))
                 Spacer(Modifier.width(8.dp))
                 FilterChip(income, { onKind(true) }, label = { Text("Income") }, modifier = Modifier.testTag("chart-income"))
-                Spacer(Modifier.weight(1f))
-                IconButton(onToggle, modifier = Modifier.testTag("chart-toggle")) {
-                    Icon(if (open) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, if (open) "Collapse chart" else "Expand chart")
-                }
             }
             if (slices.isEmpty()) {
                 Text("Nothing to chart in this period", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 8.dp))
                 return@Column
             }
-            // Bar <-> ring: the card grows or shrinks while the old view fades out and the new one fades in; the new view then draws itself in.
-            AnimatedContent(
-                open,
-                transitionSpec = {
-                    (fadeIn(tween(280, delayMillis = 60)) + expandVertically(tween(320, easing = FastOutSlowInEasing))) togetherWith
-                        (fadeOut(tween(160)) + shrinkVertically(tween(320, easing = FastOutSlowInEasing))) using SizeTransform(clip = true)
-                },
-                label = "chart-style",
-            ) { expanded ->
-                Column(Modifier.fillMaxWidth().semantics { contentDescription = summary }, horizontalAlignment = Alignment.CenterHorizontally) {
-                    if (expanded) {
-                        Ring(slices, total)
-                        FlowRow(
-                            Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            slices.forEach { slice ->
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(Modifier.size(10.dp).clip(CircleShape).background(themedColor(slice.colorKey)))
-                                    Text("  ${slice.title} ${slice.percent}%", style = MaterialTheme.typography.bodySmall)
-                                }
-                            }
-                        }
-                    } else {
-                        Bar(slices)
-                        Text(total, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
-                    }
-                }
+            Box(
+                Modifier.fillMaxWidth().height(lerp(expanded, COLLAPSED_DP, f).dp).clipToBounds().semantics { contentDescription = summary },
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                if (f < 1f) Ring(slices, total, drawn, Modifier.graphicsLayer {
+                    // fades and lifts away while the bar takes over
+                    alpha = (1f - f * 1.6f).coerceIn(0f, 1f)
+                    translationY = -f * 60.dp.toPx()
+                })
+                if (f > 0f) Box(Modifier.align(Alignment.Center).graphicsLayer { alpha = ((f - 0.4f) * 1.7f).coerceIn(0f, 1f) }) { Bar(slices, total, drawn) }
             }
         }
     }
 }
 
-/** 0 -> 1 whenever the slices change or the view appears, so the chart draws itself in. */
+/** 0 -> 1 whenever the slices change, so the chart draws itself in (once, not each time it is scrolled between ring and bar). */
 @Composable
 private fun drawInProgress(slices: List<ChartSlice>): Float {
     val progress = remember { Animatable(0f) }
@@ -139,30 +168,30 @@ private fun drawInProgress(slices: List<ChartSlice>): Float {
 }
 
 @Composable
-private fun Bar(slices: List<ChartSlice>) {
-    val progress = drawInProgress(slices)
-    Box(Modifier.fillMaxWidth().height(14.dp).clip(RoundedCornerShape(7.dp)).testTag("history-chart-bar")) {
-        Row(Modifier.fillMaxWidth(progress.coerceAtLeast(0.001f)).fillMaxHeight()) { // grows from the left, proportions unchanged
-            slices.forEach { Box(Modifier.weight(it.fraction.coerceAtLeast(0.01f)).fillMaxHeight().background(themedColor(it.colorKey))) }
+private fun Bar(slices: List<ChartSlice>, total: String, drawn: Float) {
+    Column(Modifier.fillMaxWidth().testTag("history-chart-bar"), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.fillMaxWidth().height(14.dp).clip(RoundedCornerShape(7.dp))) {
+            Row(Modifier.fillMaxWidth(drawn.coerceAtLeast(0.001f)).fillMaxHeight()) { // grows from the left, proportions unchanged
+                slices.forEach { Box(Modifier.weight(it.fraction.coerceAtLeast(0.01f)).fillMaxHeight().background(themedColor(it.colorKey))) }
+            }
         }
+        Text(total, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
 @Composable
-private fun Ring(slices: List<ChartSlice>, total: String) {
+private fun Ring(slices: List<ChartSlice>, total: String, drawn: Float, modifier: Modifier) {
     val colors = slices.map { themedColor(it.colorKey) }
-    val progress = drawInProgress(slices)
-    Box(Modifier.size(220.dp).testTag("history-chart-ring"), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.size(220.dp)) {
-            val stroke = 30.dp.toPx()
+    Box(modifier.size(RING_DP.dp).testTag("history-chart-ring"), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.size(RING_DP.dp)) {
+            val stroke = 28.dp.toPx()
             val gap = if (slices.size > 1) 1.5f else 0f // a hairline between neighbours so equal colors do not merge
             var from = 0f // fraction of the circle where this slice starts
             slices.forEachIndexed { i, slice ->
-                val shown = (progress - from).coerceIn(0f, slice.fraction) // the ring sweeps clockwise from the top as progress grows
+                val shown = (drawn - from).coerceIn(0f, slice.fraction) // sweeps clockwise from the top as the chart draws in
                 if (shown > 0f) {
-                    val sweep = 360f * shown
                     drawArc(
-                        colors[i], -90f + 360f * from + gap / 2, (sweep - gap).coerceAtLeast(0.5f), useCenter = false,
+                        colors[i], -90f + 360f * from + gap / 2, (360f * shown - gap).coerceAtLeast(0.5f), useCenter = false,
                         topLeft = Offset(stroke / 2, stroke / 2), size = Size(size.width - stroke, size.height - stroke), style = Stroke(stroke),
                     )
                 }

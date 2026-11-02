@@ -26,7 +26,6 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _spreadsheetId = MutableStateFlow(prefs?.getString(SPREADSHEET_ID, null))
     private val _spreadsheetUrl = MutableStateFlow(prefs?.getString(SPREADSHEET_URL, null))
     private val _googleConnected = MutableStateFlow(prefs?.getBoolean(GOOGLE_CONNECTED, false) ?: false)
-    private val _historyChartOpen = MutableStateFlow(prefs?.getBoolean(HISTORY_CHART_OPEN, false) ?: false)
     private val _glass = MutableStateFlow(prefs?.getBoolean(GLASS, false) ?: false)
     private val warned = HashSet<String>(prefs?.getStringSet(WARNED, emptySet()).orEmpty())
 
@@ -36,14 +35,6 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
 
     /** What the History tab opens on. The original app defaults to the day (`defaultPeriod = day` in its backup). */
     val historyPeriod: StateFlow<PeriodUnit> = _historyPeriod
-
-    /** History's category chart: the thin bar (false, the default) or the full ring (true). */
-    val historyChartOpen: StateFlow<Boolean> = _historyChartOpen
-
-    fun setHistoryChartOpen(open: Boolean) {
-        _historyChartOpen.value = open
-        prefs?.edit()?.putBoolean(HISTORY_CHART_OPEN, open)?.apply()
-    }
 
     /** The spreadsheet this app created in Google Drive (only files the app created are reachable, by the drive.file scope). */
     val spreadsheetId: StateFlow<String?> = _spreadsheetId
@@ -167,7 +158,6 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val NOTIFICATIONS = "notifications"
         private const val WARNED = "warned"
         private const val HISTORY_PERIOD = "historyPeriod"
-        private const val HISTORY_CHART_OPEN = "historyChartOpen"
         private const val NAV_TABS = "navTabs"
         private const val GLASS = "glass"
         private const val GOOGLE_CONNECTED = "googleConnected"
