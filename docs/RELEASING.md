@@ -45,3 +45,13 @@ Build a signed APK locally with the same names exported as environment variables
 - Google sign-in needs a **second Android OAuth client** for the release SHA-1 (printed by the `keytool -list` line above), same
   package name `dev.yernur.moneytracker`: docs/GOOGLE_SETUP.md step 5.
 - Not yet run: both workflows have never run on GitHub; the first run may need small fixes (SDK install step, action versions).
+
+## In-app updates (More -> App updates)
+- The app asks GitHub for `releases/latest` of this public repo (no token; 60 requests/hour per IP is the unauthenticated limit, checked on the real API).
+  It checks when you open the screen and, in the background, at most once a day when More opens. A newer tag shows "Version X is available" on the More row.
+- **Download and install** fetches the release APK, checks its size and GitHub's sha256, then installs it as an update of this app with `PackageInstaller`.
+  Android refuses it unless it is signed with the same key as the installed app, so debug builds never update to a release build (and the other way round): uninstall first.
+- **Install permission:** the manifest declares `REQUEST_INSTALL_PACKAGES`; Android also needs the owner to allow it per app. The first tap on
+  "Download and install" opens Settings -> Install unknown apps -> Money Tracker: switch "Allow from this source" on, go back, tap the button again.
+- `UPDATE_PACKAGES_WITHOUT_USER_ACTION` plus `USER_ACTION_NOT_REQUIRED` ask Android to skip its confirmation for a self-update; per the docs it may still show one.
+  Unverified on a real device: whether the Nothing phone skips it.

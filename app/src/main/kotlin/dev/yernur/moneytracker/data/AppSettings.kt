@@ -26,6 +26,8 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _spreadsheetId = MutableStateFlow(prefs?.getString(SPREADSHEET_ID, null))
     private val _spreadsheetUrl = MutableStateFlow(prefs?.getString(SPREADSHEET_URL, null))
     private val _pendingSpreadsheetId = MutableStateFlow(prefs?.getString(PENDING_SPREADSHEET_ID, null))
+    private val _lastUpdateCheck = MutableStateFlow(prefs?.getLong(LAST_UPDATE_CHECK, 0L) ?: 0L)
+    private val _availableUpdate = MutableStateFlow(prefs?.getString(AVAILABLE_UPDATE, null))
     private val _googleConnected = MutableStateFlow(prefs?.getBoolean(GOOGLE_CONNECTED, false) ?: false)
     private val _glass = MutableStateFlow(prefs?.getBoolean(GLASS, false) ?: false)
     private val warned = HashSet<String>(prefs?.getStringSet(WARNED, emptySet()).orEmpty())
@@ -47,6 +49,22 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     fun setGoogleConnected(connected: Boolean) {
         _googleConnected.value = connected
         prefs?.edit()?.putBoolean(GOOGLE_CONNECTED, connected)?.apply()
+    }
+
+    /** When the app last asked GitHub for a newer release (epoch millis), so it asks by itself at most once a day. */
+    val lastUpdateCheck: StateFlow<Long> = _lastUpdateCheck
+
+    /** The newest release tag found by the last check (e.g. "v0.3.0"), shown on the More screen when it is newer than the installed version. */
+    val availableUpdate: StateFlow<String?> = _availableUpdate
+
+    fun setLastUpdateCheck(millis: Long) {
+        _lastUpdateCheck.value = millis
+        prefs?.edit()?.putLong(LAST_UPDATE_CHECK, millis)?.apply()
+    }
+
+    fun setAvailableUpdate(tag: String?) {
+        _availableUpdate.value = tag
+        prefs?.edit()?.apply { if (tag != null) putString(AVAILABLE_UPDATE, tag) else remove(AVAILABLE_UPDATE) }?.apply()
     }
 
     /** A spreadsheet created by a push that has not finished: the next push fills this one instead of making another. */
@@ -170,6 +188,8 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val NAV_TABS = "navTabs"
         private const val GLASS = "glass"
         private const val GOOGLE_CONNECTED = "googleConnected"
+        private const val LAST_UPDATE_CHECK = "lastUpdateCheck"
+        private const val AVAILABLE_UPDATE = "availableUpdate"
         private const val PENDING_SPREADSHEET_ID = "pendingSpreadsheetId"
         private const val SPREADSHEET_ID = "spreadsheetId"
         private const val SPREADSHEET_URL = "spreadsheetUrl"
