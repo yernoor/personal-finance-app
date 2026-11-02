@@ -214,10 +214,11 @@ fun AppRoot(nav: NavHostController = rememberNavController()) {
                 MoreScreen(
                     onCategories = { nav.navigate("categories") }, onTags = { nav.navigate("tags") },
                     onNavbar = { nav.navigate("navbar-settings") }, onHomeLayout = { nav.navigate("home-settings") },
-                    onSync = { nav.navigate("sync") },
+                    onSync = { nav.navigate("sync") }, onUpdates = { nav.navigate("updates") },
                 )
             }
             composable("sync") { SyncScreen { nav.popBackStack() } }
+            composable("updates") { UpdatesScreen { nav.popBackStack() } }
             composable("navbar-settings") { NavbarSettingsScreen { nav.popBackStack() } }
             composable("home-settings") { HomeLayoutScreen { nav.popBackStack() } }
             composable("categories") {

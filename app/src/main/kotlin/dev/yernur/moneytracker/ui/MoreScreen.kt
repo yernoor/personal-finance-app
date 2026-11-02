@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AlertDialogDefaults
@@ -37,6 +38,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,12 +60,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import dev.yernur.moneytracker.data.importer.MmbackupMapper
 import dev.yernur.moneytracker.data.importer.MmbackupReader
+import dev.yernur.moneytracker.data.update.isNewer
+import dev.yernur.moneytracker.data.update.parseVersion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit) {
+fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit) {
     var showWarnings by remember { mutableStateOf(false) }
     var showHistoryPeriod by remember { mutableStateOf(false) }
     var showIconStyle by remember { mutableStateOf(false) }
@@ -91,6 +95,7 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
         }
     }
 
+    LaunchedEffect(Unit) { container.checkForUpdateDaily() }
     Column(Modifier.verticalScroll(rememberScrollState())) {
         ListItem(
             modifier = Modifier.clickable(onClick = onCategories).testTag("open-categories"),
@@ -105,6 +110,17 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
             modifier = Modifier.clickable(onClick = onSync).testTag("open-sync"),
             leadingContent = { Icon(Icons.Outlined.CloudSync, null) }, headlineContent = { Text("Google Sheets") },
             supportingContent = { Text(if (sheetUrl == null) "Not connected" else "Connected") },
+        )
+        val availableUpdate by container.settings.availableUpdate.collectAsStateWithLifecycle()
+        val newer = availableUpdate?.takeIf { tag ->
+            val latest = parseVersion(tag)
+            val mine = parseVersion(container.installedVersion)
+            latest != null && mine != null && isNewer(latest, mine)
+        }
+        ListItem(
+            modifier = Modifier.clickable(onClick = onUpdates).testTag("open-updates"),
+            leadingContent = { Icon(Icons.Outlined.SystemUpdate, null) }, headlineContent = { Text("App updates") },
+            supportingContent = { Text(if (newer != null) "Version ${newer.removePrefix("v")} is available" else "Version ${container.installedVersion}") },
         )
         ListItem(
             modifier = Modifier.clickable(onClick = onNavbar).testTag("open-navbar-settings"),

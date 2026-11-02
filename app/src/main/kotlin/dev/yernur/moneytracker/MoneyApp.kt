@@ -10,17 +10,35 @@ import dev.yernur.moneytracker.data.WarningNotifier
 import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.db.MIGRATION_1_2
 import dev.yernur.moneytracker.data.importer.ImportRepository
+import dev.yernur.moneytracker.data.sheets.UrlConnectionTransport
+import dev.yernur.moneytracker.data.update.ApkInstaller
+import dev.yernur.moneytracker.data.update.UpdateChecker
+import dev.yernur.moneytracker.data.update.UpdateInstaller
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Hand-wired dependencies: small enough that a DI framework would only add build risk (AGP 9 + KSP). */
 class AppContainer(
     val db: AppDatabase,
     val settings: AppSettings = AppSettings(),
     notifierFor: (AppDatabase, AppSettings, ForecastRepository) -> WarningNotifier? = { _, _, _ -> null },
+    /** Null in tests: nothing may reach the network from them. */
+    val updateChecker: UpdateChecker? = null,
+    val updateInstaller: UpdateInstaller? = null,
+    val installedVersion: String = "0.0.0",
 ) {
     val ledger = LedgerRepository(db)
     val importer = ImportRepository(db)
     val forecasts = ForecastRepository(db, settings)
     private val notifier = notifierFor(db, settings, forecasts)
+
+    /** Asks GitHub for a newer release, but at most once a day; a failure is silent (the Updates screen shows errors when asked by hand). */
+    suspend fun checkForUpdateDaily(now: Long = System.currentTimeMillis()) {
+        val checker = updateChecker ?: return
+        if (now - settings.lastUpdateCheck.value < DAY_MILLIS) return
+        settings.setLastUpdateCheck(now)
+        runCatching { withContext(Dispatchers.IO) { checker.check() } }.onSuccess { settings.setAvailableUpdate(it?.tag) }
+    }
 
     /** Call after anything that changes spending: may post a limit warning. */
     suspend fun afterLedgerChange() {
@@ -28,13 +46,18 @@ class AppContainer(
     }
 }
 
+private const val DAY_MILLIS = 24 * 60 * 60 * 1000L
+
 val LocalAppContainer = staticCompositionLocalOf<AppContainer> { error("AppContainer not provided") }
 
 class MoneyApp : Application() {
     val container by lazy {
+        val version = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
         AppContainer(
             Room.databaseBuilder(this, AppDatabase::class.java, "moneytracker.db").addMigrations(MIGRATION_1_2).build(),
             AppSettings(getSharedPreferences("settings", MODE_PRIVATE)),
-        ) { db, settings, forecasts -> WarningNotifier(this, db, settings, forecasts) }
+            { db, settings, forecasts -> WarningNotifier(this, db, settings, forecasts) },
+            UpdateChecker(UrlConnectionTransport(), version), ApkInstaller(this), version,
+        )
     }
 }
