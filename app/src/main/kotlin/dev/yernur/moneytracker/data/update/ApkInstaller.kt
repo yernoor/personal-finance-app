@@ -87,6 +87,15 @@ class ApkInstaller(
     }
 }
 
+/** Android's own message says it all but cryptically; the signature mismatch is the one the owner will meet (debug build vs release build). */
+fun describeInstallFailure(status: Int, message: String?): String = when {
+    message?.contains("UPDATE_INCOMPATIBLE") == true ->
+        "Android refused the update: it is signed with a different key than the installed app (a debug build and a release build cannot replace each other). " +
+            "Uninstall the app first, which deletes its local data, then install the release."
+    message != null -> message
+    else -> "The install failed (code $status)."
+}
+
 /** Receives the installer's answer: shows Android's confirmation when it wants one, parks a failure for the screen. Success restarts the app. */
 class InstallResultReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -96,7 +105,7 @@ class InstallResultReceiver : BroadcastReceiver() {
                 context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
             PackageInstaller.STATUS_SUCCESS -> Unit
-            else -> InstallStatus.failure.value = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "The install failed (code $status)."
+            else -> InstallStatus.failure.value = describeInstallFailure(status, intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE))
         }
     }
 }

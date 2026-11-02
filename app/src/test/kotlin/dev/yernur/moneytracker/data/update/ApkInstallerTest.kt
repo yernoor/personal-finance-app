@@ -53,4 +53,12 @@ class ApkInstallerTest {
         assertFalse(java.io.File(context.cacheDir, "updates/update.apk").exists())
         assertTrue(java.io.File(context.cacheDir, "updates/second.apk").exists())
     }
+
+    @Test
+    fun aSignatureMismatch_isExplainedInPlainWords_otherFailuresKeepAndroidsText() {
+        val android = "INSTALL_FAILED_UPDATE_INCOMPATIBLE: Existing package dev.yernur.moneytracker signatures do not match newer version; ignoring!"
+        assertTrue(describeInstallFailure(5, android).contains("different key"))
+        assertEquals("INSTALL_FAILED_INSUFFICIENT_STORAGE", describeInstallFailure(6, "INSTALL_FAILED_INSUFFICIENT_STORAGE"))
+        assertEquals("The install failed (code 1).", describeInstallFailure(1, null))
+    }
 }
