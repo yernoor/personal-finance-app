@@ -56,6 +56,7 @@ import dev.yernur.moneytracker.data.Money
 import dev.yernur.moneytracker.data.db.AccountEntity
 import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.summarize
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -65,12 +66,12 @@ import kotlinx.coroutines.launch
 data class AccountRow(val account: AccountEntity, val balance: Long)
 data class AccountsState(val rows: List<AccountRow> = emptyList(), val counted: Long = 0, val all: Long = 0)
 
-class AccountsViewModel(db: AppDatabase) : ViewModel() {
+class AccountsViewModel(db: AppDatabase, rates: Flow<Map<Pair<String, String>, Double>>) : ViewModel() {
     val state: StateFlow<AccountsState> = combine(
-        db.accountDao().observeLive(), db.accountDao().observeBalances(), db.rateDao().observeAll(),
-    ) { accounts, balances, rates ->
+        db.accountDao().observeLive(), db.accountDao().observeBalances(), rates,
+    ) { accounts, balances, rateTable ->
         val byUid = balances.associate { it.uid to it.balance }
-        val summary = summarize(accounts, byUid, rates.associate { (it.fromCurrencyCode to it.toCurrencyCode) to it.value })
+        val summary = summarize(accounts, byUid, rateTable)
         val shown = accounts.filter { it.isActive && !it.isArchived }.map { AccountRow(it, byUid[it.uid] ?: 0L) }
         AccountsState(shown, summary.counted, summary.all)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AccountsState())
@@ -78,7 +79,7 @@ class AccountsViewModel(db: AppDatabase) : ViewModel() {
 
 @Composable
 fun AccountsScreen(onOpen: (String) -> Unit, onNew: () -> Unit, onNewTransfer: () -> Unit) {
-    val vm = appViewModel { AccountsViewModel(it.db) }
+    val vm = appViewModel { AccountsViewModel(it.db, it.fx.allRates) }
     val state by vm.state.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {

@@ -65,3 +65,17 @@ fun fromDefault(minor: Long, currency: String, kztPerUnit: Map<String, Double>):
 
 /** The reverse: an amount typed in [currency] stored as default currency. Null without a rate. */
 fun toDefault(minor: Long, currency: String, kztPerUnit: Map<String, Double>): Long? = convertViaKzt(minor, currency, DEFAULT_CURRENCY, kztPerUnit)
+
+/**
+ * One rate table for the whole app: the backup's pairs, with the National Bank rate winning for every currency it publishes
+ * (so Home, Accounts and Wealth show the same tenge for the same account). The reverse pair is dropped, or [dev.yernur.moneytracker.data.Money.convert],
+ * which tries the direct pair first, would still use the backup's.
+ */
+fun mergedRates(backup: Map<Pair<String, String>, Double>, kztPerUnit: Map<String, Double>): Map<Pair<String, String>, Double> {
+    val merged = backup.toMutableMap()
+    for ((code, rate) in kztPerUnit) {
+        merged.remove(DEFAULT_CURRENCY to code)
+        merged[code to DEFAULT_CURRENCY] = rate
+    }
+    return merged
+}

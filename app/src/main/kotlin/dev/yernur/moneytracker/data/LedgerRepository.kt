@@ -38,12 +38,14 @@ data class TransferDraft(
 /** The single write path: stamps `modified`, keeps tombstones, and fills the derived amount fields. */
 class LedgerRepository(
     private val db: AppDatabase,
+    /** Where entry-time conversions get their rates (bank over backup); null keeps the backup's alone. */
+    private val allRates: (suspend () -> Map<Pair<String, String>, Double>)? = null,
     private val now: () -> String = ::nowUtc,
     private val newUid: () -> String = { UUID.randomUUID().toString() },
 ) {
     suspend fun saveTransaction(draft: TransactionDraft) = db.withTransaction {
         val account = requireNotNull(db.accountDao().get(draft.accountUid)) { "unknown account" }
-        val rates = db.rateDao().getAll().associate { (it.fromCurrencyCode to it.toCurrencyCode) to it.value }
+        val rates = allRates?.invoke() ?: db.rateDao().getAll().associate { (it.fromCurrencyCode to it.toCurrencyCode) to it.value }
         val existing = draft.uid?.let { db.transactionDao().get(it) }
         val stamp = now()
         val uid = existing?.uid ?: newUid()

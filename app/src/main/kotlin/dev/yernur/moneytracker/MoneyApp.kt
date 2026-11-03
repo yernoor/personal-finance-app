@@ -24,6 +24,7 @@ import dev.yernur.moneytracker.data.wealth.FxRepository
 import dev.yernur.moneytracker.data.wealth.NbkRatesClient
 import dev.yernur.moneytracker.data.wealth.WealthRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
@@ -40,10 +41,10 @@ class AppContainer(
     /** Null in tests, like [updateChecker]. */
     fxClient: NbkRatesClient? = null,
 ) {
-    val ledger = LedgerRepository(db)
     val importer = ImportRepository(db)
     val forecasts = ForecastRepository(db, settings)
     val fx = FxRepository(db, settings, fxClient)
+    val ledger = LedgerRepository(db, allRates = { fx.allRates.first() })
     val wealth = WealthRepository(db, fx)
     private val notifier = notifierFor(db, settings, forecasts)
 

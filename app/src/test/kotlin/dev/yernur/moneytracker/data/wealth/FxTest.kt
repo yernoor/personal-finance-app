@@ -3,12 +3,18 @@ package dev.yernur.moneytracker.data.wealth
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import dev.yernur.moneytracker.data.AppSettings
+import dev.yernur.moneytracker.data.LedgerRepository
+import dev.yernur.moneytracker.data.TransactionDraft
+import dev.yernur.moneytracker.data.db.AccountEntity
 import dev.yernur.moneytracker.data.db.AppDatabase
+import dev.yernur.moneytracker.data.db.RateEntity
+import dev.yernur.moneytracker.data.db.TransactionType
 import dev.yernur.moneytracker.data.sheets.FakeTransport
 import dev.yernur.moneytracker.data.sheets.HttpResponse
 import dev.yernur.moneytracker.data.sheets.ok
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -101,6 +107,17 @@ class FxTest {
     }
 
     @Test
+    fun anEntryInADollarAccount_isConvertedWithTheBankRate_notTheBackupsOldOne() = runBlocking {
+        db.accountDao().insertAll(listOf(AccountEntity("usd", "USD", "USD", null, null, null, null, false, true, false, false, "", "")))
+        db.rateDao().insertAll(listOf(RateEntity("USD", "KZT", 400.0, ""))) // what the .mmbackup carried
+        val fx = FxRepository(db, AppSettings(), NbkRatesClient(FakeTransport { ok(feed) }))
+        fx.refreshDaily(day)
+        val ledger = LedgerRepository(db, allRates = { fx.allRates.first() }, newUid = { "u1" })
+        ledger.saveTransaction(TransactionDraft(null, TransactionType.Expense, "usd", null, 1_000, "2026-11-04", null, emptySet())) // $10.00
+        assertEquals(453_260L, db.transactionDao().get("u1")!!.amountInDefaultCurrency) // 10 * 453.26 = 4,532.60 KZT, not 4,000
+    }
+
+    @Test
     fun offline_doesNotUseUpTheDay_butABadAnswerDoes() = runBlocking {
         var online = false
         val transport = FakeTransport { if (online) ok(feed) else throw IOException("no network") }
@@ -134,5 +151,18 @@ class CurrencyChoiceTest {
         assertEquals(45_326L, fromDefault(45_326, "GBP", rates))
         assertEquals(45_326L, toDefault(100, "USD", rates))
         assertNull(toDefault(100, "GBP", rates))
+    }
+}
+
+class MergedRatesTest {
+    @Test
+    fun theBankWins_theReversePairGoesAway_otherBackupPairsStay() {
+        val backup = mapOf(("USD" to "KZT") to 400.0, ("KZT" to "EUR") to 0.002, ("USD" to "EUR") to 0.9)
+        val merged = mergedRates(backup, mapOf("USD" to 450.0, "EUR" to 500.0))
+        assertEquals(450.0, merged.getValue("USD" to "KZT"), 0.0)
+        assertEquals(500.0, merged.getValue("EUR" to "KZT"), 0.0)
+        assertNull(merged["KZT" to "EUR"]) // or Money.convert would still prefer it for KZT -> EUR
+        assertEquals(0.9, merged.getValue("USD" to "EUR"), 0.0)
+        assertEquals(mapOf(("USD" to "KZT") to 400.0), mergedRates(backup.filterKeys { it.first == "USD" && it.second == "KZT" }, emptyMap()))
     }
 }

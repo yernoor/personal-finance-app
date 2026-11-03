@@ -5,6 +5,8 @@ import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.db.FxRateEntity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -14,6 +16,11 @@ import java.time.LocalDate
 /** Caches the National Bank rates in Room and asks the network at most once a day. */
 class FxRepository(private val db: AppDatabase, private val settings: AppSettings, private val client: NbkRatesClient?) {
     val rates: Flow<Map<String, Double>> = db.fxRateDao().observeAll().map { rows -> rows.associate { it.currencyCode to it.kztPerUnit } }
+
+    /** Backup rates overridden by the bank's, for every screen that converts accounts to tenge. */
+    val allRates: Flow<Map<Pair<String, String>, Double>> = combine(db.rateDao().observeAll(), rates) { backup, bank ->
+        mergedRates(backup.associate { (it.fromCurrencyCode to it.toCurrencyCode) to it.value }, bank)
+    }
 
     /** The date the cached rates were published for (null: nothing cached yet). */
     suspend fun cachedDate(): String? = db.fxRateDao().getAll().firstOrNull()?.date
