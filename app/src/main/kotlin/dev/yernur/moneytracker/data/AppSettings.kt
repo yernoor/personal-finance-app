@@ -32,6 +32,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _lastSyncAt = MutableStateFlow(prefs?.getString(LAST_SYNC_AT, null))
     private val _pendingSpreadsheetId = MutableStateFlow(prefs?.getString(PENDING_SPREADSHEET_ID, null))
     private val _lastUpdateCheck = MutableStateFlow(prefs?.getLong(LAST_UPDATE_CHECK, 0L) ?: 0L)
+    private val _wealthCurrency = MutableStateFlow(prefs?.getString(WEALTH_CURRENCY, null) ?: DEFAULT_CURRENCY)
     private val _lastRatesDate = MutableStateFlow(prefs?.getString(LAST_RATES_DATE, null))
     private val _availableUpdate = MutableStateFlow(prefs?.getString(AVAILABLE_UPDATE, null))
     private val _googleConnected = MutableStateFlow(prefs?.getBoolean(GOOGLE_CONNECTED, false) ?: false)
@@ -62,6 +63,14 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
 
     /** The newest release tag found by the last check (e.g. "v0.3.0"), shown on the More screen when it is newer than the installed version. */
     val availableUpdate: StateFlow<String?> = _availableUpdate
+
+    /** The currency the Wealth and Compound interest screens show (the owner's switch); stored amounts stay in [DEFAULT_CURRENCY]. */
+    val wealthCurrency: StateFlow<String> = _wealthCurrency
+
+    fun setWealthCurrency(code: String) {
+        _wealthCurrency.value = code
+        prefs?.edit()?.putString(WEALTH_CURRENCY, code)?.apply()
+    }
 
     /** The day (YYYY-MM-DD, device local) the app last asked the National Bank for rates: it asks once a day. */
     val lastRatesDate: StateFlow<String?> = _lastRatesDate
@@ -239,6 +248,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val GOOGLE_CONNECTED = "googleConnected"
         private const val LAST_UPDATE_CHECK = "lastUpdateCheck"
         private const val LAST_RATES_DATE = "lastRatesDate"
+        private const val WEALTH_CURRENCY = "wealthCurrency"
         private const val AVAILABLE_UPDATE = "availableUpdate"
         private const val PENDING_SPREADSHEET_ID = "pendingSpreadsheetId"
         private const val SPREADSHEET_ID = "spreadsheetId"

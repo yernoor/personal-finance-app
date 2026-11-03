@@ -91,3 +91,21 @@ class FxTest {
         assertEquals("2026-11-04", badDb.cachedDate()) // the old rates stay
     }
 }
+
+class CurrencyChoiceTest {
+    private val rates = mapOf("USD" to 453.26, "EUR" to 506.7, "AMD" to 1.17)
+
+    @Test
+    fun choices_areTengeFirst_thenKnownPreferredCurrencies() {
+        assertEquals(listOf("KZT", "USD", "EUR"), currencyChoices(rates))
+        assertEquals(listOf("KZT"), currencyChoices(emptyMap())) // nothing cached yet: only tenge
+    }
+
+    @Test
+    fun display_convertsFromTenge_andFallsBackWhenARateIsMissing() {
+        assertEquals(100L, fromDefault(45_326, "USD", rates))
+        assertEquals(45_326L, fromDefault(45_326, "GBP", rates))
+        assertEquals(45_326L, toDefault(100, "USD", rates))
+        assertNull(toDefault(100, "GBP", rates))
+    }
+}

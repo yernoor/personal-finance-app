@@ -13,6 +13,8 @@ import dev.yernur.moneytracker.data.db.ManualAssetEntity
 import dev.yernur.moneytracker.data.db.ManualKind
 import dev.yernur.moneytracker.data.db.NetWorthSnapshotEntity
 import dev.yernur.moneytracker.data.nowUtc
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.util.UUID
@@ -55,6 +57,23 @@ class WealthRepository(private val db: AppDatabase, private val fx: FxRepository
         db.netWorthSnapshotDao().put(NetWorthSnapshotEntity(today.toString(), now.accountsMinor, now.assetsMinor, now.liabilitiesMinor, now.investmentsMinor))
         return true
     }
+
+    /** Fires whenever anything the overview is built from changes. */
+    fun changes(): Flow<Unit> = combine(
+        db.accountDao().observeBalances(), db.manualAssetDao().observeLive(), db.bondDao().observeLive(),
+        db.goalDao().observeLive(), db.cashflowItemDao().observeLive(), db.netWorthSnapshotDao().observeAll(), fx.rates,
+    ) { _ -> Unit }
+
+    suspend fun overview(today: LocalDate): WealthOverview = WealthOverview(
+        netWorth = currentNetWorth(),
+        snapshots = db.netWorthSnapshotDao().getAll(),
+        goals = goalProgress(today),
+        portfolio = portfolio(today),
+        health = health(today),
+        manualAssets = db.manualAssetDao().getLive(),
+        cashflowItems = db.cashflowItemDao().getLive(),
+        rates = fx.rates.first(),
+    )
 
     suspend fun saveManualAsset(uid: String?, title: String, kind: ManualKind, currency: String, valueMinor: Long) {
         val now = nowUtc()
@@ -185,3 +204,15 @@ data class Portfolio(
 ) {
     val gainMinor get() = valueMinor - costMinor
 }
+
+/** Everything the Wealth screen shows, in the default currency; the screen converts for display. */
+data class WealthOverview(
+    val netWorth: NetWorth,
+    val snapshots: List<NetWorthSnapshotEntity>,
+    val goals: List<Pair<GoalEntity, GoalProgress>>,
+    val portfolio: Portfolio,
+    val health: HealthSummary,
+    val manualAssets: List<ManualAssetEntity>,
+    val cashflowItems: List<CashflowItemEntity>,
+    val rates: Map<String, Double>,
+)

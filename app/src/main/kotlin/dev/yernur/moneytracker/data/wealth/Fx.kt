@@ -52,3 +52,14 @@ fun convertViaKzt(minor: Long, from: String, to: String, kztPerUnit: Map<String,
     val toRate = rate(to) ?: return null
     return BigDecimal.valueOf(minor).multiply(fromRate).divide(toRate, 0, RoundingMode.HALF_UP).toLong()
 }
+
+/** Currencies the owner is likely to switch between, in this order; only those with a cached rate are offered (KZT always). */
+private val PREFERRED_CURRENCIES = listOf("USD", "EUR", "RUB", "GBP", "CNY", "TRY", "AED")
+
+fun currencyChoices(kztPerUnit: Map<String, Double>): List<String> = listOf(DEFAULT_CURRENCY) + PREFERRED_CURRENCIES.filter { it in kztPerUnit }
+
+/** A default-currency amount shown in [currency]; the amount itself when no rate is known (the screen then keeps showing KZT). */
+fun fromDefault(minor: Long, currency: String, kztPerUnit: Map<String, Double>): Long = convertViaKzt(minor, DEFAULT_CURRENCY, currency, kztPerUnit) ?: minor
+
+/** The reverse: an amount typed in [currency] stored as default currency. Null without a rate. */
+fun toDefault(minor: Long, currency: String, kztPerUnit: Map<String, Double>): Long? = convertViaKzt(minor, currency, DEFAULT_CURRENCY, kztPerUnit)
