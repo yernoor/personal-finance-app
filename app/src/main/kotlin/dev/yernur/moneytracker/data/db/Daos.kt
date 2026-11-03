@@ -244,3 +244,15 @@ interface GoalDao {
     @Query("SELECT * FROM goal WHERE isRemoved = 0")
     suspend fun getLive(): List<GoalEntity>
 }
+
+@Dao
+interface BondDao {
+    @Upsert
+    suspend fun upsert(item: BondEntity)
+
+    @Query("SELECT * FROM bond WHERE isRemoved = 0 ORDER BY maturityDate, title")
+    fun observeLive(): Flow<List<BondEntity>>
+
+    @Query("SELECT * FROM bond WHERE isRemoved = 0 ORDER BY maturityDate, title")
+    suspend fun getLive(): List<BondEntity>
+}

@@ -20,8 +20,9 @@ import androidx.sqlite.execSQL
         ManualAssetEntity::class,
         NetWorthSnapshotEntity::class,
         GoalEntity::class,
+        BondEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -36,6 +37,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun manualAssetDao(): ManualAssetDao
     abstract fun netWorthSnapshotDao(): NetWorthSnapshotDao
     abstract fun goalDao(): GoalDao
+    abstract fun bondDao(): BondDao
 }
 
 /** Adds the per-category warning threshold and projection mode (milestone 5). */
@@ -59,5 +61,13 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         connection.execSQL("CREATE TABLE IF NOT EXISTS `manual_asset` (`uid` TEXT NOT NULL, `title` TEXT NOT NULL, `kind` TEXT NOT NULL, `currencyCode` TEXT NOT NULL, `valueMinor` INTEGER NOT NULL, `created` TEXT NOT NULL, `modified` TEXT NOT NULL, `isRemoved` INTEGER NOT NULL, PRIMARY KEY(`uid`))")
         connection.execSQL("CREATE TABLE IF NOT EXISTS `net_worth_snapshot` (`date` TEXT NOT NULL, `accountsMinor` INTEGER NOT NULL, `assetsMinor` INTEGER NOT NULL, `liabilitiesMinor` INTEGER NOT NULL, PRIMARY KEY(`date`))")
         connection.execSQL("CREATE TABLE IF NOT EXISTS `goal` (`uid` TEXT NOT NULL, `title` TEXT NOT NULL, `targetMinor` INTEGER NOT NULL, `targetDate` TEXT, `accountUid` TEXT, `created` TEXT NOT NULL, `modified` TEXT NOT NULL, `isRemoved` INTEGER NOT NULL, PRIMARY KEY(`uid`))")
+    }
+}
+
+/** Adds bond holdings and counts them in net worth snapshots. */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("CREATE TABLE IF NOT EXISTS `bond` (`uid` TEXT NOT NULL, `title` TEXT NOT NULL, `currencyCode` TEXT NOT NULL, `faceMinor` INTEGER NOT NULL, `quantity` INTEGER NOT NULL, `costMinor` INTEGER NOT NULL, `couponRateBp` INTEGER NOT NULL, `couponsPerYear` INTEGER NOT NULL, `maturityDate` TEXT NOT NULL, `currentValueMinor` INTEGER, `created` TEXT NOT NULL, `modified` TEXT NOT NULL, `isRemoved` INTEGER NOT NULL, PRIMARY KEY(`uid`))")
+        connection.execSQL("ALTER TABLE net_worth_snapshot ADD COLUMN investmentsMinor INTEGER NOT NULL DEFAULT 0")
     }
 }

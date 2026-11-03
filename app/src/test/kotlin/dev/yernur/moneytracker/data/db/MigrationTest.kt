@@ -46,6 +46,16 @@ class MigrationTest {
         for (table in listOf("manual_asset", "net_worth_snapshot", "goal")) assertEquals("0", v4.scalar("SELECT COUNT(*) FROM $table"))
     }
 
+    @Test
+    fun migrate4To5_addsBonds_andKeepsSnapshotsWithZeroInvestments() {
+        helper.createDatabase(DB, 4).use { v4 ->
+            v4.execSQL("INSERT INTO net_worth_snapshot (date, accountsMinor, assetsMinor, liabilitiesMinor) VALUES ('2026-11-04', 100, 50, 20)")
+        }
+        val v5 = helper.runMigrationsAndValidate(DB, 5, true, MIGRATION_4_5)
+        assertEquals("0", v5.scalar("SELECT COUNT(*) FROM bond"))
+        assertEquals("0", v5.scalar("SELECT investmentsMinor FROM net_worth_snapshot WHERE date = '2026-11-04'"))
+    }
+
     private companion object {
         const val DB = "migration-test"
     }

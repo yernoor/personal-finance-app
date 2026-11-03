@@ -199,8 +199,10 @@ data class NetWorthSnapshotEntity(
     val accountsMinor: Long,
     val assetsMinor: Long,
     val liabilitiesMinor: Long,
+    /** Added in schema 5: bond holdings at their current value. */
+    @ColumnInfo(defaultValue = "0") val investmentsMinor: Long = 0,
 ) {
-    val totalMinor: Long get() = accountsMinor + assetsMinor - liabilitiesMinor
+    val totalMinor: Long get() = accountsMinor + assetsMinor + investmentsMinor - liabilitiesMinor
 }
 
 /** A savings target in the default currency. [accountUid] null means the target is on total net worth; otherwise on that account's balance. */
@@ -212,6 +214,29 @@ data class GoalEntity(
     /** YYYY-MM-DD; null = no deadline. */
     val targetDate: String?,
     val accountUid: String?,
+    val created: String,
+    val modified: String,
+    val isRemoved: Boolean = false,
+)
+
+/**
+ * A bond position (one row per bond, [quantity] pieces). Money fields are in [currencyCode]; [costMinor] is the total paid for all pieces.
+ * [currentValueMinor] is entered by hand (no live quotes); null = valued at cost. Coupon dates are counted back from [maturityDate].
+ */
+@Entity(tableName = "bond")
+data class BondEntity(
+    @PrimaryKey val uid: String,
+    val title: String,
+    val currencyCode: String,
+    val faceMinor: Long,
+    val quantity: Int,
+    val costMinor: Long,
+    /** Annual coupon rate in basis points: 7.5% = 750. */
+    val couponRateBp: Int,
+    /** 1, 2, 4 or 12. */
+    val couponsPerYear: Int,
+    val maturityDate: String,
+    val currentValueMinor: Long?,
     val created: String,
     val modified: String,
     val isRemoved: Boolean = false,
