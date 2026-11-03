@@ -133,7 +133,7 @@ fun WealthScreen(embedded: Boolean = false, onCompound: () -> Unit, onBack: () -
 
         when (val e = editing) {
             null -> Unit
-            is Editing.Asset -> AssetDialog(e.item, shown, choices, data.rates, { editing = null }, vm)
+            is Editing.Asset -> AssetDialog(e.item, shown, choices, { editing = null }, vm)
             is Editing.Goal -> GoalDialog(e.item, shown, accounts.map { it.title }, data.rates, { editing = null }, vm)
             is Editing.Bond -> BondDialog(e.item, shown, choices, { editing = null }, vm)
             is Editing.Cashflow -> CashflowDialog(e.item, shown, choices, { editing = null }, vm)
@@ -353,7 +353,7 @@ private fun ProjectionCard(data: WealthOverview, show: (Long) -> String) {
 }
 
 @Composable
-private fun AssetDialog(item: ManualAssetEntity?, currency: String, choices: List<String>, rates: Map<String, Double>, onDismiss: () -> Unit, vm: WealthViewModel) {
+private fun AssetDialog(item: ManualAssetEntity?, currency: String, choices: List<String>, onDismiss: () -> Unit, vm: WealthViewModel) {
     FormDialog(
         if (item == null) "New asset or loan" else "Edit ${item.title}",
         listOf(

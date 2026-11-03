@@ -75,8 +75,9 @@ class FxTest {
         assertFalse(repo.refreshDaily(day)) // same day: no second request
         assertEquals(1, transport.requests.size)
         assertEquals("https://nationalbank.kz/rss/get_rates.cfm?fdate=04.11.2026", transport.requests.single().url)
-        assertEquals("2026-11-04", repo.cachedDate())
-        assertEquals(45_326L, repo.convert(100, "USD", "KZT"))
+        val cached = db.fxRateDao().getAll()
+        assertEquals("2026-11-04", cached.first().date)
+        assertEquals(45_326L, convertViaKzt(100, "USD", "KZT", cached.associate { it.currencyCode to it.kztPerUnit }))
         assertTrue(repo.refreshDaily(day.plusDays(1)))
         assertEquals(2, transport.requests.size)
     }
@@ -126,13 +127,12 @@ class FxTest {
         online = true
         assertTrue(repo.refreshDaily(day)) // the offline attempt did not count
 
-        val badDb = FxRepository(db, AppSettings(), NbkRatesClient(FakeTransport { HttpResponse(500, "") }))
         val bad = FakeTransport { HttpResponse(500, "") }
         val badRepo = FxRepository(db, AppSettings(), NbkRatesClient(bad))
         assertFalse(badRepo.refreshDaily(day.plusDays(5)))
         assertFalse(badRepo.refreshDaily(day.plusDays(5)))
         assertEquals(1, bad.requests.size)
-        assertEquals("2026-11-04", badDb.cachedDate()) // the old rates stay
+        assertEquals("2026-11-04", db.fxRateDao().getAll().first().date) // the old rates stay
     }
 }
 

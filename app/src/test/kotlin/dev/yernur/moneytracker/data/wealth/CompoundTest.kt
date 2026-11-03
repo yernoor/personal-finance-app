@@ -8,8 +8,8 @@ import java.math.BigDecimal
 class CompoundTest {
     private fun input(
         start: Long = 0, rate: String = "0", monthly: Long = 0, years: Int = 1,
-        cap: Capitalization = Capitalization.Monthly, timing: ContributionTiming = ContributionTiming.End, inflation: String = "0",
-    ) = CompoundInput(start, BigDecimal(rate), monthly, years, cap, timing, BigDecimal(inflation))
+        cap: Capitalization = Capitalization.Monthly, timing: ContributionTiming = ContributionTiming.End,
+    ) = CompoundInput(start, BigDecimal(rate), monthly, years, cap, timing)
 
     @Test
     fun lumpSum_monthlyCapitalization_matchesHandComputedValue() {
@@ -67,12 +67,6 @@ class CompoundTest {
         val rows = compound(input(start = 500_000, monthly = 20_000, years = 3))
         assertEquals(500_000L + 20_000L * 36, rows.last().balance)
         assertTrue(rows.all { it.interest == 0L })
-    }
-
-    @Test
-    fun inflation_deflatesTheRealBalance() {
-        // 1000.00 / 1.03 = 970.87
-        assertEquals(97_087L, compound(input(start = 100_000, inflation = "3")).single().realBalance)
     }
 
     @Test

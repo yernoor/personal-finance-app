@@ -5,7 +5,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.math.BigDecimal
 import java.time.LocalDate
 
 class GoalsTest {
@@ -23,15 +22,6 @@ class GoalsTest {
     @Test
     fun requiredMonthly_roundsUpSoTheGoalIsNotMissedByACent() {
         assertEquals(34L, goalProgress(0, 100, today.plusMonths(3), today).requiredMonthly) // 33.33.. -> 34
-    }
-
-    @Test
-    fun withAReturn_requiredMonthlyInvertsTheCompoundEngine() {
-        // 100.00 a month for 12 months at 12% (1% a month) grows to 1268.25 (see CompoundTest)
-        val progress = goalProgress(0, 126_825, today.plusMonths(12), today, BigDecimal("12"))
-        assertEquals(10_000L, progress.requiredMonthly)
-        // the money already there grows past the target on its own
-        assertEquals(0L, goalProgress(1_000_000, 1_100_000, today.plusMonths(12), today, BigDecimal("12")).requiredMonthly)
     }
 
     @Test

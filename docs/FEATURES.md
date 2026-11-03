@@ -136,7 +136,7 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 ## Wealth tools (owner request, 2026-11-04), backend first, UI mock-ups to choose a style
 Beyond expense tracking: the app becomes a general personal-finance tool. Owner's picks, in build order. All of it is local; the only new
 network call is the daily rate fetch.
-1. **Compound interest calculator.** Start balance, yearly rate, monthly contribution, years; year-by-year table (contributed / interest / balance), optional inflation.
+1. **Compound interest calculator.** Start balance, yearly rate, monthly contribution, years; year-by-year table (contributed / interest / balance).
 2. **Net worth over time + goals.** Snapshots of all account balances (in KZT) plus manual assets/liabilities; goals with a target amount and date.
 3. **Projected net worth.** The same engine fed with salary, monthly obligations and investment returns / bond coupons.
 4. **Financial health summary.** Monthly income and obligations (mortgage, loans, subscriptions) entered by hand; shows what is left to save/invest, savings rate, months of expenses covered.
@@ -146,7 +146,7 @@ network call is the daily rate fetch.
 
 ### Wealth backend as built (2026-11-04; unit-tested on Robolectric)
 Code in `data/wealth/`, schema 2 -> 6 (one migration per step, each tested). All money is `Long` minor units in KZT unless a row names its currency.
-- `Compound.kt`: monthly or yearly capitalization (yearly = interest accrues monthly on the principal and is credited in month 12), contributions at start or end of month, optional inflation. Checked against hand-computed annuity values.
+- `Compound.kt`: monthly or yearly capitalization (yearly = interest accrues monthly on the principal and is credited in month 12), contributions at start or end of month. Checked against hand-computed annuity values.
 - `Fx.kt` / `FxRepository`: National Bank feed parsed per `quant`, cached in `fx_rate`, at most one request per local day; an unreachable network does not use up the day, a bad HTTP answer does. Converts through KZT.
 - `WealthRepository`: net worth = every active account (also those hidden from the Total) + manual assets + bonds at current value - liabilities, snapshotted once a day (skipped while a currency has no rate, so a gap never looks like a loss); goals on net worth or one account with the monthly amount needed to arrive on time.
 - `Bonds.kt`: coupons counted back from maturity (assumption: real schedules may differ by days), current yield, yield to maturity (bisection, actual/365, ignores accrued interest, tax and fees: an estimate), maturity ladder. Prices are typed in by hand.

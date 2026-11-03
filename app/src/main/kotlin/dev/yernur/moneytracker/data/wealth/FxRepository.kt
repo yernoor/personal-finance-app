@@ -6,7 +6,6 @@ import dev.yernur.moneytracker.data.db.FxRateEntity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -21,12 +20,6 @@ class FxRepository(private val db: AppDatabase, private val settings: AppSetting
     val allRates: Flow<Map<Pair<String, String>, Double>> = combine(db.rateDao().observeAll(), rates) { backup, bank ->
         mergedRates(backup.associate { (it.fromCurrencyCode to it.toCurrencyCode) to it.value }, bank)
     }
-
-    /** The date the cached rates were published for (null: nothing cached yet). */
-    suspend fun cachedDate(): String? = db.fxRateDao().getAll().firstOrNull()?.date
-
-    suspend fun convert(minor: Long, from: String, to: String): Long? =
-        convertViaKzt(minor, from, to, db.fxRateDao().getAll().associate { it.currencyCode to it.kztPerUnit })
 
     private val lock = Mutex()
 

@@ -101,7 +101,7 @@ class BondsTest {
         // value: 1050 + 2000 = $3050 at 450 = 1,372,500.00 KZT; cost: 3000 USD = 1,350,000.00
         assertEquals(137_250_000L, portfolio.valueMinor)
         assertEquals(135_000_000L, portfolio.costMinor)
-        assertEquals(2_250_000L, portfolio.gainMinor)
+        assertEquals(2_250_000L, portfolio.valueMinor - portfolio.costMinor)
         // annual coupons: A $100 + B 2 pieces * $1000 * 10% = $200 -> $300 = 135,000.00 KZT
         assertEquals(13_500_000L, portfolio.annualCouponMinor)
         assertEquals(137_250_000L, wealth.currentNetWorth().investmentsMinor)

@@ -18,11 +18,10 @@ data class CompoundInput(
     val years: Int,
     val capitalization: Capitalization = Capitalization.Monthly,
     val contributionTiming: ContributionTiming = ContributionTiming.End,
-    val inflationPercent: BigDecimal = BigDecimal.ZERO,
 )
 
 /** One row per year; [contributed] and [interest] are running totals (the start balance counts as contributed). */
-data class CompoundYear(val year: Int, val contributed: Long, val interest: Long, val balance: Long, val realBalance: Long)
+data class CompoundYear(val year: Int, val contributed: Long, val interest: Long, val balance: Long)
 
 private val precision = MathContext(30)
 private val hundred = BigDecimal(100)
@@ -30,7 +29,6 @@ private val hundred = BigDecimal(100)
 fun compound(input: CompoundInput): List<CompoundYear> {
     require(input.years >= 0) { "years must not be negative" }
     val monthlyRate = input.annualRatePercent.divide(hundred.multiply(BigDecimal(12)), precision)
-    val inflation = BigDecimal.ONE + input.inflationPercent.divide(hundred, precision)
     val contribution = BigDecimal(input.monthlyContributionMinor)
     var principal = BigDecimal(input.startMinor) // earns interest
     var pending = BigDecimal.ZERO // yearly capitalization: accrued, not yet earning
@@ -50,9 +48,7 @@ fun compound(input: CompoundInput): List<CompoundYear> {
             }
         }
         contributed += input.monthlyContributionMinor * 12
-        val balance = principal
-        val rounded = balance.setScale(0, RoundingMode.HALF_UP).toLong()
-        val real = balance.divide(inflation.pow(year), precision).setScale(0, RoundingMode.HALF_UP).toLong()
-        CompoundYear(year, contributed, rounded - contributed, rounded, real)
+        val rounded = principal.setScale(0, RoundingMode.HALF_UP).toLong()
+        CompoundYear(year, contributed, rounded - contributed, rounded)
     }
 }

@@ -161,7 +161,7 @@ class WealthRepository(private val db: AppDatabase, private val fx: FxRepository
     }
 
     /** Every live goal measured against net worth, or against its account's balance in the default currency. */
-    suspend fun goalProgress(today: LocalDate, annualReturnPercent: java.math.BigDecimal = java.math.BigDecimal.ZERO): List<Pair<GoalEntity, GoalProgress>> {
+    suspend fun goalProgress(today: LocalDate): List<Pair<GoalEntity, GoalProgress>> {
         val netWorth = currentNetWorth().totalMinor
         val rates = fx.rates.first()
         val balances = db.accountDao().observeBalances().first().associate { it.uid to it.balance }
@@ -171,7 +171,7 @@ class WealthRepository(private val db: AppDatabase, private val fx: FxRepository
                 val account = accounts[goal.accountUid]
                 if (account == null) 0L else convertViaKzt(balances[account.uid] ?: 0L, account.currencyCode, DEFAULT_CURRENCY, rates) ?: 0L
             }
-            goal to goalProgress(current, goal.targetMinor, goal.targetDate?.let(LocalDate::parse), today, annualReturnPercent)
+            goal to goalProgress(current, goal.targetMinor, goal.targetDate?.let(LocalDate::parse), today)
         }
     }
 
@@ -208,9 +208,8 @@ data class Portfolio(
     val annualCouponMinor: Long,
     val ladder: Map<Int, LadderYear>,
     val missingCurrencies: Set<String>,
-) {
-    val gainMinor get() = valueMinor - costMinor
-}
+)
+
 
 /** Everything the Wealth screen shows, in the default currency; the screen converts for display. */
 data class WealthOverview(
