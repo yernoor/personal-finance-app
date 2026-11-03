@@ -108,3 +108,19 @@ class CompoundFormTest {
     }
 }
 
+@RunWith(RobolectricTestRunner::class)
+class CompoundScreenInDollarsTest {
+    @get:Rule val compose = createComposeRule()
+
+    @Test
+    fun openingWithDollarsAlreadyChosen_convertsTheExampleAmounts_insteadOfLabellingTengeAsDollars() {
+        val db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java).allowMainThreadQueries().build()
+        runBlocking { db.fxRateDao().upsertAll(listOf(FxRateEntity("USD", 450.0, "2026-11-04"))) }
+        val container = AppContainer(db)
+        container.settings.setWealthCurrency("USD")
+        compose.setContent { CompositionLocalProvider(LocalAppContainer provides container) { AppTheme { CompoundScreen {} } } }
+        compose.waitUntil(10_000) { runCatching { compose.onNodeWithTag("compound-start").assertTextContains("2222.22", substring = true) }.isSuccess }
+        compose.onNodeWithTag("compound-balance").assertTextContains("$", substring = true)
+        db.close()
+    }
+}

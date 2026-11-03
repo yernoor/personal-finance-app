@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.yernur.moneytracker.LocalAppContainer
+import dev.yernur.moneytracker.data.DEFAULT_CURRENCY
 import dev.yernur.moneytracker.data.Money
 import dev.yernur.moneytracker.data.wealth.Capitalization
 import dev.yernur.moneytracker.data.wealth.CompoundInput
@@ -98,6 +100,17 @@ fun CompoundScreen(onBack: () -> Unit) {
     var years by rememberSaveable { mutableStateOf("10") }
     var capitalization by rememberSaveable { mutableStateOf(Capitalization.Monthly) }
     var timing by rememberSaveable { mutableStateOf(ContributionTiming.End) }
+    /** The currency the typed amounts are in. The examples start in tenge; whenever the chosen currency differs (the owner switched it, or it was already chosen on opening) they are converted. */
+    var formCurrency by rememberSaveable { mutableStateOf(DEFAULT_CURRENCY) }
+    LaunchedEffect(currency, rates) {
+        val known = { code: String -> code == DEFAULT_CURRENCY || code in rates }
+        if (formCurrency != currency && known(formCurrency) && known(currency)) {
+            val converted = CompoundForm(start, monthly, rate, years, capitalization, timing).inCurrency(formCurrency, currency, rates)
+            start = converted.start
+            monthly = converted.monthly
+            formCurrency = currency
+        }
+    }
     val form = CompoundForm(start, monthly, rate, years, capitalization, timing)
     val input = form.toInput()
     val rows = remember(input) { input?.let(::compound).orEmpty() }
@@ -108,11 +121,7 @@ fun CompoundScreen(onBack: () -> Unit) {
                 title = { Text("Compound interest") },
                 navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
                 actions = {
-                    CurrencySwitch(currency, choices, { picked ->
-                        // The typed amounts are converted, so 1,000,000 ₸ becomes about $2,200 rather than $1,000,000.
-                        form.inCurrency(currency, picked, rates).let { start = it.start; monthly = it.monthly }
-                        container.settings.setWealthCurrency(picked)
-                    }, Modifier.padding(end = 8.dp))
+                    CurrencySwitch(formCurrency, choices, container.settings::setWealthCurrency, Modifier.padding(end = 8.dp))
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
@@ -120,8 +129,8 @@ fun CompoundScreen(onBack: () -> Unit) {
     ) { padding ->
         Column(Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                NumberField("Start balance ($currency)", start, { start = it }, Modifier.weight(1f), "compound-start")
-                NumberField("Each month ($currency)", monthly, { monthly = it }, Modifier.weight(1f), "compound-monthly")
+                NumberField("Start balance ($formCurrency)", start, { start = it }, Modifier.weight(1f), "compound-start")
+                NumberField("Each month ($formCurrency)", monthly, { monthly = it }, Modifier.weight(1f), "compound-monthly")
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 NumberField("Yearly rate (%)", rate, { rate = it }, Modifier.weight(1f), "compound-rate")
@@ -133,7 +142,7 @@ fun CompoundScreen(onBack: () -> Unit) {
             Choice("Contribution is paid", listOf("Start of month", "End of month"), timing.ordinal, "compound-timing") {
                 timing = ContributionTiming.entries[it]
             }
-            if (input != null && rows.isNotEmpty()) Result(rows, currency) else
+            if (input != null && rows.isNotEmpty()) Result(rows, formCurrency) else
                 Text("Enter the amounts, a rate and 1 to $MAX_YEARS years.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("compound-empty"))
         }
     }
