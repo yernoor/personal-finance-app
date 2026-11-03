@@ -25,6 +25,11 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _glassIconStyle = MutableStateFlow(storedIconStyle(prefs, GLASS_ICON_STYLE, glass = true, IconStyle.LiquidTile))
     private val _spreadsheetId = MutableStateFlow(prefs?.getString(SPREADSHEET_ID, null))
     private val _spreadsheetUrl = MutableStateFlow(prefs?.getString(SPREADSHEET_URL, null))
+    private val _showAllAccounts = MutableStateFlow(prefs?.getBoolean(SHOW_ALL_ACCOUNTS, false) ?: false)
+    private val _reminderEnabled = MutableStateFlow(prefs?.getBoolean(REMINDER_ENABLED, true) ?: true)
+    private val _reminderMinute = MutableStateFlow(prefs?.getInt(REMINDER_MINUTE, 20 * 60) ?: (20 * 60))
+    private val _autoSync = MutableStateFlow(prefs?.getBoolean(AUTO_SYNC, true) ?: true)
+    private val _lastSyncAt = MutableStateFlow(prefs?.getString(LAST_SYNC_AT, null))
     private val _pendingSpreadsheetId = MutableStateFlow(prefs?.getString(PENDING_SPREADSHEET_ID, null))
     private val _lastUpdateCheck = MutableStateFlow(prefs?.getLong(LAST_UPDATE_CHECK, 0L) ?: 0L)
     private val _availableUpdate = MutableStateFlow(prefs?.getString(AVAILABLE_UPDATE, null))
@@ -67,6 +72,40 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         prefs?.edit()?.apply { if (tag != null) putString(AVAILABLE_UPDATE, tag) else remove(AVAILABLE_UPDATE) }?.apply()
     }
 
+    /** Show the "All accounts" figure under the balance on Home. Hidden by default. */
+    val showAllAccounts: StateFlow<Boolean> = _showAllAccounts
+
+    fun setShowAllAccounts(on: Boolean) {
+        _showAllAccounts.value = on
+        prefs?.edit()?.putBoolean(SHOW_ALL_ACCOUNTS, on)?.apply()
+    }
+
+    /** Daily "add your expenses" reminder, at [reminderMinute] minutes after local midnight (default 20:00). */
+    val reminderEnabled: StateFlow<Boolean> = _reminderEnabled
+    val reminderMinute: StateFlow<Int> = _reminderMinute
+
+    fun setReminder(enabled: Boolean, minuteOfDay: Int) {
+        _reminderEnabled.value = enabled
+        _reminderMinute.value = minuteOfDay.coerceIn(0, 24 * 60 - 1)
+        prefs?.edit()?.putBoolean(REMINDER_ENABLED, enabled)?.putInt(REMINDER_MINUTE, _reminderMinute.value)?.apply()
+    }
+
+    /** Sync with the sheet once a week in the background (only matters while a sheet is linked). */
+    val autoSync: StateFlow<Boolean> = _autoSync
+
+    fun setAutoSync(on: Boolean) {
+        _autoSync.value = on
+        prefs?.edit()?.putBoolean(AUTO_SYNC, on)?.apply()
+    }
+
+    /** UTC time the last successful Sync now finished; phone rows edited after it are not overwritten by the next pull. */
+    val lastSyncAt: StateFlow<String?> = _lastSyncAt
+
+    fun setLastSyncAt(stamp: String?) {
+        _lastSyncAt.value = stamp
+        prefs?.edit()?.apply { if (stamp != null) putString(LAST_SYNC_AT, stamp) else remove(LAST_SYNC_AT) }?.apply()
+    }
+
     /** A spreadsheet created by a push that has not finished: the next push fills this one instead of making another. */
     val pendingSpreadsheetId: StateFlow<String?> = _pendingSpreadsheetId
 
@@ -85,7 +124,8 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     fun forgetSpreadsheet() {
         _spreadsheetId.value = null
         _spreadsheetUrl.value = null
-        prefs?.edit()?.remove(SPREADSHEET_ID)?.remove(SPREADSHEET_URL)?.apply()
+        _lastSyncAt.value = null
+        prefs?.edit()?.remove(SPREADSHEET_ID)?.remove(SPREADSHEET_URL)?.remove(LAST_SYNC_AT)?.apply()
     }
 
     /** Identifies this phone in the sheet's `_meta` tab; created once and kept. */
@@ -194,6 +234,11 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val SPREADSHEET_ID = "spreadsheetId"
         private const val SPREADSHEET_URL = "spreadsheetUrl"
         private const val DEVICE_ID = "deviceId"
+        private const val SHOW_ALL_ACCOUNTS = "showAllAccounts"
+        private const val REMINDER_ENABLED = "reminderEnabled"
+        private const val REMINDER_MINUTE = "reminderMinute"
+        private const val AUTO_SYNC = "autoSync"
+        private const val LAST_SYNC_AT = "lastSyncAt"
         private const val ICON_STYLE = "iconStyle"
         private const val GLASS_ICON_STYLE = "glassIconStyle"
         private const val HOME_CARDS = "homeCards"

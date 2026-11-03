@@ -19,11 +19,12 @@ class SheetsSync(
 ) {
     suspend fun pushAll(onProgress: (String) -> Unit = {}): SpreadsheetLink {
         onProgress("Reading your data")
+        val stamp = now() // taken before reading: a phone edit made during the push counts as not yet synced
         val tabs = SheetRows.build(
             db.accountDao().getAll(), db.categoryDao().getAll(), db.tagDao().getAll(), db.transactionDao().getAll(),
             db.transactionDao().getAllTagLinks(), db.transferDao().getAll(),
             db.accountDao().observeBalances().first().associate { it.uid to it.balance },
-            settings.deviceId(), now(),
+            settings.deviceId(), stamp,
         )
 
         val rowCounts = tabs.associate { it.spec.title to it.rows.size + 1 }
@@ -42,12 +43,13 @@ class SheetsSync(
 
         settings.setSpreadsheet(created.id, created.url)
         settings.setPendingSpreadsheet(null)
+        settings.setLastSyncAt(stamp)
         return SpreadsheetLink(created.id, created.url)
     }
 
     /** The spreadsheet to overwrite, fitted to the data and emptied, or null when a new one has to be made. */
     private suspend fun reuse(rowCounts: Map<String, Int>, onProgress: (String) -> Unit): CreatedSpreadsheet? {
-        val id = settings.pendingSpreadsheetId.value ?: findByName() ?: return null
+        val id = settings.pendingSpreadsheetId.value ?: settings.spreadsheetId.value ?: findByName() ?: return null
         val existing = try {
             api.describe(id)
         } catch (e: SheetsException) {

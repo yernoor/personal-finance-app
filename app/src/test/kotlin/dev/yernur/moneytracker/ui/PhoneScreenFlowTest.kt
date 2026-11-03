@@ -4,6 +4,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasText
@@ -13,6 +14,10 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.swipeRight
+import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.room.Room
@@ -122,11 +127,9 @@ class PhoneScreenFlowTest {
             ledger.saveTransaction(TransactionDraft(null, TransactionType.Expense, "main", "cafe", 100_000, date, "latte", emptySet()))
             ledger.saveTransaction(TransactionDraft(null, TransactionType.Expense, "main", "cafe", 250_000, date, "dinner", emptySet()))
         }
-        tap("tab-history")
-        waitForText("latte", substring = true) // the comment is part of the row's subtitle ("Main · latte")
-        tap("group-toggle")
-        waitForText("2 operations")
-        compose.onAllNodesWithText("-₸3,500").assertCountEquals(2) // 1,000 + 2,500: the month header and the group
+        tap("tab-history") // opens grouped: icon, name, share of the total, amount; no sign or colour
+        waitForText("100%")
+        compose.onNodeWithTag("group-cafe-false").assertTextContains("₸3,500", substring = true) // 1,000 + 2,500
         compose.onAllNodesWithText("latte", substring = true).assertCountEquals(0) // collapsed: entries are hidden
 
         tap("group-cafe-false")
@@ -146,6 +149,7 @@ class PhoneScreenFlowTest {
         spend("yesterday-coffee", today.minusDays(1))
         spend("old-coffee", today.minusYears(1))
         tap("tab-history")
+        tap("group-toggle") // History opens grouped by category; this checks the flat list
         waitForText(periodTitle(PeriodUnit.Day, PeriodUnit.Day.rangeOf(today)))
         waitForText("today-coffee", substring = true)
         compose.onAllNodesWithText("yesterday-coffee", substring = true).assertCountEquals(0)
@@ -162,6 +166,16 @@ class PhoneScreenFlowTest {
         compose.onAllNodesWithText("old-coffee", substring = true).assertCountEquals(0)
         tap("prev-period")
         waitForText("old-coffee", substring = true)
+    }
+
+    @Test
+    fun swipingLeftAndRight_movesBetweenTabs() {
+        waitForText("Home") // starts on the first tab
+        compose.onRoot().performTouchInput { swipeLeft() }
+        waitForText(periodTitle(PeriodUnit.Day, PeriodUnit.Day.rangeOf(today))) // History
+        compose.onRoot().performTouchInput { swipeRight() }
+        compose.onNodeWithTag("more").assertExists()
+        waitForText("Balance") // back on Home
     }
 
     @Test
@@ -194,7 +208,6 @@ class PhoneScreenFlowTest {
         }
         tap("tab-history")
         waitForText("Main → Deposit")
-        tap("group-toggle")
         waitForText("2 transfers")
         waitForText("₸3,500") // 1,000 + 2,500, both sides the same currency
         waitForText("₸4,500 → $10") // cross-currency: sent and received sums

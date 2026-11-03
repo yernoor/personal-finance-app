@@ -35,7 +35,7 @@ fun BarChart(groups: List<BarGroup>, labels: List<String>, selected: Int, onSele
 
     Column(modifier) {
         Canvas(
-            Modifier.fillMaxWidth().height(260.dp).testTag("bar-chart").pointerInput(groups.size) {
+            Modifier.fillMaxWidth().height(104.dp).testTag("bar-chart").pointerInput(groups.size) {
                 detectTapGestures { offset -> onSelect((offset.x / (size.width / groups.size)).toInt().coerceIn(0, groups.size - 1)) }
             },
         ) {

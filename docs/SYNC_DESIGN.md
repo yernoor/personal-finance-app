@@ -48,8 +48,8 @@
 5. Clock skew: compare using the stored UTC timestamps; on ties, prefer remote.
 
 ## Import from the sheet (built, one-way pull)
-"Import from the sheet" on the Google Sheets screen reads every tab (`values:batchGet`, unformatted values) and merges it into Room by UID
-(`SheetParser`, `SheetsPull`). The sheet wins for the rows it has; rows only the phone has stay. Account/category/tag names resolve to UIDs
+The pull half of "Sync now" (the standalone Import button was removed: it re-created hand-typed rows on every run) reads every tab (`values:batchGet`, unformatted values) and merges it into Room by UID
+(`SheetParser`, `SheetsPull`). The sheet wins for the rows it has, except rows the phone changed or deleted after `lastSyncAt` (then the phone wins); rows only the phone has stay. Account/category/tag names resolve to UIDs
 through the tabs; a row typed by hand without a UID gets one; an unknown tag name creates a tag; an unknown account skips the row (warning).
 Columns the sheet does not show (account icon/colour/flags, real-currency amounts) are kept from the phone's row. UIDs in `_deleted` that are
 not in their tab tombstone the transaction/transfer (accounts, categories and tags are never deleted by an import). Unverified against a live

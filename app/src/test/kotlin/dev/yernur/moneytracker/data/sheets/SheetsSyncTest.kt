@@ -87,6 +87,7 @@ class SheetsSyncTest {
 
         assertEquals("sid", link.id)
         assertEquals("sid", settings.spreadsheetId.value)
+        assertEquals("2026-10-26T00:00:00.000Z", settings.lastSyncAt.value) // stamped from the start of the push
         assertEquals("https://docs.google.com/spreadsheets/d/sid/edit", settings.spreadsheetUrl.value)
 
         val urls = transport.sheetsUrls()

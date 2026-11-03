@@ -85,7 +85,7 @@ class HomeViewModel(
             val spent = expenses.sumOf { it.amount }.coerceAtLeast(1L)
             val top = expenses.groupBy { it.categoryUid }.map { (uid, list) -> uid to list.sumOf { it.amount } }
                 .sortedByDescending { it.second }.take(5).map { (uid, amount) ->
-                    TopCategory(byUid[uid]?.title ?: "No category", byUid[uid]?.icon, byUid[uid]?.color, amount, amount * 100 / spent)
+                    TopCategory(byUid[uid]?.title ?: "Balance correction", byUid[uid]?.icon, byUid[uid]?.color, amount, amount * 100 / spent)
                 }
             PeriodTotals(unit, range, rows.filter { it.type == TransactionType.Income }.sumOf { it.amount }, expenses.sumOf { it.amount }, top)
         }
@@ -93,7 +93,7 @@ class HomeViewModel(
 
     private val warnings = combine(forecasts.observe(), db.categoryDao().observeAll()) { forecast, categories ->
         val titles = categories.associate { it.uid to it.title }
-        forecast.warnings.map { HomeWarning(titles[it.categoryUid] ?: "No category", warningLine(it)) }
+        forecast.warnings.map { HomeWarning(titles[it.categoryUid] ?: "Balance correction", warningLine(it)) }
     }
 
     private val recent = combine(db.transactionDao().observeRecent(5), db.categoryDao().observeAll(), db.accountDao().observeAll()) { transactions, categories, accounts ->
@@ -103,7 +103,7 @@ class HomeViewModel(
             val account = accountByUid[t.accountUid]
             val category = categoryByUid[t.categoryUid]
             RecentEntry(
-                t.uid, category?.title ?: "No category", category?.icon, category?.color,
+                t.uid, category?.title ?: "Balance correction", category?.icon, category?.color,
                 listOfNotNull(t.date, account?.title?.ifBlank { "Main" }).joinToString(" · "),
                 Money.format(t.amountInAccountCurrency ?: 0L, account?.currencyCode), t.type == TransactionType.Income,
             )
@@ -121,11 +121,12 @@ fun HomeScreen() {
     val vm = appViewModel { HomeViewModel(it.db, it.forecasts, it.settings) }
     val state by vm.state.collectAsStateWithLifecycle()
     val cards by container.settings.homeCards.collectAsStateWithLifecycle()
+    val showAll by container.settings.showAllAccounts.collectAsStateWithLifecycle()
     Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         cards.forEach { id ->
             when (id) {
                 "warnings" -> if (state.warnings.isNotEmpty()) WarningsCard(state.warnings)
-                "balance" -> BalanceCard(state)
+                "balance" -> BalanceCard(state, showAll)
                 "totals" -> TotalsCard(state.period)
                 "top-categories" -> TopCategoriesCard(state.period)
                 "recent" -> RecentCard(state.recent)
@@ -146,12 +147,12 @@ private fun WarningsCard(warnings: List<HomeWarning>) {
 }
 
 @Composable
-private fun BalanceCard(state: HomeState) {
+private fun BalanceCard(state: HomeState, showAll: Boolean) {
     Card(Modifier.fillMaxWidth().testTag("home-balance")) {
         Column(Modifier.padding(16.dp)) {
             Text("Balance", style = MaterialTheme.typography.labelLarge)
             Text(Money.format(state.counted, DEFAULT_CURRENCY), style = MaterialTheme.typography.displaySmall)
-            Text("All accounts: ${Money.format(state.all, DEFAULT_CURRENCY)}", style = MaterialTheme.typography.bodyMedium)
+            if (showAll) Text("All accounts: ${Money.format(state.all, DEFAULT_CURRENCY)}", style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

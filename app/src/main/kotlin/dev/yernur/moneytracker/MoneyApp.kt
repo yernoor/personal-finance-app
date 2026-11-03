@@ -51,6 +51,12 @@ private const val DAY_MILLIS = 24 * 60 * 60 * 1000L
 val LocalAppContainer = staticCompositionLocalOf<AppContainer> { error("AppContainer not provided") }
 
 class MoneyApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        dev.yernur.moneytracker.data.sheets.WeeklySyncWorker.schedule(this)
+        dev.yernur.moneytracker.data.ReminderWorker.schedule(this, container.settings)
+    }
+
     val container by lazy {
         val version = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
         AppContainer(

@@ -52,6 +52,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
@@ -89,6 +91,7 @@ private fun entryRoute(uid: String? = null, kind: EntryKind = EntryKind.Expense)
 // Motion: screens always overlap while they swap, so nothing blinks out before the next one is there.
 private const val MOVE_MS = 300
 private const val FADE_MS = 220
+private const val SWIPE_PX = 150f
 private val slideEasing = FastOutSlowInEasing
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -135,6 +138,7 @@ fun AppRoot(nav: NavHostController = rememberNavController()) {
             }
             if (route == "more") TopAppBar(
                 title = { Text("More") },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = if (glass) Color.Transparent else Color.Unspecified),
                 navigationIcon = { IconButton({ nav.popBackStack() }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
             )
         },
@@ -163,7 +167,21 @@ fun AppRoot(nav: NavHostController = rememberNavController()) {
             }
         },
     ) { padding ->
-      Box(Modifier.fillMaxSize().then(if (glass) Modifier.drawBehind { glow() } else Modifier)) {
+      Box(
+          Modifier.fillMaxSize().then(if (glass) Modifier.drawBehind { glow() } else Modifier)
+              .pointerInput(tab, tabs) { // swipe left/right between tabs; drags a child already used (charts, sliders) never reach here
+                  if (tab == null) return@pointerInput
+                  var dragged = 0f
+                  detectHorizontalDragGestures(
+                      onDragStart = { dragged = 0f },
+                      onHorizontalDrag = { _, delta -> dragged += delta },
+                      onDragEnd = {
+                          val step = if (dragged < -SWIPE_PX) 1 else if (dragged > SWIPE_PX) -1 else 0
+                          tabs.getOrNull(tabs.indexOf(tab) + step)?.takeIf { step != 0 }?.let { nav.navigateTop(it.id) }
+                      },
+                  )
+              },
+      ) {
         NavHost(
             nav, startDestination = startRoute,
             // With glass the content runs under the floating bar (so there is something to blur); otherwise the bar owns that strip.

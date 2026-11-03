@@ -8,6 +8,11 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -104,6 +109,8 @@ class EntryViewModel(
     var comment by mutableStateOf("")
     var error by mutableStateOf<String?>(null)
     val isEditing get() = uid != null
+    /** A balance correction has no category; editing one must not force a choice. */
+    private var uncategorizedOriginal = false
 
     val options: StateFlow<EntryOptions> = combine(
         db.accountDao().observeLive(), db.categoryDao().observeLive(), db.tagDao().observeLive(),
@@ -131,6 +138,7 @@ class EntryViewModel(
         if (tx != null) {
             kind = if (tx.type == TransactionType.Income) EntryKind.Income else EntryKind.Expense
             accountUid = tx.accountUid; categoryUid = tx.categoryUid
+            uncategorizedOriginal = tx.categoryUid == null
             amount = tx.amountInAccountCurrency?.let(Money::editable).orEmpty()
             date = LocalDate.parse(tx.date); comment = tx.comment.orEmpty()
             tagUids = db.transactionDao().tagUidsOf(uid).toSet()
@@ -164,7 +172,7 @@ class EntryViewModel(
             kind == EntryKind.Transfer && toAccountUid == null -> "Choose the destination account"
             kind == EntryKind.Transfer && toAccountUid == account -> "Choose two different accounts"
             needsToAmount() && (Money.parseMinor(toAmount) ?: 0) <= 0 -> "Enter the received amount"
-            kind != EntryKind.Transfer && categoryUid == null -> "Choose a category"
+            kind != EntryKind.Transfer && categoryUid == null && !uncategorizedOriginal -> "Choose a category"
             else -> null
         }
         error = problem
@@ -210,6 +218,12 @@ fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
                 if (vm.isEditing) IconButton({ confirmDelete = true }, modifier = Modifier.testTag("delete")) { Icon(Icons.Outlined.Delete, "Delete") }
             },
         )
+    }, bottomBar = {
+        // Always visible: pinned to the bottom of the screen and lifted above the keyboard.
+        Column(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime)).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            vm.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("error")) }
+            Button({ vm.save(onBack) }, modifier = Modifier.fillMaxWidth().testTag("save")) { Text(if (vm.isEditing) "Save" else "Add") }
+        }
     }) { padding ->
         Column(
             Modifier.padding(padding).padding(horizontal = 16.dp).verticalScroll(rememberScrollState()),
@@ -269,9 +283,6 @@ fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
             }
 
             OutlinedTextField(vm.comment, { vm.comment = it }, label = { Text("Comment") }, modifier = Modifier.fillMaxWidth().testTag("comment"))
-
-            vm.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("error")) }
-            Button({ vm.save(onBack) }, modifier = Modifier.fillMaxWidth().testTag("save")) { Text(if (vm.isEditing) "Save" else "Add") }
         }
     }
 
@@ -335,7 +346,7 @@ fun CategoryTile(category: CategoryEntity, selected: Boolean, onClick: () -> Uni
     ) {
         IconBadge(
             category.icon, category.color, size = 48.dp,
-            modifier = if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier,
+            ringColor = if (selected) MaterialTheme.colorScheme.primary else null,
         )
         Text(category.title, style = MaterialTheme.typography.labelMedium, maxLines = 1)
     }

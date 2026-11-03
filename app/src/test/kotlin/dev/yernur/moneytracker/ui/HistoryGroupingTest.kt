@@ -5,7 +5,7 @@ import org.junit.Test
 
 class HistoryGroupingTest {
     private fun row(uid: String, category: String?, income: Boolean, amount: Long, transfer: Boolean = false) = HistoryRow(
-        uid, transfer, "2026-10-25", uid, category ?: "none", "", "", null, null, null, "",
+        uid, transfer, "2026-10-25", uid, category ?: "none", "", "", null, null, "",
         categoryUid = category, isIncome = income, defaultAmount = amount,
     )
 
@@ -29,7 +29,7 @@ class HistoryGroupingTest {
     }
 
     private fun transfer(uid: String, from: String, to: String, sent: Long, received: Long? = null, receivedCurrency: String? = null) = HistoryRow(
-        uid, true, "2026-10-25", uid, "$from → $to", "", "", null, null, null, "",
+        uid, true, "2026-10-25", uid, "$from → $to", "", "", null, null, "",
         transfer = TransferSides(from, to, from, to, sent, "KZT", received, receivedCurrency),
     )
 

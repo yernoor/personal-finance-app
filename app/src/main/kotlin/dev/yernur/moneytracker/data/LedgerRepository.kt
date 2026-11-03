@@ -10,6 +10,7 @@ import dev.yernur.moneytracker.data.db.TransactionTagEntity
 import dev.yernur.moneytracker.data.db.TransactionType
 import dev.yernur.moneytracker.data.db.TransferEntity
 import java.util.UUID
+import kotlinx.coroutines.flow.first
 
 /** `uid == null` creates a new row; otherwise the existing row is edited. Amounts are in account-currency minor units. */
 data class TransactionDraft(
@@ -65,6 +66,20 @@ class LedgerRepository(
             draft.categoryUid?.let { db.categoryDao().bumpUsage(it, stamp) }
             if (draft.tagUids.isNotEmpty()) db.tagDao().bumpUsage(draft.tagUids, stamp)
         }
+    }
+
+    /**
+     * Makes the account's balance equal [target] by adding an Income/Expense for the difference with no category, which is how the
+     * original app stores an "overwrite balance" (verified: its export has such rows). Returns the signed difference, 0 when nothing changed.
+     */
+    suspend fun overwriteBalance(accountUid: String, target: Long, date: String): Long = db.withTransaction {
+        val current = db.accountDao().observeBalances().first().firstOrNull { it.uid == accountUid }?.balance ?: 0L
+        val diff = target - current
+        if (diff != 0L) {
+            val type = if (diff > 0) TransactionType.Income else TransactionType.Expense
+            saveTransaction(TransactionDraft(null, type, accountUid, null, kotlin.math.abs(diff), date, null, emptySet()))
+        }
+        diff
     }
 
     suspend fun deleteTransaction(uid: String) = db.withTransaction {

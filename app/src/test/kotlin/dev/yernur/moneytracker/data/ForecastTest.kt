@@ -34,6 +34,17 @@ class ForecastTest {
     }
 
     @Test
+    fun runRateWarning_waitsForTenDaysOfData() {
+        val rows = listOf(expense("2026-10-02", "a", 60_000)) // pace: 60,000 / 3 * 31 = 620,000, far over the 100,000 limit
+        val early = forecast(rows, listOf(category("a", limit = 100_000)), LocalDate.of(2026, 10, 3), longAgo, 100)
+        assertFalse(WarningKind.RunRate in early.categories.single().warnings)
+        assertEquals(emptySet<WarningKind>(), early.categories.single().warnings) // nothing spent over the limit yet, and the pace is not trusted
+
+        val tenth = forecast(rows, listOf(category("a", limit = 100_000)), LocalDate.of(2026, 10, 10), longAgo, 100)
+        assertTrue(WarningKind.RunRate in tenth.categories.single().warnings)
+    }
+
+    @Test
     fun average_isTheMeanOfThePreviousThreeFullMonths_notIncludingThisOne() {
         val rows = listOf(
             expense("2026-07-05", "a", 30_000), expense("2026-08-05", "a", 60_000), expense("2026-09-05", "a", 90_000),

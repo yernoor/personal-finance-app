@@ -57,6 +57,18 @@ class LedgerRepositoryTest {
     }
 
     @Test
+    fun overwriteBalance_addsUncategorizedCorrection_upAndDown() = runBlocking {
+        repo.saveTransaction(draft("kzt", 1_000_019)) // balance -10,000.19
+        assertEquals(500_000L, repo.overwriteBalance("kzt", -500_019L, "2026-10-26")) // up by 5,000.00
+        assertEquals(-500_019L, balances().getValue("kzt"))
+        assertEquals(-19L, repo.overwriteBalance("kzt", -500_038L, "2026-10-26")) // down by 0.19
+        assertEquals(-500_038L, balances().getValue("kzt"))
+        assertEquals(0L, repo.overwriteBalance("kzt", -500_038L, "2026-10-26"))
+        val corrections = db.transactionDao().getAll().filter { it.categoryUid == null }
+        assertEquals(listOf(TransactionType.Income, TransactionType.Expense), corrections.map { it.type })
+    }
+
+    @Test
     fun editKeepsCreated_bumpsModified_andDeleteIsATombstone() = runBlocking {
         repo.saveTransaction(draft("kzt", 1_000))
         val first = db.transactionDao().getAll().single()

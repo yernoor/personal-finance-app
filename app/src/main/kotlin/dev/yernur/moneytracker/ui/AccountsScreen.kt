@@ -28,6 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -43,6 +44,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -136,6 +139,19 @@ class AccountEditViewModel(private val db: AppDatabase, private val ledger: Ledg
         }
     }
 
+    var balanceText by mutableStateOf("")
+    var balanceNote by mutableStateOf<String?>(null)
+
+    /** Overwrites the account's balance with the typed amount (see [LedgerRepository.overwriteBalance]). */
+    fun overwriteBalance() = viewModelScope.launch {
+        val target = Money.parseMinor(balanceText)
+        val account = original
+        if (target == null || account == null) { balanceNote = "Enter the real balance, e.g. 4596.71"; return@launch }
+        val diff = ledger.overwriteBalance(account.uid, target, java.time.LocalDate.now().toString())
+        balanceNote = if (diff == 0L) "Already equal." else "Balance set. Added ${Money.format(diff, account.currencyCode)} as a balance correction."
+        balanceText = ""
+    }
+
     fun save(onDone: () -> Unit) = viewModelScope.launch {
         val base = original ?: AccountEntity(
             uid = ledger.newAccountUid(), title = "", currencyCode = currency, icon = null, color = null,
@@ -180,6 +196,15 @@ fun AccountEditScreen(uid: String?, onBack: () -> Unit) {
             if (uid != null) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Archive account", Modifier.weight(1f))
                 Switch(vm.archived, { vm.archived = it })
+            }
+            if (uid != null) {
+                Text("Overwrite balance", style = MaterialTheme.typography.labelLarge)
+                OutlinedTextField(
+                    vm.balanceText, { vm.balanceText = it }, label = { Text("Real balance now") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth().testTag("balance-input"),
+                    supportingText = { Text(vm.balanceNote ?: "Adds an income or expense without a category for the difference.") },
+                )
+                OutlinedButton(vm::overwriteBalance, enabled = vm.balanceText.isNotBlank(), modifier = Modifier.fillMaxWidth().testTag("balance-apply")) { Text("Overwrite balance") }
             }
             Button({ vm.save(onBack) }, enabled = vm.title.isNotBlank(), modifier = Modifier.fillMaxWidth().testTag("save")) { Text("Save") }
         }

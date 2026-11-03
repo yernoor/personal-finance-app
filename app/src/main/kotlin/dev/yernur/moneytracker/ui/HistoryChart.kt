@@ -122,7 +122,6 @@ fun rememberChartCollapse(): ChartCollapse {
 fun HistoryChart(
     slices: List<ChartSlice>,
     income: Boolean,
-    onKind: (income: Boolean) -> Unit,
     collapse: ChartCollapse,
     modifier: Modifier = Modifier,
 ) {
@@ -133,11 +132,6 @@ fun HistoryChart(
     val expanded = expandedDp(LocalConfiguration.current.screenHeightDp)
     Card(modifier.fillMaxWidth().testTag("history-chart")) {
         Column(Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                FilterChip(!income, { onKind(false) }, label = { Text("Expenses") }, modifier = Modifier.testTag("chart-expenses"))
-                Spacer(Modifier.width(8.dp))
-                FilterChip(income, { onKind(true) }, label = { Text("Income") }, modifier = Modifier.testTag("chart-income"))
-            }
             if (slices.isEmpty()) {
                 Text("Nothing to chart in this period", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 8.dp))
                 return@Column

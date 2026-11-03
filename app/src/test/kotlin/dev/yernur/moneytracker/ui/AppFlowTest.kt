@@ -98,7 +98,7 @@ class AppFlowTest {
         waitForText("Кафе")
         tapInForm("category-cafe")
         compose.onNodeWithTag("comment").performScrollTo().performTextInput("lunch")
-        tapInForm("save")
+        tap("save")
         eventually { transactions().isNotEmpty() }
 
         val saved = transactions().single()
@@ -108,13 +108,14 @@ class AppFlowTest {
         assertEquals("lunch", saved.comment)
 
         tap("tab-history")
+        tap("group-toggle") // History opens grouped by category; this checks the flat list
         waitForText("-₸1,500.50")
         compose.onNodeWithText("Кафе").assertIsDisplayed()
 
         tap("row-${saved.uid}")
         eventually { compose.onAllNodes(hasText("1500.5")).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("amount").performTextReplacement("2000")
-        tapInForm("save")
+        tap("save")
         eventually { transactions().single().amountInAccountCurrency == 200_000L }
         assertEquals(saved.created, transactions().single().created)
         waitForText("-₸2,000")
@@ -129,14 +130,14 @@ class AppFlowTest {
     @Test
     fun saveWithoutAmountOrCategory_showsErrorAndWritesNothing() {
         tap("add")
-        tapInForm("save")
-        compose.onNodeWithTag("error").performScrollTo().assertIsDisplayed()
+        tap("save")
+        compose.onNodeWithTag("error").assertIsDisplayed()
         compose.onNodeWithText("Enter an amount").assertIsDisplayed()
         assertTrue(transactions().isEmpty())
 
         compose.onNodeWithTag("amount").performTextInput("10")
-        tapInForm("save")
-        compose.onNodeWithText("Choose a category").performScrollTo().assertIsDisplayed()
+        tap("save")
+        compose.onNodeWithText("Choose a category").assertIsDisplayed()
         assertTrue(transactions().isEmpty())
     }
 
@@ -150,12 +151,12 @@ class AppFlowTest {
         tapInForm("to-usd")
         compose.onNodeWithTag("to-amount").performScrollTo().assertIsDisplayed()
 
-        tapInForm("save") // received amount still empty
-        compose.onNodeWithText("Enter the received amount").performScrollTo().assertIsDisplayed()
+        tap("save") // received amount still empty
+        compose.onNodeWithText("Enter the received amount").assertIsDisplayed()
         assertTrue(runBlocking { db.transferDao().getAll() }.isEmpty())
 
         compose.onNodeWithTag("to-amount").performTextInput("10")
-        tapInForm("save")
+        tap("save")
         eventually { runBlocking { db.transferDao().getAll() }.isNotEmpty() }
         val transfer = runBlocking { db.transferDao().getAll() }.single()
         assertEquals(450_000L, transfer.fromAmount)
@@ -219,6 +220,7 @@ class AppFlowTest {
             )
         }
         tap("tab-history")
+        tap("group-toggle") // History opens grouped by category; this checks the flat list
         waitForText("-₸800")
         compose.onNodeWithText("Main").assertIsDisplayed() // exact match: no trailing " · "
     }

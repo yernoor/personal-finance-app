@@ -19,12 +19,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Tab
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -118,31 +119,53 @@ fun ChartsScreen(onOpenCategory: (String) -> Unit) {
     val unit by vm.unit.collectAsStateWithLifecycle()
     val page by vm.page.collectAsStateWithLifecycle()
 
+    val forecastTab = vm.tab == ChartTab.Forecast
     Column(Modifier.fillMaxSize()) {
-        PrimaryTabRow(selectedTabIndex = vm.tab.ordinal) {
-            ChartTab.entries.forEach { tab ->
-                Tab(vm.tab == tab, { vm.tab = tab }, text = { Text(tab.label, maxLines = 1) }, modifier = Modifier.testTag("chart-tab-${tab.name}"))
+        // Same header as History: the period slicer on top, then what to show underneath. A forecast is always this month, so no slicer.
+        if (!forecastTab) {
+            val units = listOf(PeriodUnit.Day, PeriodUnit.Week, PeriodUnit.Month, PeriodUnit.Year)
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                units.forEachIndexed { index, u ->
+                    SegmentedButton(
+                        unit == u, { vm.zoom(u) }, SegmentedButtonDefaults.itemShape(index, units.size),
+                        modifier = Modifier.testTag("zoom-${u.name}"),
+                    ) { Text(u.name) }
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton({ vm.turnPage(1) }, modifier = Modifier.testTag("chart-older")) { Icon(Icons.Outlined.ChevronLeft, "Older") }
+                Text(
+                    data?.let { windowTitle(it) }.orEmpty(), Modifier.weight(1f), textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                IconButton({ vm.turnPage(-1) }, enabled = page > 0, modifier = Modifier.testTag("chart-newer")) { Icon(Icons.Outlined.ChevronRight, "Newer") }
             }
         }
-        if (vm.tab == ChartTab.Forecast) {
+        val tabs = ChartTab.entries
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+            tabs.forEachIndexed { index, tab ->
+                SegmentedButton(
+                    vm.tab == tab, { vm.tab = tab }, SegmentedButtonDefaults.itemShape(index, tabs.size),
+                    modifier = Modifier.testTag("chart-tab-${tab.name}"),
+                ) { Text(tab.label, maxLines = 1, style = MaterialTheme.typography.labelMedium) }
+            }
+        }
+        if (forecastTab) {
             forecast?.let { ForecastView(it, categories, onOpenCategory) }
             return@Column
         }
         Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(PeriodUnit.Year to "By year", PeriodUnit.Month to "By month", PeriodUnit.Week to "By week", PeriodUnit.Day to "By day").forEach { (u, label) ->
-                    FilterChip(unit == u, { vm.zoom(u) }, label = { Text(label) }, modifier = Modifier.testTag("zoom-${u.name}"))
-                }
-            }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton({ vm.turnPage(1) }, modifier = Modifier.testTag("chart-older")) { Icon(Icons.Outlined.ChevronLeft, "Older") }
-                Spacer(Modifier.weight(1f))
-                IconButton({ vm.turnPage(-1) }, enabled = page > 0, modifier = Modifier.testTag("chart-newer")) { Icon(Icons.Outlined.ChevronRight, "Newer") }
-            }
             data?.let { chart -> ChartBody(chart, vm.tab, vm.selected, onSelect = { vm.selected = it }) }
             Spacer(Modifier.height(LocalChromeInset.current))
         }
     }
+}
+
+/** "Aug – Oct" for the bars shown, or just the one label. */
+private fun windowTitle(chart: ChartData): String {
+    val first = label(chart.unit, chart.buckets.first().range)
+    val last = label(chart.unit, chart.buckets.last().range)
+    return if (first == last) first else "$first – $last"
 }
 
 private val IncomeColor = Color(0xFF4CAF50)
@@ -204,7 +227,7 @@ private fun CategoryAmountRow(category: CategoryEntity?, amount: Long, percent: 
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         IconBadge(category?.icon, category?.color, size = 40.dp)
         Column(Modifier.weight(1f)) {
-            Text(category?.title ?: "No category", style = MaterialTheme.typography.bodyLarge)
+            Text(category?.title ?: "Balance correction", style = MaterialTheme.typography.bodyLarge)
             Text("$percent%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text(Money.format(amount, DEFAULT_CURRENCY), style = MaterialTheme.typography.bodyLarge)
