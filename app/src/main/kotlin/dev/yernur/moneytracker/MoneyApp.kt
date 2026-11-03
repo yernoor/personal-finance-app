@@ -13,7 +13,9 @@ import dev.yernur.moneytracker.data.importer.ImportRepository
 import dev.yernur.moneytracker.data.sheets.UrlConnectionTransport
 import dev.yernur.moneytracker.data.update.ApkInstaller
 import dev.yernur.moneytracker.data.update.UpdateChecker
+import dev.yernur.moneytracker.data.update.UpdateDownloads
 import dev.yernur.moneytracker.data.update.UpdateInstaller
+import dev.yernur.moneytracker.data.update.WorkDownloads
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -25,6 +27,7 @@ class AppContainer(
     /** Null in tests: nothing may reach the network from them. */
     val updateChecker: UpdateChecker? = null,
     val updateInstaller: UpdateInstaller? = null,
+    val updateDownloads: UpdateDownloads? = null,
     val installedVersion: String = "0.0.0",
 ) {
     val ledger = LedgerRepository(db)
@@ -63,7 +66,7 @@ class MoneyApp : Application() {
             Room.databaseBuilder(this, AppDatabase::class.java, "moneytracker.db").addMigrations(MIGRATION_1_2).build(),
             AppSettings(getSharedPreferences("settings", MODE_PRIVATE)),
             { db, settings, forecasts -> WarningNotifier(this, db, settings, forecasts) },
-            UpdateChecker(UrlConnectionTransport(), version), ApkInstaller(this), version,
+            UpdateChecker(UrlConnectionTransport(), version), ApkInstaller(this), WorkDownloads(this), version,
         )
     }
 }

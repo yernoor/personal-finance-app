@@ -9,11 +9,14 @@ import dev.yernur.moneytracker.data.sheets.FakeTransport
 import dev.yernur.moneytracker.data.sheets.HttpResponse
 import dev.yernur.moneytracker.data.sheets.ok
 import dev.yernur.moneytracker.data.update.ApkAsset
+import dev.yernur.moneytracker.data.update.DownloadStatus
 import dev.yernur.moneytracker.data.update.InstallStatus
+import dev.yernur.moneytracker.data.update.Release
 import dev.yernur.moneytracker.data.update.UpdateChecker
+import dev.yernur.moneytracker.data.update.UpdateDownloads
 import dev.yernur.moneytracker.data.update.UpdateInstaller
 import java.io.File
-import java.io.IOException
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
@@ -44,14 +47,16 @@ class UpdatesViewModelTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private class FakeInstaller(val fail: Exception? = null) : UpdateInstaller {
+    private class FakeInstaller : UpdateInstaller {
         val installed = mutableListOf<File>()
-        override fun download(apk: ApkAsset, progress: (Float) -> Unit): File {
-            progress(0.5f)
-            fail?.let { throw it }
-            return File("downloaded-${apk.name}")
-        }
         override fun install(file: File) { installed += file }
+    }
+
+    private class FakeDownloads(initial: DownloadStatus = DownloadStatus.Idle) : UpdateDownloads {
+        val status = MutableStateFlow(initial)
+        val started = mutableListOf<ApkAsset>()
+        override fun start(apk: ApkAsset) { started += apk }
+        override fun status(apk: ApkAsset) = status
     }
 
     private fun checker(response: HttpResponse) = UpdateChecker(FakeTransport { response }, "0.2.1")
@@ -67,7 +72,7 @@ class UpdatesViewModelTest {
 
     @Test
     fun checkFindsANewerRelease_andRemembersItForTheMoreScreen() {
-        val vm = UpdatesViewModel(checker(ok(newer)), FakeInstaller(), settings)
+        val vm = UpdatesViewModel(checker(ok(newer)), FakeInstaller(), FakeDownloads(), settings)
         vm.check()
         waitFor { vm.state is UpdateState.Available }
         assertEquals("v0.3.0", (vm.state as UpdateState.Available).release.tag)
@@ -77,7 +82,7 @@ class UpdatesViewModelTest {
     @Test
     fun checkWithNothingNewClearsTheReminder() {
         settings.setAvailableUpdate("v0.2.5")
-        val vm = UpdatesViewModel(checker(ok("""{"tag_name":"v0.2.1","html_url":"u","assets":[]}""")), FakeInstaller(), settings)
+        val vm = UpdatesViewModel(checker(ok("""{"tag_name":"v0.2.1","html_url":"u","assets":[]}""")), FakeInstaller(), FakeDownloads(), settings)
         vm.check()
         waitFor { vm.state == UpdateState.UpToDate }
         assertNull(settings.availableUpdate.value)
@@ -85,39 +90,81 @@ class UpdatesViewModelTest {
 
     @Test
     fun aFailedCheck_saysWhy() {
-        val vm = UpdatesViewModel(checker(HttpResponse(403, "{}")), FakeInstaller(), settings)
+        val vm = UpdatesViewModel(checker(HttpResponse(403, "{}")), FakeInstaller(), FakeDownloads(), settings)
         vm.check()
         waitFor { vm.state is UpdateState.Failed }
         assertTrue((vm.state as UpdateState.Failed).message.contains("limiting"))
     }
 
-    @Test
-    fun installDownloadsThenHandsTheFileToAndroid() {
-        val installer = FakeInstaller()
-        val vm = UpdatesViewModel(checker(ok(newer)), installer, settings)
+    private fun available(vm: UpdatesViewModel): Release {
         vm.check()
         waitFor { vm.state is UpdateState.Available }
-        vm.install((vm.state as UpdateState.Available).release)
-        waitFor { vm.state == UpdateState.Installing }
+        return (vm.state as UpdateState.Available).release
+    }
+
+    @Test
+    fun installStartsABackgroundDownload_thenHandsTheFileToAndroid() {
+        val installer = FakeInstaller()
+        val downloads = FakeDownloads()
+        val vm = UpdatesViewModel(checker(ok(newer)), installer, downloads, settings)
+        vm.install(available(vm))
+        assertEquals(listOf("a.apk"), downloads.started.map { it.name })
+        downloads.status.value = DownloadStatus.Running(0.5f)
+        waitFor { vm.state == UpdateState.Downloading(0.5f) }
+        downloads.status.value = DownloadStatus.Done(File("downloaded-a.apk"))
+        waitFor { installer.installed.isNotEmpty() }
         assertEquals(listOf(File("downloaded-a.apk")), installer.installed)
+        assertEquals(UpdateState.Installing, vm.state)
+    }
+
+    @Test
+    fun aDownloadStillRunningWhenTheScreenOpens_isPickedUpAgain() {
+        val installer = FakeInstaller()
+        val downloads = FakeDownloads(DownloadStatus.Running(0.4f))
+        val vm = UpdatesViewModel(checker(ok(newer)), installer, downloads, settings)
+        vm.check()
+        waitFor { vm.state == UpdateState.Downloading(0.4f) }
+        assertTrue(downloads.started.isEmpty())
+        downloads.status.value = DownloadStatus.Done(File("d.apk"))
+        waitFor { installer.installed.isNotEmpty() }
+    }
+
+    @Test
+    fun aDownloadFinishedWhileAway_waitsForTheOwnersTapOnInstall() {
+        val installer = FakeInstaller()
+        val vm = UpdatesViewModel(checker(ok(newer)), installer, FakeDownloads(DownloadStatus.Done(File("d.apk"))), settings)
+        vm.check()
+        waitFor { vm.state is UpdateState.Downloaded }
+        assertTrue(installer.installed.isEmpty())
+        vm.installDownloaded((vm.state as UpdateState.Downloaded).file)
+        waitFor { installer.installed.isNotEmpty() }
     }
 
     @Test
     fun aFailedDownload_isShown_andNothingIsInstalled() {
-        val installer = FakeInstaller(fail = IOException("reset"))
-        val vm = UpdatesViewModel(checker(ok(newer)), installer, settings)
-        vm.check()
-        waitFor { vm.state is UpdateState.Available }
-        vm.install((vm.state as UpdateState.Available).release)
+        val installer = FakeInstaller()
+        val downloads = FakeDownloads()
+        val vm = UpdatesViewModel(checker(ok(newer)), installer, downloads, settings)
+        vm.install(available(vm))
+        downloads.status.value = DownloadStatus.Failed("No internet connection.")
         waitFor { vm.state is UpdateState.Failed }
         assertEquals("No internet connection.", (vm.state as UpdateState.Failed).message)
         assertTrue(installer.installed.isEmpty())
     }
 
     @Test
+    fun theReleaseDescriptionFromGitHubIsKept() {
+        val body = """{"tag_name":"v0.3.0","html_url":"u","body":"## What's Changed\n* feat: x","assets":[]}"""
+        val vm = UpdatesViewModel(checker(ok(body)), FakeInstaller(), FakeDownloads(), settings)
+        assertEquals("## What's Changed\n* feat: x", available(vm).notes)
+        val none = UpdatesViewModel(checker(ok("""{"tag_name":"v0.3.0","html_url":"u","body":null,"assets":[]}""")), FakeInstaller(), FakeDownloads(), settings)
+        assertEquals("", available(none).notes)
+    }
+
+    @Test
     fun aReleaseWithoutAnApk_cannotBeInstalled() {
         val body = """{"tag_name":"v0.3.0","html_url":"u","assets":[]}"""
-        val vm = UpdatesViewModel(checker(ok(body)), FakeInstaller(), settings)
+        val vm = UpdatesViewModel(checker(ok(body)), FakeInstaller(), FakeDownloads(), settings)
         vm.check()
         waitFor { vm.state is UpdateState.Available }
         vm.install((vm.state as UpdateState.Available).release)
@@ -126,7 +173,7 @@ class UpdatesViewModelTest {
 
     @Test
     fun aFailureReportedByAndroidLater_isShown() {
-        val vm = UpdatesViewModel(checker(ok(newer)), FakeInstaller(), settings)
+        val vm = UpdatesViewModel(checker(ok(newer)), FakeInstaller(), FakeDownloads(), settings)
         InstallStatus.failure.value = "INSTALL_FAILED_UPDATE_INCOMPATIBLE: signatures do not match"
         waitFor { vm.state is UpdateState.Failed }
         assertTrue((vm.state as UpdateState.Failed).message.contains("signatures"))
