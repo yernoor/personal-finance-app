@@ -157,6 +157,7 @@ Code in `data/wealth/`, schema 2 -> 6 (one migration per step, each tested). All
   Both have a currency switch (`CurrencySwitch`; KZT plus the cached USD/EUR/RUB/...); the choice is remembered (`AppSettings.wealthCurrency`) and stored amounts stay in KZT. The calculator converts its typed amounts when the currency changes.
   Items are added and edited in dialogs (`FormDialog`): manual assets and loans, goals, bonds, income and payments. Covered by Robolectric flow tests (`WealthScreenTest`, `CompoundScreenTest`).
   Not checked: the screens on the emulator or the phone (only Robolectric).
+- Phone only: goals, bonds, manual assets, income/payments and the net worth history live in the local database only. The Sheets sync and the `.mmbackup` importer do not know these tables, and the local database backup (milestone 8) is not built, so clearing app data or losing the phone loses them, history included. A `Wealth` tab in the sheet is the planned fix.
 - Known gap: an investment logged as an expense category (current practice, question 6 above) counts as spending in the health summary.
 
 ## Other / unverified, decide later
