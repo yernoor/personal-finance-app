@@ -76,6 +76,12 @@ Not known: reports/charts, budgets UI, recurring items, widgets, search, filters
   available in your environment, say so plainly and list what you could not run.
 - Money tests: use the real extracted data, plus edge cases (0.19, negative, USD accounts, cross-currency transfer).
 
+## Git workflow (owner's rule)
+- Every new feature or fix gets its own commit, even when several go onto the same feature branch and are pushed together.
+  The owner squashes them later, so the branch history must keep them separate. Never lump a session's work into one commit.
+- Commit each one when it is done and its tests pass, one semantic-style line each (see the global instructions).
+- Tests and docs for a change go in that change's commit, not a separate one.
+
 ## Code style (owner's preferences)
 - Minimal, readable code over clever abstractions; data-driven config over scattered branching.
 - Explicit `!= null` checks in Kotlin where it clarifies; small functions; no speculative generality.
