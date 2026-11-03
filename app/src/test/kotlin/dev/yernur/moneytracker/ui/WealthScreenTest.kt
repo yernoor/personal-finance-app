@@ -77,6 +77,16 @@ class WealthScreenTest {
     }
 
     @Test
+    fun currencyMenu_opensUnderTheButton_notAtTheLeftEdgeOfTheScreen() {
+        val button = compose.onNodeWithTag("currency-switch").fetchSemanticsNode().positionOnScreen.x
+        compose.onNodeWithTag("currency-switch").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("currency-USD").fetchSemanticsNodes().isNotEmpty() }
+        val menu = compose.onNodeWithTag("currency-USD").fetchSemanticsNode().positionOnScreen.x
+        // The button sits at the right edge; a menu anchored to it starts near it (or is pushed left only as far as it must be).
+        assertTrue("menu at x=$menu, button at x=$button", menu > button / 2)
+    }
+
+    @Test
     fun addingAnAsset_raisesNetWorth() {
         open("add-asset")
         compose.onNodeWithTag("form-0").performTextInput("Flat")
