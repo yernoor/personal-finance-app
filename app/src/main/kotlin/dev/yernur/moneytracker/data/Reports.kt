@@ -1,6 +1,7 @@
 package dev.yernur.moneytracker.data
 
 import dev.yernur.moneytracker.data.db.TransactionType
+import dev.yernur.moneytracker.data.db.TxDetail
 import dev.yernur.moneytracker.data.db.TxLite
 import java.time.LocalDate
 
@@ -26,3 +27,7 @@ fun buckets(rows: List<TxLite>, ranges: List<DateRange>): List<Bucket> {
         Bucket(range, income.values.sum(), expense.values.sum(), income, expense)
     }
 }
+
+/** The operations behind one category row of a bar (null category = balance corrections), newest first as the query returns them. */
+fun categoryOperations(details: List<TxDetail>, range: DateRange, type: TransactionType, categoryUid: String?): List<TxDetail> =
+    details.filter { it.type == type && it.categoryUid == categoryUid && LocalDate.parse(it.date) in range }

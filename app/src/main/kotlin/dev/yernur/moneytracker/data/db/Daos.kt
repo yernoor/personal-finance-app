@@ -18,6 +18,11 @@ data class TypeTotal(val type: TransactionType, val total: Long)
 /** The few columns reports need; a missing default-currency amount counts as 0. */
 data class TxLite(val date: String, val type: TransactionType, val categoryUid: String?, val amount: Long)
 
+/** One operation for the chart's category drill-down; the amount is in the default currency, like the bars. */
+data class TxDetail(
+    val uid: String, val date: String, val type: TransactionType, val categoryUid: String?, val accountUid: String, val comment: String?, val amount: Long,
+)
+
 @Dao
 interface AccountDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
@@ -134,6 +139,9 @@ interface TransactionDao {
 
     @Query("SELECT date, type, categoryUid, COALESCE(amountInDefaultCurrency, 0) AS amount FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to")
     fun observeLite(from: String, to: String): Flow<List<TxLite>>
+
+    @Query("SELECT uid, date, type, categoryUid, accountUid, comment, COALESCE(amountInDefaultCurrency, 0) AS amount FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to ORDER BY date DESC, created DESC")
+    fun observeDetail(from: String, to: String): Flow<List<TxDetail>>
 
     @Query("SELECT date, type, categoryUid, COALESCE(amountInDefaultCurrency, 0) AS amount FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to")
     suspend fun getLite(from: String, to: String): List<TxLite>

@@ -147,7 +147,7 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 - **Forgot PIN**: there is no server. Recovery = clear app data and re-sync from the Sheet (so sync should have run). Alternative: allow the phone's own screen lock as a fallback (`DEVICE_CREDENTIAL`). Owner to choose.
 - Tests: hash/verify/back-off as pure functions; Robolectric UI test that a locked app shows the keypad and never composes the screens.
 
-### 2. Charts: expand a category to its transactions
+### 2. Charts: expand a category to its transactions. BUILT (tap a row: its operations in the selected bar's period, tap one to edit; "Open in History" link not built)
 - Today `CategoryAmountRow` ([ChartsScreen.kt](app/src/main/kotlin/dev/yernur/moneytracker/ui/ChartsScreen.kt)) is a flat row; the chart rows come from `TxLite`, which has no comment or uid.
 - Plan: tap a row to expand it in place (chevron, animated) into that category's operations in the **selected bar's period**: date, account, comment, amount. Tap an operation to open the edit screen; a small "Open in History" link carries the category and period.
 - Data: extend `TxLite` (or add a DAO query by `categoryUid` + date range) with uid, account, comment. Expand state keyed by category uid, reset when the bar changes. Works for Expenses and Income tabs; the "Balance correction" row (null category) expands too. Transfers never appear here.

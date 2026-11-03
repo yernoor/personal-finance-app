@@ -1,5 +1,12 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.runtime.remember
+import dev.yernur.moneytracker.data.categoryOperations
+import dev.yernur.moneytracker.data.db.TransactionType
+import dev.yernur.moneytracker.data.db.TxDetail
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,7 +73,10 @@ import kotlinx.coroutines.flow.stateIn
 
 enum class ChartTab(val label: String) { General("General"), Expenses("Expenses"), Income("Income"), Forecast("Forecast") }
 
-data class ChartData(val unit: PeriodUnit, val buckets: List<Bucket>, val categories: Map<String?, CategoryEntity>)
+data class ChartData(
+    val unit: PeriodUnit, val buckets: List<Bucket>, val categories: Map<String?, CategoryEntity>,
+    val details: List<TxDetail> = emptyList(), val accountTitles: Map<String, String> = emptyMap(),
+)
 
 /** How many bars each zoom level shows; few bars stay readable, the arrows slide the window one period at a time. */
 private fun barCount(unit: PeriodUnit) = when (unit) {
@@ -86,10 +96,16 @@ class ChartsViewModel(db: AppDatabase, forecasts: ForecastRepository, private va
 
     val data: StateFlow<ChartData?> = combine(unit, page) { u, p -> u to p }.flatMapLatest { (u, p) ->
         val ranges = u.lastRanges(u.shift(today, -p.toLong()), barCount(u))
+        val from = ranges.first().from.toString()
+        val to = ranges.last().to.toString()
         combine(
-            db.transactionDao().observeLite(ranges.first().from.toString(), ranges.last().to.toString()),
+            db.transactionDao().observeLite(from, to),
             db.categoryDao().observeAll(),
-        ) { rows, categories -> ChartData(u, buckets(rows, ranges), categories.associateBy<CategoryEntity, String?> { it.uid }) }
+            db.transactionDao().observeDetail(from, to),
+            db.accountDao().observeAll(),
+        ) { rows, categories, details, accounts ->
+            ChartData(u, buckets(rows, ranges), categories.associateBy<CategoryEntity, String?> { it.uid }, details, accounts.associate { it.uid to it.title })
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val forecast: StateFlow<Forecast?> = forecasts.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -111,7 +127,7 @@ class ChartsViewModel(db: AppDatabase, forecasts: ForecastRepository, private va
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ChartsScreen(onOpenCategory: (String) -> Unit) {
+fun ChartsScreen(onOpenCategory: (String) -> Unit, onOpenTransaction: (String) -> Unit = {}) {
     val vm = appViewModel { ChartsViewModel(it.db, it.forecasts) }
     val data by vm.data.collectAsStateWithLifecycle()
     val forecast by vm.forecast.collectAsStateWithLifecycle()
@@ -155,7 +171,7 @@ fun ChartsScreen(onOpenCategory: (String) -> Unit) {
             return@Column
         }
         Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            data?.let { chart -> ChartBody(chart, vm.tab, vm.selected, onSelect = { vm.selected = it }) }
+            data?.let { chart -> ChartBody(chart, vm.tab, vm.selected, onSelect = { vm.selected = it }, onOpenTransaction) }
             Spacer(Modifier.height(LocalChromeInset.current))
         }
     }
@@ -175,7 +191,7 @@ private val LossColor = Color(0xFFFF7043)
 private val SmallSlicesColor = Color(0xFF9E9E9E)
 
 @Composable
-private fun ChartBody(chart: ChartData, tab: ChartTab, selectedRaw: Int, onSelect: (Int) -> Unit) {
+private fun ChartBody(chart: ChartData, tab: ChartTab, selectedRaw: Int, onSelect: (Int) -> Unit, onOpenTransaction: (String) -> Unit) {
     val selected = if (selectedRaw in chart.buckets.indices) selectedRaw else chart.buckets.lastIndex
     val groups: List<BarGroup> = when (tab) {
         ChartTab.General -> chart.buckets.map { b ->
@@ -206,8 +222,17 @@ private fun ChartBody(chart: ChartData, tab: ChartTab, selectedRaw: Int, onSelec
         else -> {
             val byCategory = if (tab == ChartTab.Expenses) bucket.expenseByCategory else bucket.incomeByCategory
             val total = byCategory.values.sum().coerceAtLeast(1L)
+            // One row open at a time; a new bar or tab starts closed.
+            var open by remember(selected, tab, chart.unit) { mutableStateOf<Pair<String?, Boolean>?>(null) }
+            val type = if (tab == ChartTab.Expenses) TransactionType.Expense else TransactionType.Income
             sortedCategories(byCategory, chart.categories).sortedByDescending { it.second }.forEach { (uid, value) ->
-                CategoryAmountRow(chart.categories[uid], value, value * 100 / total)
+                val expanded = open == (uid to true)
+                CategoryAmountRow(chart.categories[uid], value, value * 100 / total, expanded, onToggle = { open = if (expanded) null else uid to true })
+                if (expanded) {
+                    categoryOperations(chart.details, bucket.range, type, uid).forEach { op ->
+                        OperationRow(op, chart.accountTitles[op.accountUid].orEmpty(), onOpenTransaction)
+                    }
+                }
             }
         }
     }
@@ -223,14 +248,29 @@ private fun AmountRow(label: String, amount: Long, color: Color) {
 }
 
 @Composable
-private fun CategoryAmountRow(category: CategoryEntity?, amount: Long, percent: Long) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+private fun CategoryAmountRow(category: CategoryEntity?, amount: Long, percent: Long, expanded: Boolean, onToggle: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onToggle).testTag("category-row-${category?.uid ?: "none"}").padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         IconBadge(category?.icon, category?.color, size = 40.dp)
         Column(Modifier.weight(1f)) {
             Text(category?.title ?: "Balance correction", style = MaterialTheme.typography.bodyLarge)
             Text("$percent%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text(Money.format(amount, DEFAULT_CURRENCY), style = MaterialTheme.typography.bodyLarge)
+        Icon(if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, if (expanded) "Collapse" else "Expand")
+    }
+}
+
+@Composable
+private fun OperationRow(op: TxDetail, account: String, onOpen: (String) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable { onOpen(op.uid) }.testTag("operation-${op.uid}").padding(start = 52.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(op.comment?.takeIf { it.isNotBlank() } ?: account, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+            Text("${op.date} · $account", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Text(Money.format(op.amount, DEFAULT_CURRENCY), style = MaterialTheme.typography.bodyMedium)
     }
 }
 

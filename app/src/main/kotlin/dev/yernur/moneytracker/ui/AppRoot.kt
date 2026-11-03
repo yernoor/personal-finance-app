@@ -208,7 +208,7 @@ fun AppRoot(nav: NavHostController = rememberNavController()) {
             composable("history") {
                 HistoryScreen { uid, isTransfer -> nav.navigate(entryRoute(uid, if (isTransfer) EntryKind.Transfer else EntryKind.Expense)) }
             }
-            composable("charts") { ChartsScreen(onOpenCategory = { nav.navigate("category/$it?type=Expense") }) }
+            composable("charts") { ChartsScreen(onOpenCategory = { nav.navigate("category/$it?type=Expense") }, onOpenTransaction = { nav.navigate(entryRoute(it)) }) }
             composable("accounts") {
                 AccountsScreen(
                     onOpen = { nav.navigate("account/$it") }, onNew = { nav.navigate("account/new") },
