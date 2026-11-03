@@ -28,6 +28,7 @@ import dev.yernur.moneytracker.data.wealth.NbkRatesClient
 import dev.yernur.moneytracker.data.wealth.WealthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
@@ -96,6 +97,7 @@ class MoneyApp : Application() {
         super.onCreate()
         dev.yernur.moneytracker.data.sheets.WeeklySyncWorker.schedule(this)
         dev.yernur.moneytracker.data.ReminderWorker.schedule(this, container.settings)
+        kotlinx.coroutines.CoroutineScope(Dispatchers.Default).launch { dev.yernur.moneytracker.widget.updateWidgetPreviews(this@MoneyApp) }
     }
 
     val container by lazy {

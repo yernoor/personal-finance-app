@@ -56,3 +56,19 @@ suspend fun loadWidgetData(db: AppDatabase, forecasts: ForecastRepository, today
 
 /** Whole currency units with a space between thousands ("412 300"): the widgets are too small for decimals. */
 fun wholeUnits(minor: Long): String = String.format(Locale.US, "%,d", minor / 100).replace(',', ' ')
+
+/** Fictional numbers for the widget picker previews: no real spending, no balances. */
+fun sampleWidgetData(today: LocalDate = LocalDate.now()) = WidgetData(
+    month = today, monthSpent = 41_230_000, projected = 58_400_000, todaySpent = 1_250_000, todayCount = 3, overLimit = false,
+    limits = listOf(LimitBar("Food", 5_400_000, 8_000_000), LimitBar("Transport", 2_100_000, 3_000_000), LimitBar("Leisure", 3_300_000, 3_000_000)),
+    topCategories = listOf(
+        CategorySpend("Food", 12_000_000), CategorySpend("Home", 9_500_000), CategorySpend("Transport", 6_000_000),
+        CategorySpend("Leisure", 4_800_000), CategorySpend("Health", 2_900_000),
+    ),
+    recent = listOf(
+        RecentOp("s1", "Food", "Cafe", 450_000, false), RecentOp("s2", "Transport", "Taxi", 320_000, false),
+        RecentOp("s3", "Salary", "Main", 25_000_000, true), RecentOp("s4", "Home", "Rent", 15_000_000, false),
+        RecentOp("s5", "Health", "Pharmacy", 180_000, false), RecentOp("s6", "Leisure", "Cinema", 250_000, false),
+        RecentOp("s7", "Food", "Market", 890_000, false), RecentOp("s8", "Transport", "Metro", 40_000, false),
+    ),
+)

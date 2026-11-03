@@ -1,7 +1,9 @@
 package dev.yernur.moneytracker.widget
 
 import android.content.Context
+import android.os.Build
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -36,8 +38,11 @@ import java.time.format.TextStyle as DateTextStyle
 import java.util.Locale
 
 /** Loads the numbers and the look once per refresh, then hands them to [content]. */
-abstract class MoneyWidget : GlanceAppWidget() {
+abstract class MoneyWidget(private val cellsWide: Int, private val cellsHigh: Int) : GlanceAppWidget() {
     override val sizeMode = SizeMode.Single
+
+    /** The picker draws the preview at the widget's default size (cells -> dp: 73n-16 wide, 74m-16 high; the docs' 118 dp rows drew the previews too tall on the emulator), not the minimum one. */
+    override val previewSizeMode = SizeMode.Responsive(setOf(DpSize((73 * cellsWide - 16).dp, (74 * cellsHigh - 16).dp)))
 
     @Composable
     abstract fun Content(context: Context, data: WidgetData, palette: WidgetPalette, dot: Boolean)
@@ -49,11 +54,19 @@ abstract class MoneyWidget : GlanceAppWidget() {
         val dot = container.settings.widgetDotNumerals.value
         provideContent { Content(context, data, palette, dot) }
     }
+
+    /** Android 15+: the picker shows the real widget, drawn with fictional numbers in the look the owner chose. */
+    override suspend fun providePreview(context: Context, widgetCategory: Int) {
+        val container = (context.applicationContext as MoneyApp).container
+        val palette = WidgetPalette(container.settings.widgetGlass.value)
+        val dot = container.settings.widgetDotNumerals.value
+        provideContent { Content(context, sampleWidgetData(), palette, dot) }
+    }
 }
 
 private fun WidgetData.monthName() = month.month.getDisplayName(DateTextStyle.FULL, Locale.getDefault())
 
-class MonthWidget : MoneyWidget() {
+class MonthWidget : MoneyWidget(2, 2) {
     @Composable
     override fun Content(context: Context, data: WidgetData, palette: WidgetPalette, dot: Boolean) {
         WidgetCard(palette, openApp(context)) {
@@ -67,7 +80,7 @@ class MonthWidget : MoneyWidget() {
     }
 }
 
-class TodayWidget : MoneyWidget() {
+class TodayWidget : MoneyWidget(2, 2) {
     @Composable
     override fun Content(context: Context, data: WidgetData, palette: WidgetPalette, dot: Boolean) {
         WidgetCard(palette, openApp(context)) {
@@ -81,7 +94,7 @@ class TodayWidget : MoneyWidget() {
     }
 }
 
-class QuickAddWidget : MoneyWidget() {
+class QuickAddWidget : MoneyWidget(4, 1) {
     @Composable
     override fun Content(context: Context, data: WidgetData, palette: WidgetPalette, dot: Boolean) {
         Box(GlanceModifier.fillMaxSize().background(palette.background).cornerRadius(26.dp).padding(10.dp)) {
@@ -98,7 +111,7 @@ class QuickAddWidget : MoneyWidget() {
     }
 }
 
-class LimitsWidget : MoneyWidget() {
+class LimitsWidget : MoneyWidget(4, 2) {
     @Composable
     override fun Content(context: Context, data: WidgetData, palette: WidgetPalette, dot: Boolean) {
         WidgetCard(palette, openApp(context)) {
@@ -112,7 +125,7 @@ class LimitsWidget : MoneyWidget() {
     }
 }
 
-class BudgetWidget : MoneyWidget() {
+class BudgetWidget : MoneyWidget(4, 4) {
     @Composable
     override fun Content(context: Context, data: WidgetData, palette: WidgetPalette, dot: Boolean) {
         WidgetCard(palette, openApp(context)) {
@@ -136,7 +149,7 @@ class BudgetWidget : MoneyWidget() {
     }
 }
 
-class RecentWidget : MoneyWidget() {
+class RecentWidget : MoneyWidget(4, 4) {
     @Composable
     override fun Content(context: Context, data: WidgetData, palette: WidgetPalette, dot: Boolean) {
         WidgetCard(palette, openApp(context)) {
@@ -150,7 +163,7 @@ class RecentWidget : MoneyWidget() {
     }
 }
 
-class DashboardWidget : MoneyWidget() {
+class DashboardWidget : MoneyWidget(4, 6) {
     @Composable
     override fun Content(context: Context, data: WidgetData, palette: WidgetPalette, dot: Boolean) {
         WidgetCard(palette, openApp(context)) {
@@ -181,4 +194,18 @@ class DashboardWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceA
 /** Redraws every placed widget; call after anything that changes spending or the widget look. */
 suspend fun updateAllWidgets(context: Context) {
     listOf(MonthWidget(), TodayWidget(), QuickAddWidget(), LimitsWidget(), BudgetWidget(), RecentWidget(), DashboardWidget()).forEach { it.updateAll(context) }
+}
+
+/** Fills the picker with the Android 15+ generated previews; the system rate-limits this, so call it at launch and when the look changes only. */
+suspend fun updateWidgetPreviews(context: Context) {
+    if (Build.VERSION.SDK_INT < 35) return
+    val manager = GlanceAppWidgetManager(context)
+    runCatching { setAllPreviews(manager) } // best effort: a missing preview only means the picker shows the app icon
+}
+
+private suspend fun setAllPreviews(manager: GlanceAppWidgetManager) {
+    listOf(
+        MonthWidgetReceiver::class, TodayWidgetReceiver::class, QuickAddWidgetReceiver::class, LimitsWidgetReceiver::class,
+        BudgetWidgetReceiver::class, RecentWidgetReceiver::class, DashboardWidgetReceiver::class,
+    ).forEach { manager.setWidgetPreviews(it) }
 }
