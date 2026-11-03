@@ -11,6 +11,7 @@ import dev.yernur.moneytracker.data.backup.DbBackup
 import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.db.MIGRATION_1_2
 import dev.yernur.moneytracker.data.importer.ImportRepository
+import dev.yernur.moneytracker.data.security.AppLock
 import dev.yernur.moneytracker.data.sheets.UrlConnectionTransport
 import dev.yernur.moneytracker.data.update.ApkInstaller
 import dev.yernur.moneytracker.data.update.UpdateChecker
@@ -36,6 +37,7 @@ class AppContainer(
     val ledger = LedgerRepository(db)
     val importer = ImportRepository(db)
     val forecasts = ForecastRepository(db, settings)
+    val lock = AppLock(settings)
     private val notifier = notifierFor(db, settings, forecasts)
 
     /** Asks GitHub for a newer release, but at most once a day; a failure is silent (the Updates screen shows errors when asked by hand). */
