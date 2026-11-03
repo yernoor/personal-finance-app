@@ -91,7 +91,7 @@ data class TransferSides(
     val toTitle: String,
     val sent: Long,
     val sentCurrency: String?,
-    /** Null for same-currency transfers (the original leaves the received side empty then). */
+    /** Null for same-currency transfers (the backup leaves the received side empty then). */
     val received: Long?,
     val receivedCurrency: String?,
 )

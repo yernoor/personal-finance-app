@@ -127,7 +127,7 @@ class EntryViewModel(
         viewModelScope.launch { if (uid == null) preselectAccount() else load(uid) }
     }
 
-    /** The original's default account has the literal uid "main" (docs/FORMAT.md). */
+    /** The default account in imported backups has the literal uid "main" (docs/FORMAT.md). */
     private suspend fun preselectAccount() {
         val accounts = db.accountDao().getAll().filter { !it.isRemoved && it.isActive && !it.isArchived }
         accountUid = (accounts.firstOrNull { it.uid == "main" } ?: accounts.firstOrNull())?.uid

@@ -24,7 +24,7 @@ data class AccountEntity(
     val color: Int?,
     val position: Int?,
     val comment: String?,
-    /** Excluded from the headline Total (eye-off icon in the original). */
+    /** Excluded from the headline Total (eye-off icon). */
     val ignoreInBalance: Boolean,
     val isActive: Boolean,
     val isArchived: Boolean,
@@ -84,7 +84,7 @@ data class TransactionEntity(
     val amountInRealCurrency: Long?,
     val realCurrencyCode: String?,
     /**
-     * Amount in the account's currency. The original leaves this NULL for 60 USD rows and keeps the amount in
+     * Amount in the account's currency. The backup leaves this NULL for 60 USD rows and keeps the amount in
      * amountInRealCurrency; the importer copies it here (docs/FORMAT.md 4b). Null only if unresolvable.
      */
     val amountInAccountCurrency: Long?,
@@ -121,7 +121,7 @@ data class TransferEntity(
     val toAccountUid: String,
     val fromAmount: Long,
     val fromCurrencyCode: String,
-    /** The original falls back to fromAmount when null. */
+    /** Backups fall back to fromAmount when null. */
     val toAmount: Long?,
     val toCurrencyCode: String?,
     val date: String,
@@ -133,14 +133,14 @@ data class TransferEntity(
 
 enum class ReminderKind { Reminding, RegularPayments }
 
-/** Both "Reminders" and "Regular Payments" screens of the original live in one table there. */
+/** Reminders and regular payments live in one table in the backup. */
 @Entity(tableName = "reminder")
 data class ReminderEntity(
     @PrimaryKey val uid: String,
     val kind: ReminderKind,
     val title: String,
     val text: String?,
-    /** Original values seen: "Day", "Month". Others (custom) unverified. */
+    /** Values seen: "Day", "Month". Others (custom) unverified. */
     val period: String,
     val transactionType: TransactionType?,
     val startDate: String,

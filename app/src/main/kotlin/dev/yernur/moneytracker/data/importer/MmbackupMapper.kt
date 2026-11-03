@@ -29,7 +29,7 @@ class ImportResult(
 )
 
 /**
- * Pure translation of the original's tables into this app's entities. Only live rows (isRemoved = 0)
+ * Pure translation of the backup's tables into this app's entities. Only live rows (isRemoved = 0)
  * and live sync_link edges are imported; edges become real foreign keys.
  */
 object MmbackupMapper {
@@ -98,7 +98,7 @@ object MmbackupMapper {
     private class AccountAmount(val amount: Long?, val fromReal: Boolean)
 
     /**
-     * The original leaves amountInAccountCurrency NULL when the entry was typed in the account's own currency
+     * The backup leaves amountInAccountCurrency NULL when the entry was typed in the account's own currency
      * and keeps it in amountInRealCurrency instead (verified: closes every balance gap, docs/FORMAT.md 4b).
      */
     private fun accountAmount(row: Row, account: AccountEntity): AccountAmount {

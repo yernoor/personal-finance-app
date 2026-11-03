@@ -63,7 +63,7 @@ class SheetRowsTest {
         assertEquals(BigDecimal("-85.76"), usd[7]) // an expense is negative in Net
         assertEquals("=SUM(A1) note", usd[8]) // stays text: values are written RAW, so it never runs as a formula
         val main = rows[0]
-        assertEquals("Main", main[2]) // the original's untitled default account
+        assertEquals("Main", main[2]) // the backup's untitled default account
         assertEquals(BigDecimal("13537.00"), main[5])
         assertEquals(BigDecimal("1000000.00"), rows[2][7]) // income is positive
     }

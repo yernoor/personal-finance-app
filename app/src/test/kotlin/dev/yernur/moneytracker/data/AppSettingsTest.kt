@@ -27,7 +27,7 @@ class AppSettingsTest {
     }
 
     @Test
-    fun navbarAndHomeLayout_defaultToTheOriginalShape_andPersist() {
+    fun navbarAndHomeLayout_defaultToTheStandardShape_andPersist() {
         prefs.edit().clear().commit()
         val fresh = AppSettings(prefs)
         assertEquals(listOf("home", "history", "charts", "accounts"), fresh.navTabs.value)

@@ -31,7 +31,7 @@ class AccentPaletteTest {
     }
 
     @Test
-    fun slots_followTheOriginalPickerOrder_andUnknownColorsGetAStableSlot() {
+    fun slots_followThePickerOrder_andUnknownColorsGetAStableSlot() {
         AccentPalette.KEYS.forEachIndexed { index, key -> assertEquals(index, AccentPalette.slotOf(key)) }
         assertEquals(0, AccentPalette.slotOf(null))
         val unknown = 0xFF123456.toInt()

@@ -197,7 +197,7 @@ class SheetParser(
         if (existing == null) {
             return TransactionEntity(uid, type, accountUid, categoryUid, defaultAmount, null, null, amount, currency, date, r.text(8), r.text(9) ?: now, r.text(10) ?: now)
         }
-        // A changed amount makes the original's real-currency amount stale, so it goes with it.
+        // A changed amount makes the stored real-currency amount stale, so it goes with it.
         val stale = existing.amountInAccountCurrency != amount
         return existing.copy(
             type = type, accountUid = accountUid, categoryUid = categoryUid, amountInDefaultCurrency = defaultAmount,

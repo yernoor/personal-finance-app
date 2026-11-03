@@ -1,7 +1,6 @@
 # data/
 
 Put the **newest** export here, e.g. `data/MoneyManager_YYYYMMDDTHHMMSS.mmbackup`.
-In the original app: Settings -> Backup -> export file (exact menu names unverified; locate on your phone).
 
 This folder is git-ignored: it contains real personal financial data. Never commit it, never
 paste its contents into issues or PRs, and keep the repo private.

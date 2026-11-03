@@ -78,4 +78,4 @@ a row with an empty UID by assigning one.
 
 ## Out of scope for v1
 Bank-notification parsing (user decided it is brittle; manual entry is the habit), exporting to `.mmbackup`,
-recurring transactions unless the original app turns out to have them (see CLAUDE.md "Feature inventory").
+recurring transactions (see docs/FEATURES.md).

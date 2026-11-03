@@ -103,7 +103,7 @@ class AppFlowTest {
 
         val saved = transactions().single()
         assertEquals(150_050L, saved.amountInAccountCurrency)
-        assertEquals("main", saved.accountUid) // defaulted to the original's default account
+        assertEquals("main", saved.accountUid) // defaulted to the default account
         assertEquals(TransactionType.Expense, saved.type)
         assertEquals("lunch", saved.comment)
 

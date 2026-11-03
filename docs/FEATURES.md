@@ -1,6 +1,6 @@
 # FEATURES.md
 
-Sources: owner's 14 screenshots of the original app v1.15.0+4246 (`docs/original-app/`), the owner's chat
+Sources: owner's 14 UI screenshots (`docs/ui-references/`), the owner's chat
 answers (2026-10-25), and the 2026-10-25 backup. Rating: **must** / **nice** / **skip**.
 "Seen" = visible in a screenshot. "Unverified" = inferred, confirm with the owner before building.
 
@@ -52,7 +52,7 @@ Target device: Android 16 (API 36) -> `minSdk = 36` is possible; owner to confir
 | Feature | Rating | Notes |
 |---|---|---|
 | Daily reminder at a set time (owner: 20:00, "enter today's spending") | must | **BUILT** (More -> Daily reminder: switch + time, default 20:00; see "Session 2026-11-03" below). |
-| (original app's reminder, for reference) | | | Seen: reminder "Внимание!" next fire 2026-10-26 20:00. Backup table `reminding` has 2 active rows. |
+| (imported reminder, for reference) | | | Seen: reminder "Внимание!" next fire 2026-10-26 20:00. Backup table `reminding` has 2 active rows. |
 | Regular payments (ипотека, plus other required payments) | must | Seen: separate "Regular Payments" screen (Upcoming list, search, enable switch, add button). Mortgage fires monthly on the 20th at 10:00 (next: 2026-11-20). Owner does not need an amount on it. Notification only; auto-adding a transaction (`addAutomatically`, currently 0) is **nice**. |
 
 Backup check (verified): both live in table `reminding`, told apart by `remindingType` (`reminding` = "Внимание!", daily, 20:00, start 2023-09-17; `regularPayments` = "ипотека", `period` Month, start 2025-10-20, `transactionType` Expense, `time` stored as `'10:0'`, i.e. not zero-padded: parse leniently). `amount` is non-null on both; value not inspected. `regular_payment_period` has 0 rows.
@@ -66,7 +66,7 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 | `.mmbackup` one-time import | must | Milestone 3. |
 | Google Sheets sync | must | Milestone 6 built; "Sync now" and a weekly background sync built (milestone 7, partly): see docs/SYNC_DESIGN.md. Apps Script `onEdit` and the conflict log are not built. |
 | Local DB backup / restore | must | Milestone 8. |
-| Multi-currency (KZT, USD), stored rates | must | `rates` table has 3 rows; how the original uses them for totals is unverified. |
+| Multi-currency (KZT, USD), stored rates | must | `rates` table has 3 rows; how they should feed totals is unverified. |
 
 ## Milestone 5 as built (verified on the emulator with the real backup)
 - Charts: General (income / expenses / profit-loss bars), Expenses and Income stacked by category, zoom By year / month / week / day,
@@ -80,12 +80,12 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
   (C, smart parentheses, %, ÷ × − +, decimals, backspace, =, live preview, "Use result"). Percent works like the phone's:
   `1000 + 10%` = 1100, `200 × 10%` = 20. Results round to cents.
 - History periods (owner request): Day / Week / Month / Year switch with arrows (the next arrow stops at the present; tapping the title
-  jumps back to today). Opens on the **day** by default, matching the original; More -> "History opens on" changes the default.
+  jumps back to today). Opens on the **day** by default; More -> "History opens on" changes the default.
 - History "Group by category" (owner request; since 2026-11-03 it is ON by default, the toggle beside Search turns it off): adds up each category (and direction) in the shown period,
   with an operation count; tap a group to expand its entries. Transfers are grouped too, by account pair ("Main -> Deposit 2"),
   with both sides summed ("₸4,500 -> $10" for cross-currency); the reverse direction is its own group.
 - Not built yet: a daily background check (a warning is only evaluated when you save an entry; WorkManager now exists for sync and the reminder, but the check is not wired to it),
-  Income-side limits, charts for a custom period, per-account chart filter (original had one).
+  Income-side limits, charts for a custom period, per-account chart filter.
 - Unverified: for a ledger whose first month is partial, that month counts as a full month in the 3-month average.
 
 ## Session 2026-11-03 as built (owner requests; unit tests and debug build pass, checked on the emulator where noted)
@@ -94,7 +94,7 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
   after that a phone row edited or deleted since the last sync is never overwritten by the sheet. One sync runs at a time. The standalone
   "Import from the sheet" button was removed (it duplicated hand-typed rows on every run). Unverified: the live Google round trip and the job on a real phone.
 - **Overwrite balance** (owner request): Edit account -> "Overwrite balance": type the real balance; the app adds an Income/Expense for the
-  difference with **no category**, dated today. This is how the original stores it (docs/FORMAT.md 4c). Rows without a category show as
+  difference with **no category**, dated today. This matches how imported backups store it (docs/FORMAT.md 4c). Rows without a category show as
   "Balance correction" in History, Home, Charts and warnings.
 - **Daily reminder** (owner request): More -> Daily reminder, default 20:00, any time. A one-time WorkManager job books the next one when it
   fires (Android may delay it a few minutes under Doze; no exact alarm). Asks for notification permission again on Save if it is missing.
@@ -118,7 +118,7 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
   Navigation bar (2 to 5 of Home, History, Charts, Accounts, Categories, Tags; checkboxes and up/down arrows; the first tab opens with
   the app) and More -> Home layout (cards: spending warnings, balance, income and expenses, top spending categories, latest entries;
   the totals can cover a day, week, month or year; default month).
-- History defaults to the **day** period (matches the original's `defaultPeriod = day`) and zooms out to week / month / year.
+- History defaults to the **day** period and zooms out to week / month / year.
   First weekday is Monday (backup `firstWeekday = monday`).
 - BUILT: all 32 category/account icons are original artwork (no Material or third-party icon paths), drawn on a 24-unit grid. Three
   owner-selectable styles in More -> Icon style: vivid discs (default), tonal tiles, duotone. Colors come from the system accent
@@ -138,7 +138,7 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 | Feature | Rating | Notes |
 |---|---|---|
 | PIN lock | nice | Settings menu has PIN. Not opened. |
-| Themes / appearance | nice | Original is dark green. Own palette; follow system dark mode. |
+| Themes / appearance | nice | Own palette; follow system dark mode. |
 | Photo attachments on transactions | skip | "Photo" row exists in add-transaction; no table seen in backup (`sync_file` has 0 rows). |
 | Transaction search and filters | nice | Search icons seen (tag search, transfers). Operation-list filters not captured. |
 | Home-screen widgets | skip | Not seen. |
@@ -155,9 +155,9 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 5. (Resolved: no balance adjustment needed.)
 6. Investments: keep "Инвестиции" as an expense category (current practice), or add a broker account for the ~$4000 of bonds?
 
-## Navigation proposal (replaces the original's drawer; Material 3)
+## Navigation proposal (Material 3)
 - **Bottom navigation bar, 4 tabs:** Home (period breakdown + projection/limit warnings), History (operations and
-  transfers, search/filters), Charts, Accounts. The original hides most of these behind a hamburger drawer.
+  transfers, search/filters), Charts, Accounts.
 - **One add button** (FAB) on Home and History opens the add sheet with Expense / Income / Transfer as a segmented
   control, so a transfer is one tap away instead of a separate trip through Accounts. Fast entry is the daily habit.
 - **Secondary screens** from a "More" entry on Home's top bar (or Settings): Categories, Regular Payments, Reminders,
@@ -166,12 +166,12 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
   Android 12+; always available with minSdk 36). Accent comes from the system's wallpaper-derived palette. Unverified on the
   owner's phone: OEM skins sometimes change how the system accent is chosen. Settings toggle "Use system colors" with a static
   green fallback scheme. Category colors are user data and stay fixed; over-limit / warning colors use fixed semantic colors
-  (not dynamic) so they stay recognizable. Original palette is dark green; ours is original anyway.
+  (not dynamic) so they stay recognizable.
 - Rationale: the owner's daily actions (add, glance at balances/limits) are all reachable in one tap from the bar.
   This is a judgment call, not a verified usability finding.
 
 ## Balance reconciliation (resolved)
 - Screenshot totals match the backup's cached `account_balance`: Main 4,597 (459671), Deposit 36,138 (3613822),
-  Deposit 2 2.31M (230507718), Freedom USD $13.56 (1356). So `account_balance` is what the original displays.
+  Deposit 2 2.31M (230507718), Freedom USD $13.56 (1356). So `account_balance` is what the owner saw on the phone.
 - The replay gap was a data-format quirk, not missing operations: 60 USD rows keep their amount in the real-currency
   field. With that rule every account reconciles to the cent (docs/FORMAT.md 4b). No opening-balance adjustment needed.

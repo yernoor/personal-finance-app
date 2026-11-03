@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only tooling for innim "Money manager & expenses" (.mmbackup) files.
+"""Read-only tooling for `.mmbackup` backup files.
 
 Subcommands:
   inspect BACKUP            dump container, schema, row counts, link shapes; warn on drift
