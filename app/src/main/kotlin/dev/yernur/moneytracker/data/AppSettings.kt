@@ -32,6 +32,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _lastSyncAt = MutableStateFlow(prefs?.getString(LAST_SYNC_AT, null))
     private val _pendingSpreadsheetId = MutableStateFlow(prefs?.getString(PENDING_SPREADSHEET_ID, null))
     private val _lastUpdateCheck = MutableStateFlow(prefs?.getLong(LAST_UPDATE_CHECK, 0L) ?: 0L)
+    private val _lastRatesDate = MutableStateFlow(prefs?.getString(LAST_RATES_DATE, null))
     private val _availableUpdate = MutableStateFlow(prefs?.getString(AVAILABLE_UPDATE, null))
     private val _googleConnected = MutableStateFlow(prefs?.getBoolean(GOOGLE_CONNECTED, false) ?: false)
     private val _glass = MutableStateFlow(prefs?.getBoolean(GLASS, false) ?: false)
@@ -61,6 +62,14 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
 
     /** The newest release tag found by the last check (e.g. "v0.3.0"), shown on the More screen when it is newer than the installed version. */
     val availableUpdate: StateFlow<String?> = _availableUpdate
+
+    /** The day (YYYY-MM-DD, device local) the app last asked the National Bank for rates: it asks once a day. */
+    val lastRatesDate: StateFlow<String?> = _lastRatesDate
+
+    fun setLastRatesDate(date: String) {
+        _lastRatesDate.value = date
+        prefs?.edit()?.putString(LAST_RATES_DATE, date)?.apply()
+    }
 
     fun setLastUpdateCheck(millis: Long) {
         _lastUpdateCheck.value = millis
@@ -229,6 +238,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val GLASS = "glass"
         private const val GOOGLE_CONNECTED = "googleConnected"
         private const val LAST_UPDATE_CHECK = "lastUpdateCheck"
+        private const val LAST_RATES_DATE = "lastRatesDate"
         private const val AVAILABLE_UPDATE = "availableUpdate"
         private const val PENDING_SPREADSHEET_ID = "pendingSpreadsheetId"
         private const val SPREADSHEET_ID = "spreadsheetId"

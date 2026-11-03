@@ -1,0 +1,54 @@
+package dev.yernur.moneytracker.data.wealth
+
+import dev.yernur.moneytracker.data.DEFAULT_CURRENCY
+import dev.yernur.moneytracker.data.sheets.HttpRequest
+import dev.yernur.moneytracker.data.sheets.HttpTransport
+import java.io.ByteArrayInputStream
+import java.math.BigDecimal
+import java.math.RoundingMode
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import javax.xml.parsers.DocumentBuilderFactory
+
+class FxException(message: String) : Exception(message)
+
+/**
+ * The National Bank of Kazakhstan's official rates (checked 2026-11-04): one XML document per date, `<item>` with `<title>` = currency code,
+ * `<description>` = price in KZT and `<quant>` = how many units that price is for (10, 100 or 1000 for some currencies).
+ * No key; the owner allows one request a day (see [FxRepository]).
+ */
+class NbkRatesClient(private val transport: HttpTransport) {
+    /** Blocking. KZT per one unit of each currency published for [date]. */
+    fun fetch(date: LocalDate): Map<String, Double> {
+        val url = "https://nationalbank.kz/rss/get_rates.cfm?fdate=" + date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+        val response = transport.execute(HttpRequest("GET", url, emptyMap(), null))
+        if (response.code != 200) throw FxException("The National Bank answered with HTTP ${response.code}.")
+        val rates = parseNbkRates(response.body)
+        if (rates.isEmpty()) throw FxException("The National Bank published no rates for $date.")
+        return rates
+    }
+}
+
+fun parseNbkRates(xml: String): Map<String, Double> {
+    val factory = DocumentBuilderFactory.newInstance()
+    val items = factory.newDocumentBuilder().parse(ByteArrayInputStream(xml.toByteArray(Charsets.UTF_8))).getElementsByTagName("item")
+    val rates = LinkedHashMap<String, Double>()
+    for (i in 0 until items.length) {
+        val item = items.item(i) as org.w3c.dom.Element
+        fun text(tag: String) = item.getElementsByTagName(tag).item(0)?.textContent?.trim()
+        val code = text("title") ?: continue
+        val price = text("description")?.toBigDecimalOrNull() ?: continue
+        val quant = text("quant")?.toBigDecimalOrNull()?.takeIf { it.signum() > 0 } ?: BigDecimal.ONE
+        rates[code] = price.divide(quant, 10, RoundingMode.HALF_UP).toDouble()
+    }
+    return rates
+}
+
+/** Converts through KZT (every published rate is against it). Null when either currency has no rate. */
+fun convertViaKzt(minor: Long, from: String, to: String, kztPerUnit: Map<String, Double>): Long? {
+    if (from == to) return minor
+    fun rate(code: String) = if (code == DEFAULT_CURRENCY) BigDecimal.ONE else kztPerUnit[code]?.let { BigDecimal(it.toString()) }
+    val fromRate = rate(from) ?: return null
+    val toRate = rate(to) ?: return null
+    return BigDecimal.valueOf(minor).multiply(fromRate).divide(toRate, 0, RoundingMode.HALF_UP).toLong()
+}

@@ -9,6 +9,7 @@ import dev.yernur.moneytracker.data.LedgerRepository
 import dev.yernur.moneytracker.data.WarningNotifier
 import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.db.MIGRATION_1_2
+import dev.yernur.moneytracker.data.db.MIGRATION_2_3
 import dev.yernur.moneytracker.data.importer.ImportRepository
 import dev.yernur.moneytracker.data.sheets.UrlConnectionTransport
 import dev.yernur.moneytracker.data.update.ApkInstaller
@@ -16,8 +17,11 @@ import dev.yernur.moneytracker.data.update.UpdateChecker
 import dev.yernur.moneytracker.data.update.UpdateDownloads
 import dev.yernur.moneytracker.data.update.UpdateInstaller
 import dev.yernur.moneytracker.data.update.WorkDownloads
+import dev.yernur.moneytracker.data.wealth.FxRepository
+import dev.yernur.moneytracker.data.wealth.NbkRatesClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 
 /** Hand-wired dependencies: small enough that a DI framework would only add build risk (AGP 9 + KSP). */
 class AppContainer(
@@ -29,10 +33,13 @@ class AppContainer(
     val updateInstaller: UpdateInstaller? = null,
     val updateDownloads: UpdateDownloads? = null,
     val installedVersion: String = "0.0.0",
+    /** Null in tests, like [updateChecker]. */
+    fxClient: NbkRatesClient? = null,
 ) {
     val ledger = LedgerRepository(db)
     val importer = ImportRepository(db)
     val forecasts = ForecastRepository(db, settings)
+    val fx = FxRepository(db, settings, fxClient)
     private val notifier = notifierFor(db, settings, forecasts)
 
     /** Asks GitHub for a newer release, but at most once a day; a failure is silent (the Updates screen shows errors when asked by hand). */
@@ -41,6 +48,11 @@ class AppContainer(
         if (now - settings.lastUpdateCheck.value < DAY_MILLIS) return
         settings.setLastUpdateCheck(now)
         runCatching { withContext(Dispatchers.IO) { checker.check() } }.onSuccess { settings.setAvailableUpdate(it?.tag) }
+    }
+
+    /** Fetches the National Bank rates, at most once a day; failures are silent (the converter keeps using the cached rates). */
+    suspend fun refreshRatesDaily(today: LocalDate = LocalDate.now()) {
+        runCatching { withContext(Dispatchers.IO) { fx.refreshDaily(today) } }
     }
 
     /** Call after anything that changes spending: may post a limit warning. */
@@ -63,10 +75,11 @@ class MoneyApp : Application() {
     val container by lazy {
         val version = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
         AppContainer(
-            Room.databaseBuilder(this, AppDatabase::class.java, "moneytracker.db").addMigrations(MIGRATION_1_2).build(),
+            Room.databaseBuilder(this, AppDatabase::class.java, "moneytracker.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3).build(),
             AppSettings(getSharedPreferences("settings", MODE_PRIVATE)),
             { db, settings, forecasts -> WarningNotifier(this, db, settings, forecasts) },
             UpdateChecker(UrlConnectionTransport(), version), ApkInstaller(this), WorkDownloads(this), version,
+            NbkRatesClient(UrlConnectionTransport()),
         )
     }
 }

@@ -164,3 +164,15 @@ data class RateEntity(
     val value: Double,
     val modified: String,
 )
+
+/**
+ * Latest official rate fetched from the National Bank of Kazakhstan: KZT per ONE unit of [currencyCode] (the feed's price divided by its
+ * `quant`). Separate from [RateEntity], which holds what the .mmbackup brought. [date] is the day the feed published it for.
+ */
+@Entity(tableName = "fx_rate")
+data class FxRateEntity(
+    @PrimaryKey val currencyCode: String,
+    /** Exchange rate, not money: Double is fine. */
+    val kztPerUnit: Double,
+    val date: String,
+)

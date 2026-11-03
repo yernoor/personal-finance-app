@@ -196,3 +196,15 @@ interface RateDao {
     @Query("SELECT * FROM rate")
     fun observeAll(): Flow<List<RateEntity>>
 }
+
+@Dao
+interface FxRateDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(items: List<FxRateEntity>)
+
+    @Query("SELECT * FROM fx_rate ORDER BY currencyCode")
+    suspend fun getAll(): List<FxRateEntity>
+
+    @Query("SELECT * FROM fx_rate ORDER BY currencyCode")
+    fun observeAll(): Flow<List<FxRateEntity>>
+}

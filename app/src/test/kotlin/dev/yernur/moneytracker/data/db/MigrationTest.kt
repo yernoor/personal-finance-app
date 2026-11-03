@@ -32,6 +32,13 @@ class MigrationTest {
         assertTrue(v2.query("SELECT warnThresholdPercent FROM category").use { it.moveToFirst(); it.isNull(0) })
     }
 
+    @Test
+    fun migrate2To3_addsAnEmptyFxRateTable() {
+        helper.createDatabase(DB, 2).close()
+        val v3 = helper.runMigrationsAndValidate(DB, 3, true, MIGRATION_2_3)
+        assertEquals("0", v3.scalar("SELECT COUNT(*) FROM fx_rate"))
+    }
+
     private companion object {
         const val DB = "migration-test"
     }
