@@ -65,7 +65,7 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 |---|---|---|
 | `.mmbackup` one-time import | must | Milestone 3. |
 | Google Sheets sync | must | Milestone 6 built; "Sync now" and a weekly background sync built (milestone 7, partly): see docs/SYNC_DESIGN.md. Apps Script `onEdit` and the conflict log are not built. |
-| Local DB backup / restore | must | Milestone 8. |
+| Local DB backup / restore | must | Milestone 8; plan in "Planned, not built" item 4. |
 | Multi-currency (KZT, USD), stored rates | must | `rates` table has 3 rows; how they should feed totals is unverified. |
 
 ## Milestone 5 as built (verified on the emulator with the real backup)
@@ -143,7 +143,7 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
   - *Hide*: `Activity.setRecentsScreenshotEnabled(false)` while the app is paused (API 33; the exact behaviour is **unverified**, the docs fetch did not cover it), or `FLAG_SECURE` set in `onPause` and cleared in `onResume` (this also blanks the thumbnail and the app in screen recordings only while backgrounded).
   - *Blur*: Android has no "blurred thumbnail" switch. Draw a frosted cover (reuse the `Glass.kt` backdrop, or `Modifier.blur`, API 31) over the whole UI in `onPause`. **Unverified**: the system takes the thumbnail after `onPause`, so the cover may not be drawn in time on every launcher; test on the Nothing 3a and fall back to Hide if it flashes the real content.
   - `onPause` also fires for permission dialogs and the system file picker, so the cover must not trigger the lock timer, only the cover.
-- **Amounts outside the app**: with the PIN on, widgets (below) hide amounts when the phone is locked, and warning notifications get a private version (no amounts) for the lock screen.
+- **Amounts outside the app**: warning notifications get a private version (no amounts) for the lock screen. Widgets: see item 3 (owner decision: no account totals on the home screen at all).
 - **Forgot PIN**: there is no server. Recovery = clear app data and re-sync from the Sheet (so sync should have run). Alternative: allow the phone's own screen lock as a fallback (`DEVICE_CREDENTIAL`). Owner to choose.
 - Tests: hash/verify/back-off as pure functions; Robolectric UI test that a locked app shows the keypad and never composes the screens.
 
@@ -169,18 +169,42 @@ Sizes on a 5x4 grid are roughly 73n-16 by 118m-16 dp (Android docs, Pixel 4; the
 |---|---|---|---|
 | Quick add | 2x1 (or 1x1) | Expense / Income / Transfer buttons | opens add screen on that kind |
 | Month at a glance | 2x2 | Spent this month, bar vs. projection, limit warning dot | Home |
-| Total balance | 2x2 | Main-accounts total, second line = incl. hidden; hides when locked | Accounts |
+| ~~Total balance~~ | | Dropped (owner, 2026-11-04): account totals never appear on the home screen. | |
 | Today | 2x2 | Spent today, last 3 operations | History |
 | Limits | 4x2 | Top 3-4 categories as bars vs limit (+ projection tick) | Charts, forecast tab |
 | Budget + chart | 4x4 | Month category stacked bar, top categories, projection line (the Home/Charts summary) | Charts |
-| Accounts | 4x4 | Accounts with balances, scrollable list | Accounts |
+| ~~Accounts~~ | | Dropped for the same reason (balances). | |
 | Recent operations | 4x4 / 4x6 | Last 8-12 operations, per-row category icon, tap to edit | edit screen |
 | Month dashboard | 4x6 | Totals + chart + limits + recent in one tall card | Home |
 
 - **From the wealth branch** (`claude/finance-app-features-208bd5`, not merged; the Wealth screen is still uncommitted there, so it may change): net worth + the 30-day change as 2x2; a goal progress ring as 2x2; compound-interest "balance in N years" as 2x2 (the scenario is typed in the app, the widget only shows the last saved one); bond coupon/maturity ladder, "next coupon in 12 days, 14,500 KZT" as 4x2; financial-health tiles (savings rate, months covered) as 4x2; a 4x4 "wealth" card with net worth sparkline from the daily snapshots. These need that branch merged first, so they are last in the order.
-- **Suggested build order**: shared widget style + Month at a glance (2x2) + Quick add, then Total balance, Limits, Recent operations (4x4); the 4x6 and wealth widgets last. Widgets reveal data on the home screen, so the PIN work (item 1) goes first: the "hide amounts when locked" rule is part of it.
-- **Open for the owner**: which of the nine you would actually use; whether amounts should show on the home screen at all; widget font (system, or a bundled open-licence dot-matrix font: check the licence, do not copy Nothing's own font files).
+- **Suggested build order**: shared widget style + Month at a glance (2x2) + Quick add + Today, then Limits and Recent operations (4x4); the 4x6 and wealth widgets last (after that branch merges).
+- **Owner decisions (2026-11-04)**: likes all of them; wants the wealth-branch widgets in the plan (they are, above). Spending amounts may show on the home screen; **account balances and totals never do**.
+  That removes "Total balance" and "Accounts" from the table. It also applies to the wealth widgets: net worth, goal progress and any balance-derived figure are balances, so
+  they are **hidden by default** (show a % or "tap to open" instead) with a setting to reveal them; owner to confirm. Spending, limits, coupons-due dates and savings rate are not balances.
+- **Widget font options** (owner to pick; Nothing OS offers Roboto or Geist). All free fonts are bundled in the APK under their licence; never copy Nothing's own Ndot font files.
+  | Option | Look | Licence |
+  |---|---|---|
+  | System / Roboto | Neutral, matches the rest of the app | Apache 2.0 (system font, nothing to bundle) |
+  | Geist (Vercel) | Clean modern sans, close to Nothing OS's newer look | SIL OFL 1.1 (Vercel docs) |
+  | Geist Mono | Same family, monospaced digits: amounts line up | SIL OFL 1.1 (third-party listing; check the repo's LICENSE) |
+  | Doto (Google Fonts, Oliver Lalan) | True dot-matrix, variable weight 100-900, rounded-dot axis | SIL OFL 1.1 (Fontsource, Google Fonts mirror) |
+  | Geist Pixel (Vercel) | Pixel variants (square, grid, circle, triangle, line) for display text | OFL inferred from the family, not stated in its repo: verify before bundling |
+  Proposal: Doto for big numerals and headings (the Nothing look, but check it stays readable for Cyrillic category names: the sources say 382 languages, unverified for our titles), Geist or Roboto for small text.
+  Doto is a display face, so never use it below roughly 16 sp. Make the font part of the widget style switch in More.
 - Tests: Glance has no Robolectric-friendly renderer, so keep the logic (what each widget shows, formatting, hide-when-locked) in plain functions with unit tests, and check the look on the emulator and the phone.
+
+### 4. Local database backup and restore (owner request, 2026-11-04)
+Verified in the code today: `allowBackup="false"` ([AndroidManifest.xml](app/src/main/AndroidManifest.xml):17); the sheet push empties every tab and then rewrites it
+(`SheetsSync.reuse` calls `api.clear`), so a dropped connection leaves the sheet partly empty until the next run (already listed under "Known limits" in docs/SYNC_DESIGN.md);
+and the update-failure text in `ApkInstaller.kt:132` tells the owner to uninstall the app, which deletes the database. So the sheet is the only copy outside the phone and it can be the broken one.
+- **More -> Back up to a file**: write a consistent copy of the Room database (checkpoint the WAL first, or `VACUUM INTO` a temp file, so the copy is one file) to a location the owner picks with the system file picker (`ACTION_CREATE_DOCUMENT`: no storage permission, can be Drive, Downloads or a USB drive). File name `moneytracker-YYYY-MM-DD.db`, with the schema version stored inside (Room's `user_version`).
+- **More -> Restore from a file**: pick a file, check it is SQLite and its `user_version` is not newer than the app's, show counts (transactions, accounts, last change) and ask for confirmation, then replace the live database and restart. Older versions run through the normal Room migrations. Keep the previous database as `.bak` until the app has opened the restored one.
+- **Safety nets**: an automatic backup copy before every in-app update (and shown in the update-failure message in place of the "uninstall" advice, which should say "restore from the backup instead"); optional weekly backup to a folder the owner chose (WorkManager, keeps the last 4); a warning in More when the last backup is older than 30 days.
+- **PIN interaction**: a backup file is plain data. Say so on the screen; optional passphrase encryption is a later option, not part of v1.
+- Not in scope: re-enabling Android's own backup (`allowBackup`), which would copy financial data to the owner's Google account outside this app's control.
+- Smaller than more sync work: no new network or Google scope. Suggested order: **this first** (it protects everything else), then PIN, charts drill-down, widgets.
+- Tests: round trip (back up, change data, restore: counts and per-account balances equal), refuse a file that is not SQLite or has a newer `user_version`, restore keeps `.bak` when the restored file fails to open.
 
 ## Other / unverified, decide later
 
