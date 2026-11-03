@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Label
+import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.BlurOn
 import androidx.compose.material.icons.outlined.CloudSync
@@ -73,7 +74,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit) {
+fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onCompound: () -> Unit) {
     var showReminder by remember { mutableStateOf(false) }
     var showWarnings by remember { mutableStateOf(false) }
     var showHistoryPeriod by remember { mutableStateOf(false) }
@@ -108,6 +109,13 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
         container.snapshotNetWorth()
     }
     Column(Modifier.verticalScroll(rememberScrollState())) {
+        SectionHeader("Wealth")
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+            modifier = Modifier.clickable(onClick = onCompound).testTag("open-compound"),
+            leadingContent = { Icon(Icons.Outlined.Calculate, null) }, headlineContent = { Text("Compound interest") },
+            supportingContent = { Text("Where a balance and monthly savings end up") },
+        )
         SectionHeader("Manage")
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through

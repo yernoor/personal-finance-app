@@ -233,8 +233,10 @@ fun AppRoot(nav: NavHostController = rememberNavController()) {
                     onCategories = { nav.navigate("categories") }, onTags = { nav.navigate("tags") },
                     onNavbar = { nav.navigate("navbar-settings") }, onHomeLayout = { nav.navigate("home-settings") },
                     onSync = { nav.navigate("sync") }, onUpdates = { nav.navigate("updates") },
+                    onCompound = { nav.navigate("compound") },
                 )
             }
+            composable("compound") { CompoundScreen { nav.popBackStack() } }
             composable("sync") { SyncScreen { nav.popBackStack() } }
             composable("updates") { UpdatesScreen { nav.popBackStack() } }
             composable("navbar-settings") { NavbarSettingsScreen { nav.popBackStack() } }
