@@ -98,6 +98,13 @@ balance equal the cached `account_balance` exactly (checked with raw SQL on all 
 `toAmount` fall back to `fromAmount`). So there are no unlogged operations and no adjustment is needed. An earlier note
 here blamed unlogged investment purchases; that was wrong. The importer applies this rule (MmbackupMapper).
 
+## 4c. Balance overwrite rows (checked 2026-11-03 against `2026_10_25_21_48_27_383151.mmbackup`)
+
+The original's "overwrite balance" leaves a normal transaction with **no `Category` edge in `sync_link`**, an empty comment and `v = 2`. The backup has
+21 live ones (12 Income, 9 Expense), all on account `main`, dated 2023-09-15 to 2026-10-19; the newest (2026-10-19, Expense) is one of them. That
+they are balance overwrites is the owner's description plus this pattern; not checked against the original app's own screen. This app writes the same
+shape (`categoryUid = NULL`) and labels it "Balance correction". Re-importing a backup replaces a phone row only when the backup's `modified` is newer.
+
 ## 5. Reference numbers (OLD export, superseded by 4b) from the 2026-05-28 export (use as a smoke test, then replace with newest)
 
 3,653 active transactions · 609 active transfers · 7 accounts (KZT and USD) · 25 categories ·

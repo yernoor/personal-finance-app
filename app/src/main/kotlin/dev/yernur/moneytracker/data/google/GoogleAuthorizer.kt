@@ -1,6 +1,6 @@
 package dev.yernur.moneytracker.data.google
 
-import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
@@ -32,8 +32,8 @@ interface Authorizer {
  * one-hour access token; asking again is silent as long as the owner has not removed the permission. The Google Cloud client is
  * found by package name + signing certificate, so no client id or secret lives in the app.
  */
-class GoogleAuthorizer(activity: Activity) : Authorizer {
-    private val client = Identity.getAuthorizationClient(activity)
+class GoogleAuthorizer(context: Context) : Authorizer {
+    private val client = Identity.getAuthorizationClient(context)
     private val request = AuthorizationRequest.builder().setRequestedScopes(listOf(Scope(DRIVE_FILE))).build()
 
     override suspend fun authorize(): AuthResult = client.authorize(request).await().toAuthResult()

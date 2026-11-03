@@ -76,7 +76,7 @@ private fun CategoryForecastCard(row: CategoryForecast, category: CategoryEntity
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 IconBadge(category?.icon, category?.color, size = 36.dp)
-                Text(category?.title ?: "No category", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                Text(category?.title ?: "Balance correction", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                 Text(money(row.spent))
             }
             if (row.limit != null) {

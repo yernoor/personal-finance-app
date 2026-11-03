@@ -57,6 +57,7 @@ Not known: reports/charts, budgets UI, recurring items, widgets, search, filters
    `snapshot.json` to the cent, including cross-currency transfers and removed rows excluded.
 4. Core screens: accounts, add/edit transaction (fast entry is the daily habit), transfers, categories, tags, history list.
 5. Reports/budgets per FEATURES.md: period model, charts, projections (run-rate + 3-month average), limit warnings + notifications.
+5a. Added 2026-11-03 (balance overwrite, daily reminder, shared Charts/History header, grouped History, swipe between tabs, pinned Add button, ...): list in docs/FEATURES.md "Session 2026-11-03".
 5b. UX polish (owner requests, 2026-10-25):
    - Navigation animations: no disappearing/abrupt transitions; polished enter/exit and shared-element feel. DONE (overlapping transitions).
    - Customizable bottom navbar (which tabs, order) and configurable Home layout (default: monthly totals cards). DONE (More screen).
@@ -65,7 +66,8 @@ Not known: reports/charts, budgets UI, recurring items, widgets, search, filters
      user's accent color, but not muted: keep hues clearly distinguishable from each other.
 6. Google sign-in + Sheet creation + initial full push. Sheet layout must keep the `Transactions` column order. BUILT and unit-tested
    (fake network, real-backup totals vs snapshot); the live Google round trip needs the owner's Cloud OAuth client: docs/GOOGLE_SETUP.md.
-7. Two-way sync + Apps Script `onEdit` stamping (`/sheets/Code.gs`) + conflict log.
+7. Two-way sync + Apps Script `onEdit` stamping (`/sheets/Code.gs`) + conflict log. PARTLY BUILT: "Sync now" and a weekly WorkManager job
+   (pull, then push; phone edits since the last sync win; first sync pushes only). Apps Script and the conflict log are not built. See docs/SYNC_DESIGN.md.
 8. Polish, backup/restore of the local DB, release APK signed with the owner's local keystore (sideload).
 
 ## Verification rules (the owner values checkable work)
@@ -75,6 +77,12 @@ Not known: reports/charts, budgets UI, recurring items, widgets, search, filters
 - Run unit tests and a debug build before declaring a milestone done. If the Android SDK or emulator is not
   available in your environment, say so plainly and list what you could not run.
 - Money tests: use the real extracted data, plus edge cases (0.19, negative, USD accounts, cross-currency transfer).
+
+## Git workflow (owner's rule)
+- Every new feature or fix gets its own commit, even when several go onto the same feature branch and are pushed together.
+  The owner squashes them later, so the branch history must keep them separate. Never lump a session's work into one commit.
+- Commit each one when it is done and its tests pass, one semantic-style line each (see the global instructions).
+- Tests and docs for a change go in that change's commit, not a separate one.
 
 ## Code style (owner's preferences)
 - Minimal, readable code over clever abstractions; data-driven config over scattered branching.
@@ -101,7 +109,7 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@25 PATH=/opt/homebrew/opt/openjdk@25/
 Toolchain (this Mac): SDK at /opt/homebrew/share/android-commandlinetools (path in git-ignored `local.properties`),
 platforms android-36 + android-37.0 (compileSdk 37 is required by current Compose libs; target/min stay 36),
 AGP 9.4.1, Kotlin 2.4.21, KSP 2.3.12, Room 2.8.5, Compose BOM 2026.09.00, Navigation 2.10.2. DI is hand-wired
-(`AppContainer`), not Hilt: no concrete need yet and it adds AGP 9/KSP risk. WorkManager comes with sync (M7).
+(`AppContainer`), not Hilt: no concrete need yet and it adds AGP 9/KSP risk. WorkManager runs the weekly sheet sync and the daily reminder.
 Tests run on Robolectric simulating Android 36 (`app/src/test/resources/robolectric.properties`), which needs a Java 21+
 test JVM: JDK 25 covers it. UI tests (`ui/AppFlowTest`, `ReportsFlowTest`) drive the real navigation against an in-memory Room DB on Robolectric's small default screen;
 `PhoneScreenFlowTest` uses a phone-sized one for flows that need room (calculator keypad). Do not set a big screen globally: text-field dialogs hang under it.

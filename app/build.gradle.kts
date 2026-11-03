@@ -62,6 +62,7 @@ dependencies {
     implementation(libs.navigation.compose)
     implementation(libs.play.services.auth) // Authorization API: the access token for Sheets (drive.file scope, no refresh token on the device)
     implementation(libs.backdrop) // liquid glass: backdrop blur, lens refraction (Android 13+; we run on 16)
+    implementation(libs.work.runtime)
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.lifecycle.runtime.compose)
     debugImplementation(libs.compose.ui.tooling)

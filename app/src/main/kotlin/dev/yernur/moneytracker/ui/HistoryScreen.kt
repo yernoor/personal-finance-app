@@ -73,7 +73,6 @@ data class HistoryRow(
     val title: String,
     val subtitle: String,
     val amount: String,
-    val amountColor: Color?,
     val iconName: String?,
     val iconColor: Int?,
     val searchText: String,
@@ -151,7 +150,7 @@ class HistoryViewModel(db: AppDatabase, settings: AppSettings, private val today
     val range = combine(unit, anchor) { u, a -> u.rangeOf(a) }
     val query = MutableStateFlow("")
     /** "Group by category" switch: one expandable line per category instead of every entry. */
-    val grouped = MutableStateFlow(false)
+    val grouped = MutableStateFlow(true)
 
     init {
         // Changing the default in More applies the next time History is looked at, not only after a restart.
@@ -178,9 +177,9 @@ class HistoryViewModel(db: AppDatabase, settings: AppSettings, private val today
                 val income = t.type == TransactionType.Income
                 val amount = Money.format(t.amountInAccountCurrency ?: 0L, account?.currencyCode)
                 HistoryRow(
-                    t.uid, false, t.date, t.created, category?.title ?: "No category",
+                    t.uid, false, t.date, t.created, category?.title ?: "Balance correction",
                     listOfNotNull(account?.title?.ifBlank { "Main" }, t.comment?.takeIf { it.isNotBlank() }).joinToString(" · "),
-                    if (income) "+$amount" else "-$amount", if (income) Semantic.income else Semantic.expense,
+                    if (income) "+$amount" else "-$amount",
                     category?.icon, category?.color,
                     listOfNotNull(category?.title, account?.title, t.comment).joinToString(" ").lowercase(),
                     categoryUid = t.categoryUid, isIncome = income, defaultAmount = t.amountInDefaultCurrency ?: 0L,
@@ -192,7 +191,7 @@ class HistoryViewModel(db: AppDatabase, settings: AppSettings, private val today
                 HistoryRow(
                     t.uid, true, t.date, t.created, "${from?.title?.ifBlank { "Main" }} → ${to?.title?.ifBlank { "Main" }}",
                     t.comment.orEmpty(), if (t.toAmount != null) "$sent → ${Money.format(t.toAmount, to?.currencyCode)}" else sent,
-                    null, null, null,
+                    null, null,
                     listOfNotNull(from?.title, to?.title, t.comment).joinToString(" ").lowercase(),
                     transfer = TransferSides(
                         t.fromAccountUid, t.toAccountUid, from?.title?.ifBlank { "Main" } ?: "?", to?.title?.ifBlank { "Main" } ?: "?",
@@ -257,12 +256,21 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
             )
             IconButton({ vm.shift(1) }, enabled = range.to < LocalDate.now(), modifier = Modifier.testTag("next-period")) { Icon(Icons.Outlined.ChevronRight, "Next") }
         }
+        // Same header as Charts: period slicer, period row, then what to show underneath.
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+            listOf(false to "Expenses", true to "Income").forEachIndexed { index, (income, label) ->
+                SegmentedButton(
+                    chartIncome == income, { chartIncome = income }, SegmentedButtonDefaults.itemShape(index, 2),
+                    modifier = Modifier.testTag(if (income) "chart-income" else "chart-expenses"),
+                ) { Text(label) }
+            }
+        }
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("+${Money.format(state.income, DEFAULT_CURRENCY)}", color = Semantic.income)
-            Text("-${Money.format(state.expense, DEFAULT_CURRENCY)}", color = Semantic.expense)
+            Text("+${Money.format(state.income, DEFAULT_CURRENCY)}")
+            Text("-${Money.format(state.expense, DEFAULT_CURRENCY)}")
         }
         // Pinned above the list: scrolling the list shrinks the ring into the bar first (nestedScroll), so there is no toggle button.
-        HistoryChart(slices, chartIncome, { chartIncome = it }, collapse, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        HistoryChart(slices, chartIncome, collapse, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
         // Bottom padding keeps the last row's amount clear of the add button.
         LazyColumn(Modifier.weight(1f).nestedScroll(collapse).testTag("history-list"), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
             item(key = "search") {
@@ -274,7 +282,10 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
             }
             }
             if (grouped) {
-                state.groups.forEach { group ->
+                // The ring's Expenses/Income switch picks which side is listed; shares are of that side's total.
+                val shown = state.groups.filter { it.isIncome == chartIncome }
+                val shownTotal = shown.sumOf { it.total }.coerceAtLeast(1L)
+                shown.forEach { group ->
                     val open = group.key in expanded
                     item(key = "group-${group.key}") {
                         ListItem(
@@ -282,12 +293,11 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
                             modifier = Modifier.clickable { if (open) expanded.remove(group.key) else expanded.add(group.key) }.testTag("group-${group.key}"),
                             leadingContent = { IconBadge(group.iconName, group.iconColor) },
                             headlineContent = { Text(group.title) },
-                            supportingContent = { Text(if (group.rows.size == 1) "1 operation" else "${group.rows.size} operations") },
                             trailingContent = {
-                                Text(
-                                    (if (group.isIncome) "+" else "-") + Money.format(group.total, DEFAULT_CURRENCY),
-                                    color = if (group.isIncome) Semantic.income else Semantic.expense,
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Text("${group.total * 100 / shownTotal}%", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                                    Text(Money.format(group.total, DEFAULT_CURRENCY))
+                                }
                             },
                         )
                     }
@@ -341,6 +351,6 @@ private fun HistoryItem(row: HistoryRow, onOpen: (uid: String, isTransfer: Boole
         },
         headlineContent = { Text(row.title) },
         supportingContent = { if (row.subtitle.isNotBlank()) Text(row.subtitle, maxLines = 1) },
-        trailingContent = { Text(row.amount, color = row.amountColor ?: Color.Unspecified) },
+        trailingContent = { Text(row.amount) },
     )
 }

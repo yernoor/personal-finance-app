@@ -20,7 +20,7 @@ data class TxLite(val date: String, val type: TransactionType, val categoryUid: 
 
 @Dao
 interface AccountDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(items: List<AccountEntity>)
 
     @Upsert
@@ -54,7 +54,7 @@ interface AccountDao {
 
 @Dao
 interface CategoryDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(items: List<CategoryEntity>)
 
     @Upsert
@@ -81,7 +81,7 @@ interface CategoryDao {
 
 @Dao
 interface TagDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(items: List<TagEntity>)
 
     @Upsert
@@ -105,7 +105,7 @@ interface TagDao {
 
 @Dao
 interface TransactionDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(items: List<TransactionEntity>)
 
     @Upsert
@@ -114,7 +114,7 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE uid = :uid")
     suspend fun get(uid: String): TransactionEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertTagLinks(items: List<TransactionTagEntity>)
 
     @Query("SELECT * FROM transaction_tag")
@@ -160,7 +160,7 @@ interface TransactionDao {
 
 @Dao
 interface TransferDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(items: List<TransferEntity>)
 
     @Upsert
@@ -178,7 +178,7 @@ interface TransferDao {
 
 @Dao
 interface ReminderDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(items: List<ReminderEntity>)
 
     @Query("SELECT * FROM reminder WHERE isRemoved = 0 AND kind = :kind ORDER BY startDate")
@@ -187,7 +187,7 @@ interface ReminderDao {
 
 @Dao
 interface RateDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(items: List<RateEntity>)
 
     @Query("SELECT * FROM rate")

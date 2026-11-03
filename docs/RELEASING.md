@@ -41,7 +41,7 @@ Build a signed APK locally with the same names exported as environment variables
 
 ## Things to know
 - The release APK has a **different signing key** from the debug build: Android will not install one over the other, you must
-  uninstall first, which deletes the app's local data. Re-import your `.mmbackup` afterwards (or sync from the sheet once M7 exists).
+  uninstall first, which deletes the app's local data. Re-import your `.mmbackup` afterwards (or tap Sync now on the Google Sheets screen before uninstalling, so the sheet has your latest data).
 - Google sign-in needs a **second Android OAuth client** for the release SHA-1 (printed by the `keytool -list` line above), same
   package name `dev.yernur.moneytracker`: docs/GOOGLE_SETUP.md step 5.
 - Not yet run: both workflows have never run on GitHub; the first run may need small fixes (SDK install step, action versions).

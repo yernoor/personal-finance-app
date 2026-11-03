@@ -160,7 +160,7 @@ private fun DrawScope.drawTile(look: Look, glyph: Glyph) {
  * stored with the item (one of the backup's 12); the actual color comes from the accent (see AccentPalette).
  */
 @Composable
-fun IconBadge(iconName: String?, colorKey: Int?, size: Dp = 40.dp, modifier: Modifier = Modifier) {
+fun IconBadge(iconName: String?, colorKey: Int?, size: Dp = 40.dp, modifier: Modifier = Modifier, ringColor: Color? = null) {
     val style = LocalIconStyle.current
     val hue = LocalAccentHue.current
     val dark = isDarkSurface()
@@ -170,6 +170,8 @@ fun IconBadge(iconName: String?, colorKey: Int?, size: Dp = 40.dp, modifier: Mod
     Canvas(modifier.size(size)) {
         withTransform({ scale(this@Canvas.size.minDimension / TILE, this@Canvas.size.minDimension / TILE, pivot = Offset.Zero) }) {
             drawTile(look, glyph)
+            // Selection: an outline of the tile itself (so it follows the tile shape and look), drawn just outside it.
+            if (ringColor != null) withTransform({ scale(1.1f, 1.1f, pivot = Offset(50f, 50f)) }) { drawPath(squircle, ringColor, style = Stroke(5f)) }
         }
     }
 }

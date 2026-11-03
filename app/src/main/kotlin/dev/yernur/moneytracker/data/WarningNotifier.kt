@@ -27,7 +27,7 @@ class WarningNotifier(
             val kind = category.warnings.min() // WarningKind is ordered most urgent first
             val key = "${forecast.month}-${category.categoryUid}-$kind"
             if (settings.isWarned(key)) continue
-            val name = titles[category.categoryUid] ?: "No category"
+            val name = titles[category.categoryUid] ?: "Balance correction"
             val notification = Notification.Builder(context, CHANNEL)
                 .setSmallIcon(android.R.drawable.stat_sys_warning)
                 .setContentTitle(name)

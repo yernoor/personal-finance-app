@@ -44,7 +44,15 @@ class SheetChanges(
  * has; rows only the phone has are left alone. Only the columns the sheet shows are read, everything else (icons of accounts,
  * real-currency amounts, ...) is kept from the phone's row. Pure, so it is tested without a network.
  */
-class SheetParser(private val local: LocalSnapshot, private val now: String, private val newUid: () -> String = { UUID.randomUUID().toString() }) {
+class SheetParser(
+    private val local: LocalSnapshot,
+    private val now: String,
+    /** UTC time of the last sync: a phone row modified after it is newer than the sheet's copy and is kept (null = the sheet always wins). */
+    private val syncedAt: String? = null,
+    private val newUid: () -> String = { UUID.randomUUID().toString() },
+) {
+    private fun phoneNewer(modified: String) = syncedAt != null && modified > syncedAt
+
     private val warnings = mutableListOf<String>()
     private var added = 0
     private var updated = 0
@@ -52,13 +60,15 @@ class SheetParser(private val local: LocalSnapshot, private val now: String, pri
     fun parse(tabs: Map<String, List<List<Any?>>>): SheetChanges {
         fun rows(tab: TabSpec) = tabs[tab.title].orEmpty().drop(1).filter { r -> r.any { it != null && it.toString().isNotBlank() } }
 
-        val accounts = settleAll(rows(SheetLayout.ACCOUNTS), local.accounts.associateBy { it.uid }, { it.uid }, ::account) { it.copy(modified = now) }
-        val categories = settleAll(rows(SheetLayout.CATEGORIES), local.categories.associateBy { it.uid }, { it.uid }, ::category) { it.copy(modified = now) }
-        val tags = settleAll(rows(SheetLayout.TAGS), local.tags.associateBy { it.uid }, { it.uid }, ::tag) { it.copy(modified = now) }
+        val accounts = settleAll(rows(SheetLayout.ACCOUNTS), local.accounts.associateBy { it.uid }, { it.uid }, ::account, { it.modified }) { it.copy(modified = now) }
+        val categories = settleAll(rows(SheetLayout.CATEGORIES), local.categories.associateBy { it.uid }, { it.uid }, ::category, { it.modified }) { it.copy(modified = now) }
+        val tags = settleAll(rows(SheetLayout.TAGS), local.tags.associateBy { it.uid }, { it.uid }, ::tag, { it.modified }) { it.copy(modified = now) }
 
         val accountUidByName = (local.accounts.filter { !it.isRemoved } + accounts.all).associate { it.title.ifBlank { MAIN } to it.uid }
         val currencyOf = (local.accounts + accounts.all).associate { it.uid to it.currencyCode }
-        val liveCategories = (local.categories.filter { !it.isRemoved } + categories.all).associateBy { it.uid }.values
+        // Live categories first, then removed ones, so old transactions of a deleted category keep pointing at it.
+        val byUid = (local.categories.filter { !it.isRemoved } + categories.all).associateBy { it.uid }
+        val liveCategories = byUid.values + local.categories.filter { it.isRemoved && it.uid !in byUid }
         val tagUidByName = (local.tags.filter { !it.isRemoved } + tags.all).associate { it.name to it.uid }.toMutableMap()
         val newTags = tags.changed.toMutableList()
 
@@ -74,6 +84,7 @@ class SheetParser(private val local: LocalSnapshot, private val now: String, pri
             }.toSet()
             liveTransactionUids += parsed.uid
             val old = oldTransactions[parsed.uid]
+            if (old != null && phoneNewer(old.modified)) continue
             val tagsChanged = tagUids != oldTagsOf[parsed.uid].orEmpty()
             if (old != null && old == parsed && !tagsChanged) continue
             transactions += if (old == null) parsed.also { added++ } else parsed.copy(modified = now).also { updated++ }
@@ -87,15 +98,15 @@ class SheetParser(private val local: LocalSnapshot, private val now: String, pri
             val parsed = transfer(row, oldTransfers, accountUidByName, currencyOf) ?: continue
             liveTransferUids += parsed.uid
             val old = oldTransfers[parsed.uid]
-            if (old == parsed) continue
+            if (old == parsed || (old != null && phoneNewer(old.modified))) continue
             transfers += if (old == null) parsed.also { added++ } else parsed.copy(modified = now).also { updated++ }
         }
 
         val deleted = rows(SheetLayout.DELETED)
         return SheetChanges(
             accounts.changed, categories.changed, newTags, transactions, changedTags, transfers,
-            deleted.uidsOf("Transaction", liveTransactionUids).filter { oldTransactions[it]?.isRemoved == false },
-            deleted.uidsOf("Transfer", liveTransferUids).filter { oldTransfers[it]?.isRemoved == false },
+            deleted.uidsOf("Transaction", liveTransactionUids).filter { oldTransactions[it]?.let { t -> !t.isRemoved && !phoneNewer(t.modified) } == true },
+            deleted.uidsOf("Transfer", liveTransferUids).filter { oldTransfers[it]?.let { t -> !t.isRemoved && !phoneNewer(t.modified) } == true },
             added, updated, warnings,
         )
     }
@@ -104,7 +115,7 @@ class SheetParser(private val local: LocalSnapshot, private val now: String, pri
 
     /** Reads [rows] with [read] (given the phone's rows by uid); keeps those that are new or differ, the changed ones restamped by [stamp]. */
     private fun <T : Any> settleAll(
-        rows: List<List<Any?>>, old: Map<String, T>, uidOf: (T) -> String, read: (List<Any?>, Map<String, T>) -> T?, stamp: (T) -> T,
+        rows: List<List<Any?>>, old: Map<String, T>, uidOf: (T) -> String, read: (List<Any?>, Map<String, T>) -> T?, modifiedOf: (T) -> String, stamp: (T) -> T,
     ): Settled<T> {
         val all = mutableListOf<T>()
         val changed = mutableListOf<T>()
@@ -113,6 +124,7 @@ class SheetParser(private val local: LocalSnapshot, private val now: String, pri
             val existing = old[uidOf(next)]
             all += next
             when {
+                existing != null && phoneNewer(modifiedOf(existing)) -> Unit
                 existing == null -> { added++; changed += next }
                 existing != next -> { updated++; changed += stamp(next) }
             }

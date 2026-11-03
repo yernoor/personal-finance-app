@@ -34,7 +34,7 @@ class SheetsPull(
                 db.accountDao().getAll(), db.categoryDao().getAll(), db.tagDao().getAll(), db.transactionDao().getAll(),
                 db.transactionDao().getAllTagLinks(), db.transferDao().getAll(),
             )
-            SheetParser(local, stamp).parse(tabs).also { apply(it, stamp) }
+            SheetParser(local, stamp, settings.lastSyncAt.value).parse(tabs).also { apply(it, stamp) }
         }
         return PullResult(changes.added, changes.updated, changes.deletedTransactions.size + changes.deletedTransfers.size, changes.warnings)
     }

@@ -47,6 +47,9 @@ data class Forecast(
 const val MIN_OPERATIONS_PER_MONTH = 2.0
 const val HISTORY_MONTHS = 3
 
+/** A run-rate extrapolated from fewer days than this is noise, so it raises no warning. */
+const val MIN_RUN_RATE_DAYS = 10
+
 /**
  * @param rows transactions from the first day of the month [HISTORY_MONTHS] months back up to [today]
  * @param earliest date of the oldest transaction in the whole ledger (limits how many past months exist)
@@ -90,7 +93,7 @@ fun forecast(
             ProjectionMode.Exclude -> false
             ProjectionMode.Auto -> ops >= MIN_OPERATIONS_PER_MONTH
         }
-        CategoryForecast(uid, spent, runRate, average, limit, threshold, ops, inOverall, warningsFor(limit, threshold, spent, runRate, average))
+        CategoryForecast(uid, spent, runRate, average, limit, threshold, ops, inOverall, warningsFor(limit, threshold, spent, runRate, average, daysElapsed))
     }.filter { it.spent > 0 || (it.average ?: 0) > 0 || it.limit != null }
         // Warned categories first, then the biggest.
         .sortedWith(compareByDescending<CategoryForecast> { it.warnings.isNotEmpty() }.thenByDescending { maxOf(it.runRate, it.average ?: 0) })
@@ -105,12 +108,12 @@ fun forecast(
     )
 }
 
-private fun warningsFor(limit: Long?, threshold: Int, spent: Long, runRate: Long, average: Long?): Set<WarningKind> {
+private fun warningsFor(limit: Long?, threshold: Int, spent: Long, runRate: Long, average: Long?, daysElapsed: Int): Set<WarningKind> {
     if (limit == null) return emptySet()
     val bar = divideRounded(limit * threshold, 100)
     return buildSet {
         if (spent > bar) add(WarningKind.Exceeded)
-        if (runRate > bar) add(WarningKind.RunRate)
+        if (daysElapsed >= MIN_RUN_RATE_DAYS && runRate > bar) add(WarningKind.RunRate)
         if (average != null && average > bar) add(WarningKind.Average)
     }
 }

@@ -119,6 +119,32 @@ class SheetsPullTest {
     }
 
     @Test
+    fun phoneEditsAndDeletesMadeAfterTheLastSync_survivePullingAnOlderSheet() = runBlocking {
+        val tabs = pushedTabs() // the sheet as of the last sync
+        settings.setLastSyncAt("2000-01-01T00:00:00.000Z") // every phone row below was modified after it
+        val all = db.transactionDao().getAll()
+        val edited = all[0]
+        val deleted = all[1]
+        LedgerRepository(db).saveTransaction(TransactionDraft(edited.uid, edited.type, "main", "cafe", 777_00L, edited.date, "mine", emptySet()))
+        LedgerRepository(db).deleteTransaction(deleted.uid)
+        val result = pull(tabs)
+
+        assertEquals(0, result.updated + result.added)
+        assertEquals(77_700L, db.transactionDao().get(edited.uid)!!.amountInAccountCurrency)
+        assertTrue(db.transactionDao().get(deleted.uid)!!.isRemoved)
+    }
+
+    @Test
+    fun aDeletedCategory_keepsItsOldTransactions() = runBlocking {
+        LedgerRepository(db).deleteCategory("cafe")
+        val tabs = pushedTabs()
+        val result = pull(tabs)
+
+        assertEquals(emptyList<String>(), result.warnings)
+        assertTrue(db.transactionDao().getAll().all { it.categoryUid == "cafe" })
+    }
+
+    @Test
     fun aNewerSchemaIsRefused() = runBlocking<Unit> {
         val tabs = pushedTabs()
         tabs.getValue("_meta")[1][1] = 99
