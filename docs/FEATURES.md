@@ -51,7 +51,8 @@ Target device: Android 16 (API 36) -> `minSdk = 36` is possible; owner to confir
 
 | Feature | Rating | Notes |
 |---|---|---|
-| Daily reminder at a set time (owner: 20:00, "enter today's spending") | must | Seen: reminder "Внимание!" next fire 2026-10-26 20:00. Backup table `reminding` has 2 active rows. |
+| Daily reminder at a set time (owner: 20:00, "enter today's spending") | must | **BUILT** (More -> Daily reminder: switch + time, default 20:00; see "Session 2026-11-03" below). |
+| (original app's reminder, for reference) | | | Seen: reminder "Внимание!" next fire 2026-10-26 20:00. Backup table `reminding` has 2 active rows. |
 | Regular payments (ипотека, plus other required payments) | must | Seen: separate "Regular Payments" screen (Upcoming list, search, enable switch, add button). Mortgage fires monthly on the 20th at 10:00 (next: 2026-11-20). Owner does not need an amount on it. Notification only; auto-adding a transaction (`addAutomatically`, currently 0) is **nice**. |
 
 Backup check (verified): both live in table `reminding`, told apart by `remindingType` (`reminding` = "Внимание!", daily, 20:00, start 2023-09-17; `regularPayments` = "ипотека", `period` Month, start 2025-10-20, `transactionType` Expense, `time` stored as `'10:0'`, i.e. not zero-padded: parse leniently). `amount` is non-null on both; value not inspected. `regular_payment_period` has 0 rows.
@@ -63,7 +64,7 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 | Feature | Rating | Notes |
 |---|---|---|
 | `.mmbackup` one-time import | must | Milestone 3. |
-| Google Sheets sync | must | Milestones 6-7, per docs/SYNC_DESIGN.md. |
+| Google Sheets sync | must | Milestone 6 built; "Sync now" and a weekly background sync built (milestone 7, partly): see docs/SYNC_DESIGN.md. Apps Script `onEdit` and the conflict log are not built. |
 | Local DB backup / restore | must | Milestone 8. |
 | Multi-currency (KZT, USD), stored rates | must | `rates` table has 3 rows; how the original uses them for totals is unverified. |
 
@@ -80,12 +81,33 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
   `1000 + 10%` = 1100, `200 × 10%` = 20. Results round to cents.
 - History periods (owner request): Day / Week / Month / Year switch with arrows (the next arrow stops at the present; tapping the title
   jumps back to today). Opens on the **day** by default, matching the original; More -> "History opens on" changes the default.
-- History "Group by category" (owner request): a toggle beside Search adds up each category (and direction) in the shown period,
+- History "Group by category" (owner request; since 2026-11-03 it is ON by default, the toggle beside Search turns it off): adds up each category (and direction) in the shown period,
   with an operation count; tap a group to expand its entries. Transfers are grouped too, by account pair ("Main -> Deposit 2"),
   with both sides summed ("₸4,500 -> $10" for cross-currency); the reverse direction is its own group.
-- Not built yet: a daily background check (a warning is only evaluated when you save an entry; WorkManager arrives with sync/reminders),
+- Not built yet: a daily background check (a warning is only evaluated when you save an entry; WorkManager now exists for sync and the reminder, but the check is not wired to it),
   Income-side limits, charts for a custom period, per-account chart filter (original had one).
 - Unverified: for a ledger whose first month is partial, that month counts as a full month in the 3-month average.
+
+## Session 2026-11-03 as built (owner requests; unit tests and debug build pass, checked on the emulator where noted)
+- **Google Sheets**: "Sync now" (More -> Google Sheets) reads the sheet, then writes the phone's data to it. A weekly background job (WorkManager,
+  network required, switch on the same screen, default on) does the same. The very first sync only pushes (nothing says which side is newer yet);
+  after that a phone row edited or deleted since the last sync is never overwritten by the sheet. One sync runs at a time. The standalone
+  "Import from the sheet" button was removed (it duplicated hand-typed rows on every run). Unverified: the live Google round trip and the job on a real phone.
+- **Overwrite balance** (owner request): Edit account -> "Overwrite balance": type the real balance; the app adds an Income/Expense for the
+  difference with **no category**, dated today. This is how the original stores it (docs/FORMAT.md 4c). Rows without a category show as
+  "Balance correction" in History, Home, Charts and warnings.
+- **Daily reminder** (owner request): More -> Daily reminder, default 20:00, any time. A one-time WorkManager job books the next one when it
+  fires (Android may delay it a few minutes under Doze; no exact alarm). Asks for notification permission again on Save if it is missing.
+- **"On track" warnings** wait for 10 days of the month (`MIN_RUN_RATE_DAYS`); "over the limit" and 3-month-average warnings are unchanged.
+- **Charts and History share one header**: Day/Week/Month/Year slicer, then the period row, then a segmented switch (Charts: General /
+  Expenses / Income / Forecast; History: Expenses / Income). Charts bars are 104 dp tall. History opens grouped by category: icon, name,
+  share of that side's total, amount; no red/green; the Expenses/Income switch picks which side is listed.
+- **Home**: "All accounts" under the balance is hidden by default (More -> Home: "Show All accounts on Home").
+- **Add screen**: the Add/Save button is pinned to the bottom, above the keyboard and the gesture bar. The selected category is outlined
+  with the tile's own shape and the accent color. A balance correction can be edited without choosing a category.
+- **Swipe left/right** on a tab screen moves to the neighbouring bottom tab (a drag a child already used, such as a chart, does not count).
+- **More** is grouped into sections: Manage, Home, History, Appearance, Notifications, Data and sync, App.
+- **.mmbackup import** replaces a row already on the phone only when the backup's copy has a newer `modified`; it never undoes later phone edits.
 
 ## UX polish requests (owner, 2026-10-25), milestone 5b: all built except the icon redraw (waiting for a style choice)
 - Navigation transitions must not disappear/pop abruptly; polish enter/exit animations. BUILT: screens always overlap while swapping

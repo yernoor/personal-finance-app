@@ -38,7 +38,18 @@
 - `Net (KZT)` is derived from the default-currency amount (negative for Expense). Keep it as a value
   written by the app, not a formula, so pushes are idempotent.
 
-## Sync algorithm (last-writer-wins per row)
+## As built (2026-11-03), simpler than the plan below
+- "Sync now" (button) and a weekly job (WorkManager, network required, switch on the Sheets screen) both run `SyncRunner`: **pull, then push**,
+  one at a time (a push clears the sheet before rewriting it).
+- `lastSyncAt` (UTC, set when a push finishes; stamped from the start of that push) decides who wins in the pull: a phone row whose `modified`
+  is later than it is kept, including phone-side deletes; otherwise the sheet wins. With no `lastSyncAt` (first sync, or after "Forget this sheet")
+  the run **only pushes**, so an old sheet can never overwrite phone edits.
+- Known limits: a push rewrites whole tabs (a dropped connection can leave the sheet empty until the next run); a row deleted on the PC without
+  a `_deleted` entry comes back on the next push; edits made in the sheet before the very first sync are overwritten by it; no conflict log yet;
+  the Apps Script `onEdit` stamping (`/sheets/Code.gs`) is not built. Unverified against live Google; covered with a fake transport
+  (`SheetsPullTest`, `SheetsSyncTest`, `SyncRunnerTest`).
+
+## Sync algorithm (last-writer-wins per row) - the original plan
 1. Local change -> write Room row with fresh `modified` (UTC ISO-8601), mark dirty. Deletes become tombstones.
 2. WorkManager job (on connectivity, periodic, and after edits): pull the sheet ranges, then
    merge by UID: higher `Modified` wins; present in `_deleted` newer than local `Modified` -> delete locally.
@@ -53,7 +64,7 @@ The pull half of "Sync now" (the standalone Import button was removed: it re-cre
 through the tabs; a row typed by hand without a UID gets one; an unknown tag name creates a tag; an unknown account skips the row (warning).
 Columns the sheet does not show (account icon/colour/flags, real-currency amounts) are kept from the phone's row. UIDs in `_deleted` that are
 not in their tab tombstone the transaction/transfer (accounts, categories and tags are never deleted by an import). Unverified against a live
-Google round trip; covered by `SheetsPullTest` with a fake transport. Not done: automatic two-way sync (M7), writing `.mmbackup`.
+Google round trip; covered by `SheetsPullTest` with a fake transport. Not done: the Apps Script, the conflict log, writing `.mmbackup`.
 
 ## PC edits
 A person editing in the Sheet will not update `Modified`. Ship an **Apps Script `onEdit`** (in `/sheets/Code.gs`)
