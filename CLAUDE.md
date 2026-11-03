@@ -1,31 +1,25 @@
 # CLAUDE.md
 
-Personal Android expense tracker that replaces **"Money manager & expenses"** by innim: same everyday
-functionality, **no ads, no payments**, with Google Sheets sync so the data is also usable from a PC.
+Personal Android expense tracker: everyday expense tracking, **no ads, no payments**, with Google Sheets sync so the data is also usable from a PC.
 Single user (the repo owner). Private repo. Not for Play Store distribution.
 
 @docs/FORMAT.md
 @docs/SYNC_DESIGN.md
 
-## Reference app (the thing being replaced)
-- Name: Money manager & expenses (innim) · site: https://financewalletapp.com/
-- Android package: `ru.innim.my_finance` · iOS id 1510997753
-- Backup file: `.mmbackup` (format in docs/FORMAT.md). Schema `user_version` was 31 at last check.
-- Do **not** use `ru.innim.my_finance` as this app's id. Use `applicationId = "dev.yernur.moneytracker"`
-  (owner may rename; it must not collide with the original so both can be installed during migration).
+## Identity and import
+- Import file: `.mmbackup` (format in docs/FORMAT.md). Schema `user_version` was 35 at last check.
+- `applicationId = "dev.yernur.moneytracker"` (owner may rename).
 
-## What "identical" means here
-Functionally equivalent, not a clone of the original's branding. Do **not** copy its name, icons, artwork,
-strings from its APK, or decompile/reverse-engineer the APK. The data model comes from the owner's own
-backup file (docs/FORMAT.md) and the owner's description/screenshots of the UI. Layout can be similar; assets
-are original (Material 3 icons, own palette).
+## Assets and sources
+Do **not** copy names, icons, artwork or strings from any other app, and do not decompile or reverse-engineer APKs. The data model comes from the owner's own
+backup file (docs/FORMAT.md) and the owner's description/screenshots of the UI. Assets are original (own icon artwork, own palette).
 
 ## Feature inventory (UNVERIFIED beyond the data model: confirm before building)
 Known from the database: accounts (multi-currency, e.g. KZT + USD, one default account `main`), income/expense
 transactions with category, optional tags, comment, date; transfers between accounts (cross-currency amounts);
 categories with icon, color, usage count, optional limit (likely budgets), manual ordering; cached balances.
 Not known: reports/charts, budgets UI, recurring items, widgets, search, filters, export, passcode, themes.
-**First task: ask the owner to drop screenshots and a feature list into `docs/original-app/`, then write
+**First task: ask the owner to drop screenshots and a feature list into `docs/ui-references/`, then write
 `docs/FEATURES.md` marking each feature must / nice / skip.** Do not invent features from memory of other apps.
 
 ## Stack (propose changes if you find a concrete reason; verify current versions, do not assume)
@@ -92,7 +86,6 @@ Not known: reports/charts, budgets UI, recurring items, widgets, search, filters
 ## Non-goals
 - Writing `.mmbackup` files (the integrity hash algorithm is unknown; importing is enough).
 - Bank notification parsing for Kaspi/Halyk/Freedom/ForteBank (owner judged it brittle; manual entry is the workflow).
-- Injecting data into the original app's private storage (not possible without root).
 - Multi-user, accounts, or any server component.
 
 ## Commands

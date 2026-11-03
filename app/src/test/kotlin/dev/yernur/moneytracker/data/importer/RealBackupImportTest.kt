@@ -61,7 +61,7 @@ class RealBackupImportTest {
             assertEquals(minor(totals.getDouble("income")), total(TransactionType.Income))
             assertEquals(minor(totals.getDouble("expense")), total(TransactionType.Expense))
 
-            // The balance the app will show (same query as the Accounts screen) == the original's cached balance.
+            // The balance the app will show (same query as the Accounts screen) == the backup's cached balance.
             val shown = db.accountDao().observeBalances().first().associate { it.uid to it.balance }
             val cached = snapshot.getJSONObject("balances_cached")
             assertTrue(cached.length() > 0)

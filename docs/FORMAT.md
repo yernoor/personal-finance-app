@@ -1,4 +1,4 @@
-# `.mmbackup` format (innim "Money manager & expenses", `ru.innim.my_finance`)
+# `.mmbackup` format
 
 Derived empirically from a real export (`MoneyManager_20260528T115722.mmbackup`, `user_version = 31`)
 during an earlier session. **Undocumented and version-sensitive.** Always run
@@ -16,7 +16,7 @@ during an earlier session. **Undocumented and version-sensitive.** Always run
 - Read: find `PK\x03\x04`, slice from there, unzip, open the DB. `hash` is not needed to read.
 - `backup_meta.hash` is NOT sha256 of the DB bytes (ruled out: raw DB, zeroed change counter,
   first page only, version-prefixed/suffixed). Algorithm unknown. **Therefore this project
-  imports `.mmbackup` but does not export it.** Do not decompile the original app to find out;
+  imports `.mmbackup` but does not export it.** Do not decompile any app to find out;
   see CLAUDE.md "Non-goals".
 
 ## 2. Relational model: no foreign keys
@@ -59,7 +59,7 @@ transfer(uid, created, modified, date, fromAmount, fromCurrencyCode, toAmount, t
 account_balance(uid, value)                       -- cached balance, minor units; uid = account uid (assumed)
 ```
 
-Other tables seen: `sync_data`, `sync_action`, `sync_file` (the original's cloud sync; not reproduced).
+Other tables seen: `sync_data`, `sync_action`, `sync_file` (the exporter's cloud sync; not reproduced).
 
 ## 4. Conventions and gotchas
 
@@ -81,14 +81,14 @@ Verified with `inspect` (counts are active rows):
   `reminding.time/customPeriodData`. `transaction`, `transfer`, `sync_link`, `tag` (adds `useCount/lastUse`) otherwise as above.
 - Tables not listed before: `reminding` (2 rows; recurring reminders exist), `regular_payment_period` (0 rows),
   `rates` (3 rows, currency pair -> value), `colors`, `syncable_settings`, `app_notifications_*`, `user`, `user_profile`,
-  `in_remote_settings`, `sync_persistent`. `sync_action` has 67k rows (original's change log; not reproduced).
+  `in_remote_settings`, `sync_persistent`. `sync_action` has 67k rows (its change log; not reproduced).
 - Counts: 4,497 txns (47 removed), 760 transfers (4 removed), 7 accounts, 26 categories, 2 tags, 65 tag links.
 - Totals (default currency): Income 30,720,226.58 / Expense 28,364,485.60 / Net 2,355,740.98.
 - 21 active transactions have no Category link.
 - `account.ignoreInBalance = 1` for 6 of 7 accounts. Screenshot (Accounts screen) shows an eye-off icon on exactly the
   non-Main accounts and a "Total" that counts only Main, with a second figure including all: so it means "excluded from
   the headline Total". Verified against the screenshot, not against decompiled code.
-- Cached `account_balance` equals what the original app displays (Main 4,596.71, Deposit 36,138.22, Freedom USD 13.56).
+- Cached `account_balance` equals the balances the owner saw on the phone (Main 4,596.71, Deposit 36,138.22, Freedom USD 13.56).
   A first replay differed on 2 USD accounts; cause found, see next paragraph.
 
 **Balance mismatch (resolved 2026-10-25):** 60 live USD transactions (52 Income, 8 Expense) have
@@ -100,9 +100,9 @@ here blamed unlogged investment purchases; that was wrong. The importer applies 
 
 ## 4c. Balance overwrite rows (checked 2026-11-03 against `2026_10_25_21_48_27_383151.mmbackup`)
 
-The original's "overwrite balance" leaves a normal transaction with **no `Category` edge in `sync_link`**, an empty comment and `v = 2`. The backup has
+An "overwrite balance" leaves a normal transaction with **no `Category` edge in `sync_link`**, an empty comment and `v = 2`. The backup has
 21 live ones (12 Income, 9 Expense), all on account `main`, dated 2023-09-15 to 2026-10-19; the newest (2026-10-19, Expense) is one of them. That
-they are balance overwrites is the owner's description plus this pattern; not checked against the original app's own screen. This app writes the same
+they are balance overwrites is the owner's description plus this pattern; not checked against any on-screen display. This app writes the same
 shape (`categoryUid = NULL`) and labels it "Balance correction". Re-importing a backup replaces a phone row only when the backup's `modified` is newer.
 
 ## 5. Reference numbers (OLD export, superseded by 4b) from the 2026-05-28 export (use as a smoke test, then replace with newest)

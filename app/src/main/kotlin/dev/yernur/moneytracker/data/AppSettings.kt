@@ -41,7 +41,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     val warnThreshold: StateFlow<Int> = _warnThreshold
     val notifications: StateFlow<Boolean> = _notifications
 
-    /** What the History tab opens on. The original app defaults to the day (`defaultPeriod = day` in its backup). */
+    /** What the History tab opens on. The day by default. */
     val historyPeriod: StateFlow<PeriodUnit> = _historyPeriod
 
     /** The spreadsheet this app created in Google Drive (only files the app created are reachable, by the drive.file scope). */
@@ -173,7 +173,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         prefs?.edit()?.putString(NAV_TABS, _navTabs.value.joinToString(","))?.apply()
     }
 
-    /** Ids of the cards on Home, in order. The default keeps the original's monthly totals. */
+    /** Ids of the cards on Home, in order. The default shows the monthly totals. */
     val homeCards: StateFlow<List<String>> = _homeCards
 
     fun setHomeCards(cards: List<String>) {

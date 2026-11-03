@@ -11,7 +11,7 @@ Later versions: *More → App updates → Check for updates*. The app asks GitHu
 The app starts empty: Home, History, Charts and Accounts in the bottom bar (the bar is configurable, see [Settings](Settings.md)).
 Create your accounts (*Accounts → + Account*) and categories (*More → Categories*), or import a backup.
 
-## Import a backup from the original app
+## Import a `.mmbackup` backup
 1. Copy the `.mmbackup` file to the phone's **Downloads** folder.
 2. *More → Data and sync → Import .mmbackup* and pick the file.
 3. The app reports how many transactions, transfers, accounts and categories it imported.

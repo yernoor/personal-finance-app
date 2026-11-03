@@ -14,7 +14,7 @@
 | Notifications | Spending warnings | Warn at % of a limit, notifications on/off |
 | Notifications | Daily reminder | Switch and time (default 20:00) |
 | Data and sync | Google Sheets | See [Google Sheets sync](Google-Sheets-Sync.md) |
-| Data and sync | Import .mmbackup | Add rows from an original-app backup |
+| Data and sync | Import .mmbackup | Add rows from a `.mmbackup` file |
 | App | App updates | Check, download and install the latest release |
 
 Swipe left or right on a tab screen to move to the neighbouring tab. Colors follow the system accent and dark mode.

@@ -1,6 +1,6 @@
-# docs/original-app/
+# docs/ui-references/
 
-Drop screenshots of the original app here (PNG/JPG, any names). Then Claude writes `docs/FEATURES.md`
+Drop UI reference screenshots here (PNG/JPG, any names). Then Claude writes `docs/FEATURES.md`
 and marks each feature must / nice / skip. Do not copy anything from the APK; screenshots of your own phone only.
 
 Screens to capture (skip any that don't exist):

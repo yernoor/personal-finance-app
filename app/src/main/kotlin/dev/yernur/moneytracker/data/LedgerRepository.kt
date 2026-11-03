@@ -69,8 +69,8 @@ class LedgerRepository(
     }
 
     /**
-     * Makes the account's balance equal [target] by adding an Income/Expense for the difference with no category, which is how the
-     * original app stores an "overwrite balance" (verified: its export has such rows). Returns the signed difference, 0 when nothing changed.
+     * Makes the account's balance equal [target] by adding an Income/Expense for the difference with no category, which is how backups
+     * store an "overwrite balance" (verified: the export has such rows). Returns the signed difference, 0 when nothing changed.
      */
     suspend fun overwriteBalance(accountUid: String, target: Long, date: String): Long = db.withTransaction {
         val current = db.accountDao().observeBalances().first().firstOrNull { it.uid == accountUid }?.balance ?: 0L
@@ -98,7 +98,7 @@ class LedgerRepository(
             TransferEntity(
                 uid = existing?.uid ?: newUid(), fromAccountUid = from.uid, toAccountUid = to.uid,
                 fromAmount = draft.fromAmount, fromCurrencyCode = from.currencyCode,
-                // Same-currency transfers leave the received side empty, as the original does.
+                // Same-currency transfers leave the received side empty, as the backup does.
                 toAmount = draft.toAmount.takeIf { crossCurrency }, toCurrencyCode = to.currencyCode.takeIf { crossCurrency },
                 date = draft.date, comment = draft.comment?.takeIf { it.isNotBlank() },
                 created = existing?.created ?: stamp, modified = stamp,

@@ -17,7 +17,7 @@ No ads, no payments, no analytics, no server.
 
 > All screenshots show **fictional demo data** (see [Demo data](#demo-data)).
 
-Private, single-user app. It replaces *Money manager & expenses* (innim) for one person's everyday use and is installed by sideloading an APK, not through Google Play.
+Private, single-user app for everyday personal finance, installed by sideloading an APK, not through Google Play.
 Your data lives in a local database on the phone; the optional Google Sheet is a copy you can analyse on a computer.
 
 ## Features
@@ -49,7 +49,7 @@ Your data lives in a local database on the phone; the optional Google Sheet is a
 - Spending-warning notifications, one per month, category and level.
 
 **Data and sync**
-- One-time import of a `.mmbackup` file from the original app; re-importing never undoes later phone edits.
+- One-time import of a `.mmbackup` backup file; re-importing never undoes later phone edits.
 - **Google Sheets sync** (pull, then push) by hand or weekly in the background. The app only reaches the sheet it created (`drive.file` scope).
 - Updates from GitHub releases inside the app, with release notes.
 
@@ -67,7 +67,7 @@ Your data lives in a local database on the phone; the optional Google Sheet is a
 ## Quick start (user manual)
 
 1. **Install.** Download `money-tracker-vX.Y.Z.apk` from the GitHub release page, open it on the phone and allow installing from this source. Needs Android 16 (API 36). Later versions come from *More → App updates*.
-2. **Bring your data (optional).** Put a `.mmbackup` export from the original app in the phone's Downloads, then *More → Data and sync → Import .mmbackup*. Or just start empty and add accounts and categories yourself.
+2. **Bring your data (optional).** Put a `.mmbackup` backup file in the phone's Downloads, then *More → Data and sync → Import .mmbackup*. Or just start empty and add accounts and categories yourself.
 3. **Add an entry.** Tap **+**, choose Expense / Income / Transfer, type the amount, pick account, category and date, tap **Add**.
 4. **Look back.** *History* shows what you spent per day, week, month or year; *Charts* shows trends; *Home* shows the balance and the month.
 5. **Set limits.** *More → Categories →* a category *→ Planned outlay per month*. Forecast and warnings start working from that.

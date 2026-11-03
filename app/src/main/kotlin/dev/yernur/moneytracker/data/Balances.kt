@@ -14,7 +14,7 @@ fun summarize(
     var all = 0L
     for (account in accounts) {
         if (!account.isActive || account.isArchived) continue
-        // No known rate: the account is left out of the totals (unverified how the original treats this).
+        // No known rate: the account is left out of the totals.
         val converted = Money.convert(balances[account.uid] ?: 0L, account.currencyCode, DEFAULT_CURRENCY, rates) ?: continue
         all += converted
         if (!account.ignoreInBalance) counted += converted

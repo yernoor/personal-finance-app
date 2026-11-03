@@ -10,7 +10,7 @@
 
 **Why is there no warning yet this month?** "On track" warnings wait for 10 days of data. A category needs a limit set to be warned about.
 
-**Can I export a `.mmbackup` for the original app?** No. The file's integrity hash is unknown, so the app imports only.
+**Can the app write a `.mmbackup` file?** No, it only imports them.
 
 **Money amounts look off after an import.** Check that the account currency is right; amounts are stored in the account's currency with a stored conversion to the default currency (KZT).
 

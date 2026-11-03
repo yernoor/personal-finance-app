@@ -10,8 +10,8 @@ build/
 .idea/
 __pycache__/
 
-# Screenshots of the original app show real balances and the owner name; keep local (README stays)
-docs/original-app/*
-!docs/original-app/README.md
+# UI reference screenshots show real balances and the owner name; keep local (README stays)
+docs/ui-references/*
+!docs/ui-references/README.md
 .DS_Store
 .kotlin/
