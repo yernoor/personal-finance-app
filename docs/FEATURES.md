@@ -65,7 +65,7 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 |---|---|---|
 | `.mmbackup` one-time import | must | Milestone 3. |
 | Google Sheets sync | must | Milestone 6 built; "Sync now" and a weekly background sync built (milestone 7, partly): see docs/SYNC_DESIGN.md. Apps Script `onEdit` and the conflict log are not built. |
-| Local DB backup / restore | must | Milestone 8; plan in "Planned, not built" item 4. |
+| Local DB backup / restore | must | **BUILT** in 0.4.0 (More -> Back up to a file / Restore from a backup file); weekly folder backup and the 30-day warning are not. Plan and status: "Planned, not built" item 4. |
 | Multi-currency (KZT, USD), stored rates | must | `rates` table has 3 rows; how they should feed totals is unverified. |
 
 ## Milestone 5 as built (verified on the emulator with the real backup)
@@ -133,6 +133,18 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 - (original request) Redraw all category/account icons from scratch (original art). Colors derive from the Material 3 scheme / chosen accent,
   with enough chroma and hue spread that categories stay easy to tell apart.
 
+## Version 0.4.0 at a glance (2026-11-04)
+What the release added on top of 0.3.1; details are in the sections named in brackets.
+- **Wealth** (More -> Wealth): net worth with history chart, manual assets and loans, goals, bond portfolio with coupon schedule, monthly money (income and payments) with a health summary, and a net-worth projection. [Wealth tools]
+- **Compound interest** (More -> Compound interest, or the button on Wealth): balance and year-by-year chart, monthly or yearly capitalization, contribution at the start or end of the month. [Wealth tools]
+- **Currency switch and bank rates**: Wealth and Compound show amounts in KZT, USD, EUR, RUB and more, using National Bank of Kazakhstan rates (one request a day, cached). [Wealth tools]
+- **Cross-currency transfers**: "Amount received" is filled in from the rates and stays editable. [Wealth backend as built]
+- **App lock**: PIN (4-6 digits, back-off), optional fingerprint/face, auto-lock delay, recent-apps privacy. [item 1]
+- **Charts drill-down**: tap a category row to see its operations in the selected period, tap one to edit. [item 2]
+- **Home-screen widgets** (7, Glance): Month at a glance, Today, Quick add, Category limits, Month by category, Recent operations, Month dashboard; glass or solid look, optional dot-matrix numerals. Never show account balances. [item 3]
+- **Back up to a file / Restore from a backup file**, plus an automatic copy before an in-app update. [item 4]
+- Not covered by the Google Sheet: the wealth tables are phone-only (see the notes in "Wealth backend as built"); the file backup covers them.
+
 ## Wealth tools (owner request, 2026-11-04), backend first, UI mock-ups to choose a style
 Beyond expense tracking: the app becomes a general personal-finance tool. Owner's picks, in build order. All of it is local; the only new
 network call is the daily rate fetch.
@@ -186,6 +198,19 @@ Code in `data/wealth/`, schema 2 -> 6 (one migration per step, each tested). All
 Built: Month at a glance 2x2, Today 2x2, Quick add 2x1, Limits 4x2, Month by category (Budget) 4x4, Recent operations 4x4, Month dashboard 4x6; More -> Widgets: glass or solid look, Doto numerals on/off; refreshed after every saved change and every 30 min.
 Doto is drawn into a bitmap (Glance cannot set a custom font); the tenge sign and all small text stay in the system font. Seen working on an Android 16 emulator: only Month at a glance was placed and looked at (Doto digits render, glass card readable over a light and a dark wallpaper). **Not yet looked at**: the other six, the solid look, and everything on the Nothing 3a itself.
 Known gaps: the picker shows the app icon instead of a preview (no preview layout or generated preview yet); on the emulator's launcher the 4x6 dashboard is offered as 1x1 (its grid has no room for 6 rows: the Nothing launcher may differ); tapping an operation row is wired to open its edit screen but was never tried; no "hide when locked" (not needed: no balances are shown).
+
+#### Widget picker preview (planned, not built)
+Today the picker shows the app icon (or a blank tile) for all seven widgets, so the owner cannot tell "Month at a glance" from "Month by category" before placing one. Goal: each entry in the widget picker shows what the widget really looks like, in the glass or solid look the owner chose.
+Checked in the Android docs on 2026-11-04 ([enhance widgets](https://developer.android.com/develop/ui/views/appwidgets/enhance), [Glance: create an app widget](https://developer.android.com/develop/ui/compose/glance/create-app-widget), [generated previews](https://developer.android.com/develop/ui/compose/glance/generated-previews)):
+- Three mechanisms, newest first. **Generated preview** (Android 15 and later): override `GlanceAppWidget.providePreview` with the same composable the widget draws, fed with sample data, and publish it with `GlanceAppWidgetManager.setWidgetPreviews`. It is a push API with no callback from the system, so the app decides when to call it, and it is rate limited (about two calls an hour by default). `compileSdk` must be 35 or higher (the project is on 37). **`previewLayout`** (Android 12 and later): a static XML layout drawn at the widget's default size. **`previewImage`**: a static drawable, the only option on Android 11 and lower, and the fallback on Android 15+ when no generated preview exists.
+- The owner's phone runs Android 16 and 17, so **generated previews are the target**, with a `previewImage` per widget as the fallback the docs recommend.
+- Plan:
+  1. Give every `res/xml/widget_*_info.xml` a `previewImage` (a PNG per widget, rendered from the real composables with demo data and checked in) and a `description` string, so the picker never shows the bare app icon.
+  2. In `Widgets.kt`, override `providePreview` for each widget to draw the real UI from a fixed sample `WidgetData` (no real amounts: the sample is fictional, which also keeps the "no balances on the home screen" rule). Reuse the existing UI composables, not a second copy.
+  3. Set `previewSizeMode` to `SizeMode.Responsive` with the widget's default size (and one larger breakpoint for the 4x6 dashboard), otherwise Android renders only what fits the minimum size and parts of the widget go missing.
+  4. Call `setWidgetPreviews` when the app starts and after the look changes (More -> Glass widgets / Dot-matrix numbers), at most once per change because of the rate limit, and ignore the call on Android 14 and lower.
+- Unverified: whether the Glance version in `libs.versions.toml` (1.2.0 when the widgets were built) already has `providePreview` and `setWidgetPreviews`, and whether the Nothing launcher shows generated previews at all. Check both before starting. Also unknown: how the Doto bitmap numerals behave in a preview (they are drawn into a bitmap, see above), which may need the same size-bucket care the docs describe for bitmaps.
+- Tests: the sample data function is plain Kotlin with a unit test (no balances, all seven widgets produce content); the look is checked by adding each widget from the picker on the emulator, then on the phone.
 
 **What the internet says** (checked 2026-11-04):
 - Nothing publishes **no widget SDK or design guide for third-party apps**. Its developer programme covers Glyph (`GlyphMatrix-Developer-Kit`), which is the back LEDs, not home-screen widgets. A request for a widget design manual sits unanswered on Nothing's community forum.
