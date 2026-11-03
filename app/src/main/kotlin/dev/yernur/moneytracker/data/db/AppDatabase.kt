@@ -17,8 +17,11 @@ import androidx.sqlite.execSQL
         ReminderEntity::class,
         RateEntity::class,
         FxRateEntity::class,
+        ManualAssetEntity::class,
+        NetWorthSnapshotEntity::class,
+        GoalEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -30,6 +33,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun reminderDao(): ReminderDao
     abstract fun rateDao(): RateDao
     abstract fun fxRateDao(): FxRateDao
+    abstract fun manualAssetDao(): ManualAssetDao
+    abstract fun netWorthSnapshotDao(): NetWorthSnapshotDao
+    abstract fun goalDao(): GoalDao
 }
 
 /** Adds the per-category warning threshold and projection mode (milestone 5). */
@@ -44,5 +50,14 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
 val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(connection: SQLiteConnection) {
         connection.execSQL("CREATE TABLE IF NOT EXISTS `fx_rate` (`currencyCode` TEXT NOT NULL, `kztPerUnit` REAL NOT NULL, `date` TEXT NOT NULL, PRIMARY KEY(`currencyCode`))")
+    }
+}
+
+/** Adds manual assets/liabilities, daily net worth snapshots and goals (wealth tools). */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("CREATE TABLE IF NOT EXISTS `manual_asset` (`uid` TEXT NOT NULL, `title` TEXT NOT NULL, `kind` TEXT NOT NULL, `currencyCode` TEXT NOT NULL, `valueMinor` INTEGER NOT NULL, `created` TEXT NOT NULL, `modified` TEXT NOT NULL, `isRemoved` INTEGER NOT NULL, PRIMARY KEY(`uid`))")
+        connection.execSQL("CREATE TABLE IF NOT EXISTS `net_worth_snapshot` (`date` TEXT NOT NULL, `accountsMinor` INTEGER NOT NULL, `assetsMinor` INTEGER NOT NULL, `liabilitiesMinor` INTEGER NOT NULL, PRIMARY KEY(`date`))")
+        connection.execSQL("CREATE TABLE IF NOT EXISTS `goal` (`uid` TEXT NOT NULL, `title` TEXT NOT NULL, `targetMinor` INTEGER NOT NULL, `targetDate` TEXT, `accountUid` TEXT, `created` TEXT NOT NULL, `modified` TEXT NOT NULL, `isRemoved` INTEGER NOT NULL, PRIMARY KEY(`uid`))")
     }
 }

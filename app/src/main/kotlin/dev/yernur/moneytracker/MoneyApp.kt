@@ -10,6 +10,7 @@ import dev.yernur.moneytracker.data.WarningNotifier
 import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.db.MIGRATION_1_2
 import dev.yernur.moneytracker.data.db.MIGRATION_2_3
+import dev.yernur.moneytracker.data.db.MIGRATION_3_4
 import dev.yernur.moneytracker.data.importer.ImportRepository
 import dev.yernur.moneytracker.data.sheets.UrlConnectionTransport
 import dev.yernur.moneytracker.data.update.ApkInstaller
@@ -19,6 +20,7 @@ import dev.yernur.moneytracker.data.update.UpdateInstaller
 import dev.yernur.moneytracker.data.update.WorkDownloads
 import dev.yernur.moneytracker.data.wealth.FxRepository
 import dev.yernur.moneytracker.data.wealth.NbkRatesClient
+import dev.yernur.moneytracker.data.wealth.WealthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -40,6 +42,7 @@ class AppContainer(
     val importer = ImportRepository(db)
     val forecasts = ForecastRepository(db, settings)
     val fx = FxRepository(db, settings, fxClient)
+    val wealth = WealthRepository(db, fx)
     private val notifier = notifierFor(db, settings, forecasts)
 
     /** Asks GitHub for a newer release, but at most once a day; a failure is silent (the Updates screen shows errors when asked by hand). */
@@ -53,6 +56,11 @@ class AppContainer(
     /** Fetches the National Bank rates, at most once a day; failures are silent (the converter keeps using the cached rates). */
     suspend fun refreshRatesDaily(today: LocalDate = LocalDate.now()) {
         runCatching { withContext(Dispatchers.IO) { fx.refreshDaily(today) } }
+    }
+
+    /** Writes today's net worth snapshot (once per day; later calls the same day refresh it). Silent on failure. */
+    suspend fun snapshotNetWorth(today: LocalDate = LocalDate.now()) {
+        runCatching { wealth.recordSnapshot(today) }
     }
 
     /** Call after anything that changes spending: may post a limit warning. */
@@ -75,7 +83,7 @@ class MoneyApp : Application() {
     val container by lazy {
         val version = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
         AppContainer(
-            Room.databaseBuilder(this, AppDatabase::class.java, "moneytracker.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3).build(),
+            Room.databaseBuilder(this, AppDatabase::class.java, "moneytracker.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build(),
             AppSettings(getSharedPreferences("settings", MODE_PRIVATE)),
             { db, settings, forecasts -> WarningNotifier(this, db, settings, forecasts) },
             UpdateChecker(UrlConnectionTransport(), version), ApkInstaller(this), WorkDownloads(this), version,

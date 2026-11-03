@@ -39,6 +39,13 @@ class MigrationTest {
         assertEquals("0", v3.scalar("SELECT COUNT(*) FROM fx_rate"))
     }
 
+    @Test
+    fun migrate3To4_addsEmptyWealthTables() {
+        helper.createDatabase(DB, 3).close()
+        val v4 = helper.runMigrationsAndValidate(DB, 4, true, MIGRATION_3_4)
+        for (table in listOf("manual_asset", "net_worth_snapshot", "goal")) assertEquals("0", v4.scalar("SELECT COUNT(*) FROM $table"))
+    }
+
     private companion object {
         const val DB = "migration-test"
     }

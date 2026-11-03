@@ -105,6 +105,7 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
     LaunchedEffect(Unit) {
         container.checkForUpdateDaily()
         container.refreshRatesDaily()
+        container.snapshotNetWorth()
     }
     Column(Modifier.verticalScroll(rememberScrollState())) {
         SectionHeader("Manage")

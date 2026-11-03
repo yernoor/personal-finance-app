@@ -176,3 +176,43 @@ data class FxRateEntity(
     val kztPerUnit: Double,
     val date: String,
 )
+
+enum class ManualKind { Asset, Liability }
+
+/** Something worth money that is not an account: property, a car, a loan. [valueMinor] is positive for both kinds, in [currencyCode]. */
+@Entity(tableName = "manual_asset")
+data class ManualAssetEntity(
+    @PrimaryKey val uid: String,
+    val title: String,
+    val kind: ManualKind,
+    val currencyCode: String,
+    val valueMinor: Long,
+    val created: String,
+    val modified: String,
+    val isRemoved: Boolean = false,
+)
+
+/** One day's net worth in the default currency, written by the app (never edited). [accountsMinor] counts every active account. */
+@Entity(tableName = "net_worth_snapshot")
+data class NetWorthSnapshotEntity(
+    @PrimaryKey val date: String,
+    val accountsMinor: Long,
+    val assetsMinor: Long,
+    val liabilitiesMinor: Long,
+) {
+    val totalMinor: Long get() = accountsMinor + assetsMinor - liabilitiesMinor
+}
+
+/** A savings target in the default currency. [accountUid] null means the target is on total net worth; otherwise on that account's balance. */
+@Entity(tableName = "goal")
+data class GoalEntity(
+    @PrimaryKey val uid: String,
+    val title: String,
+    val targetMinor: Long,
+    /** YYYY-MM-DD; null = no deadline. */
+    val targetDate: String?,
+    val accountUid: String?,
+    val created: String,
+    val modified: String,
+    val isRemoved: Boolean = false,
+)
