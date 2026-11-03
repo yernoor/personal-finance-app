@@ -17,6 +17,8 @@ data class HealthSummary(
     val obligationsSharePercent: Double?,
     /** How many months the savings (accounts) cover the usual monthly outlay; null when that outlay is unknown or zero. */
     val emergencyMonths: Double?,
+    /** Items in these currencies had no rate yet and are NOT in the numbers above. */
+    val missingCurrencies: Set<String> = emptySet(),
 )
 
 fun healthSummary(

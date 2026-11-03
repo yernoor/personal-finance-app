@@ -130,6 +130,13 @@ class WealthScreenTest {
     }
 
     @Test
+    fun anIncomeWithoutARate_showsAWarningInsteadOfAWrongTotal() {
+        runBlocking { container.wealth.saveCashflowItem(null, dev.yernur.moneytracker.data.db.CashflowItemEntity("", "Pension", CashflowKind.Income, "GBP", 50_000, false, "", "")) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("health-missing-rates").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("health-missing-rates").assertTextContains("GBP", substring = true)
+    }
+
+    @Test
     fun aBond_appearsWithItsCouponsAndMaturity() {
         val maturity = LocalDate.now().plusYears(2).toString()
         open("add-bond")

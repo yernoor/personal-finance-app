@@ -129,15 +129,18 @@ class WealthRepository(private val db: AppDatabase, private val fx: FxRepository
     suspend fun health(today: LocalDate): HealthSummary {
         val rates = fx.rates.first()
         val items = db.cashflowItemDao().getLive()
+        val missing = sortedSetOf<String>()
         fun kztSum(kind: CashflowKind, onlyOutsideLedger: Boolean = false) = items.filter { it.kind == kind && !(onlyOutsideLedger && it.inLedger) }
-            .sumOf { convertViaKzt(it.monthlyMinor, it.currencyCode, DEFAULT_CURRENCY, rates) ?: 0L }
+            .sumOf { item ->
+                convertViaKzt(item.monthlyMinor, item.currencyCode, DEFAULT_CURRENCY, rates) ?: run { missing += item.currencyCode; 0L }
+            }
         return healthSummary(
             incomeMinor = kztSum(CashflowKind.Income),
             obligationsMinor = kztSum(CashflowKind.Obligation),
             obligationsOutsideLedgerMinor = kztSum(CashflowKind.Obligation, onlyOutsideLedger = true),
             averageSpendingMinor = averageMonthlySpending(today),
             savingsMinor = currentNetWorth().accountsMinor,
-        )
+        ).copy(missingCurrencies = missing)
     }
 
     suspend fun saveGoal(uid: String?, title: String, targetMinor: Long, targetDate: LocalDate?, accountUid: String?) {

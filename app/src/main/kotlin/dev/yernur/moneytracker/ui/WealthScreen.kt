@@ -295,6 +295,12 @@ private fun HealthCard(data: WealthOverview, show: (Long) -> String, onEdit: (Ca
                 Text((if (item.kind == CashflowKind.Obligation) "-" else "+") + Money.format(item.monthlyMinor, item.currencyCode))
             }
         }
+        if (h.missingCurrencies.isNotEmpty()) {
+            Text(
+                "No rate yet for ${h.missingCurrencies.joinToString()}: those items are left out of the numbers below",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("health-missing-rates"),
+            )
+        }
         if (data.cashflowItems.isNotEmpty()) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Tile("Free each month", show(h.availableMinor), Modifier.weight(1f))

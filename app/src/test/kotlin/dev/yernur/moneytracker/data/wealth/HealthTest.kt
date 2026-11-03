@@ -136,6 +136,15 @@ class HealthTest {
     }
 
     @Test
+    fun anItemInACurrencyWithoutARate_isReportedNotSilentlyDropped() = runBlocking {
+        wealth.saveCashflowItem(null, item("Salary", CashflowKind.Income, 100_000_000))
+        wealth.saveCashflowItem(null, item("Pension", CashflowKind.Income, 50_000, currency = "GBP")) // no GBP rate cached
+        val h = wealth.health(today)
+        assertEquals(100_000_000L, h.incomeMinor)
+        assertEquals(setOf("GBP"), h.missingCurrencies)
+    }
+
+    @Test
     fun projection_splitsTheSurplus_andHoldsManualItemsFlat() {
         val rows = projectNetWorth(
             ProjectionInputs(
