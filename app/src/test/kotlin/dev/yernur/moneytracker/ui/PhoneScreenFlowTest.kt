@@ -87,6 +87,9 @@ class PhoneScreenFlowTest {
 
     private fun tap(tag: String) = compose.onNodeWithTag(tag).performClick()
 
+    /** For rows lower down a scrolling list, which a phone-sized screen may not show yet. */
+    private fun tapScrolled(tag: String) = compose.onNodeWithTag(tag).performScrollTo().performClick()
+
     private fun key(name: String) = compose.onNodeWithTag("calc-$name").performClick()
 
     @Test
@@ -219,7 +222,7 @@ class PhoneScreenFlowTest {
     @Test
     fun navbar_canHideReorderAndAddTabs() {
         tap("more")
-        tap("open-navbar-settings")
+        tapScrolled("open-navbar-settings")
         check("nav", "charts") // hide Charts
         tap("nav-down-home") // Home after History
         check("nav", "categories") // show Categories
@@ -237,7 +240,7 @@ class PhoneScreenFlowTest {
     @Test
     fun navbar_keepsAtLeastTwoTabs() {
         tap("more")
-        tap("open-navbar-settings")
+        tapScrolled("open-navbar-settings")
         listOf("history", "charts", "accounts", "home").forEach { check("nav", it) } // the last uncheck must be refused
         assertEquals(2, container.settings.navTabs.value.size)
         tap("nav-reset")

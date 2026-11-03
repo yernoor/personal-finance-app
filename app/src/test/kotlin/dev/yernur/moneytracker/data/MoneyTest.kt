@@ -25,6 +25,15 @@ class MoneyTest {
     }
 
     @Test
+    fun formatRounded_dropsCentsFromOneThousandUp_andKeepsThemBelow() {
+        assertEquals("₸75,830,268", Money.formatRounded(7_583_026_770, "KZT"))
+        assertEquals("₸1,000", Money.formatRounded(100_049, "KZT")) // 1,000.49 rounds down
+        assertEquals("₸1,001", Money.formatRounded(100_050, "KZT")) // half rounds up
+        assertEquals("-₸2,500", Money.formatRounded(-250_040, "KZT"))
+        assertEquals("$222.22", Money.formatRounded(22_222, "USD")) // under 1,000: cents stay
+    }
+
+    @Test
     fun editable_roundTripsWithParse() {
         for (minor in listOf(19L, 100L, 135_370L, 1_353_700L)) {
             assertEquals(minor, Money.parseMinor(Money.editable(minor)))

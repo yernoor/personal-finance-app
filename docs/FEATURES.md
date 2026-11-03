@@ -133,6 +133,34 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 - (original request) Redraw all category/account icons from scratch (original art). Colors derive from the Material 3 scheme / chosen accent,
   with enough chroma and hue spread that categories stay easy to tell apart.
 
+## Wealth tools (owner request, 2026-11-04), backend first, UI mock-ups to choose a style
+Beyond expense tracking: the app becomes a general personal-finance tool. Owner's picks, in build order. All of it is local; the only new
+network call is the daily rate fetch.
+1. **Compound interest calculator.** Start balance, yearly rate, monthly contribution, years; year-by-year table (contributed / interest / balance).
+2. **Net worth over time + goals.** Snapshots of all account balances (in KZT) plus manual assets/liabilities; goals with a target amount and date.
+3. **Projected net worth.** The same engine fed with salary, monthly obligations and investment returns / bond coupons.
+4. **Financial health summary.** Monthly income and obligations (mortgage, loans, subscriptions) entered by hand; shows what is left to save/invest, savings rate, months of expenses covered.
+5. **Investment portfolio.** Owner holds one broker account, 100% bonds: each bond has face value, price paid, coupon rate and frequency, maturity, currency. Coupon schedule, income per year, maturity ladder. Prices are entered by hand (no live quotes).
+6. **Currency converter.** Rates from the National Bank of Kazakhstan feed (`nationalbank.kz/rss/get_rates.cfm?fdate=DD.MM.YYYY`, verified 2026-11-04: returns KZT per `quant` units).
+   The owner allows **one request per day**, cached; the converter works offline on the cached rates. The backup's `rate` table is not used.
+
+### Wealth backend as built (2026-11-04; unit-tested on Robolectric)
+Code in `data/wealth/`, schema 2 -> 6 (one migration per step, each tested). All money is `Long` minor units in KZT unless a row names its currency.
+- `Compound.kt`: monthly or yearly capitalization (yearly = interest accrues monthly on the principal and is credited in month 12), contributions at start or end of month. Checked against hand-computed annuity values.
+- `Fx.kt` / `FxRepository`: National Bank feed parsed per `quant`, cached in `fx_rate`, at most one request per local day; an unreachable network does not use up the day, a bad HTTP answer does. Converts through KZT.
+- `WealthRepository`: net worth = every active account (also those hidden from the Total) + manual assets + bonds at current value - liabilities, snapshotted once a day (skipped while a currency has no rate, so a gap never looks like a loss); goals on net worth or one account with the monthly amount needed to arrive on time.
+- `Bonds.kt`: coupons counted back from maturity (assumption: real schedules may differ by days), current yield, yield to maturity (bisection, actual/365, ignores accrued interest, tax and fees: an estimate), maturity ladder. Prices are typed in by hand.
+  A broker account tracked as an app account AND as bonds would count twice in net worth: use one of the two.
+- `Health.kt`: available per month = income - average ledger spending (last 3 full months, balance corrections skipped) - obligations not already in the ledger (`inLedger` flag per item); savings rate, obligations share, months of expenses covered. `projectNetWorth` compounds accounts and investments at their own rates and splits the monthly surplus between them.
+- Transfers live in their own table and are never income or expense: a regression test (`HealthTest`) moves money between accounts and checks spending, the health summary and net worth do not change.
+- UI (owner chose the Material style from the mock-ups): `ui/WealthScreen` (More > Wealth, or add it as a bottom-bar tab in Navigation bar settings) and `ui/CompoundScreen` (More > Compound interest, or the button on Wealth).
+  Both have a currency switch (`CurrencySwitch`; KZT plus the cached USD/EUR/RUB/...); the choice is remembered (`AppSettings.wealthCurrency`) and stored amounts stay in KZT. The calculator converts its typed amounts when the currency changes.
+  Items are added and edited in dialogs (`FormDialog`): manual assets and loans, goals, bonds, income and payments. Covered by Robolectric flow tests (`WealthScreenTest`, `CompoundScreenTest`).
+  Not checked: the screens on the emulator or the phone (only Robolectric).
+- Transfers between accounts of different currencies (owner request, 2026-11-04): "Amount received" is filled in from the sent amount with the bank rates (backup rates for currencies the bank does not publish; through tenge for pairs like EUR to USD). It stays editable: typing keeps your figure, clearing the field gives it back to the calculation, changing an account recalculates. With no known rate nothing is filled and saving asks for the amount.
+- Phone only: goals, bonds, manual assets, income/payments and the net worth history live in the local database only. The Sheets sync and the `.mmbackup` importer do not know these tables, and the local database backup (milestone 8) is not built, so clearing app data or losing the phone loses them, history included. A `Wealth` tab in the sheet is the planned fix.
+- Known gap: an investment logged as an expense category (current practice, question 6 above) counts as spending in the health summary.
+
 ## Other / unverified, decide later
 
 | Feature | Rating | Notes |

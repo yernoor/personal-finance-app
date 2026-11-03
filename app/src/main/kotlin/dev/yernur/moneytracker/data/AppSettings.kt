@@ -32,6 +32,9 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _lastSyncAt = MutableStateFlow(prefs?.getString(LAST_SYNC_AT, null))
     private val _pendingSpreadsheetId = MutableStateFlow(prefs?.getString(PENDING_SPREADSHEET_ID, null))
     private val _lastUpdateCheck = MutableStateFlow(prefs?.getLong(LAST_UPDATE_CHECK, 0L) ?: 0L)
+    private val _ratesUpdatedAt = MutableStateFlow(prefs?.getLong(RATES_UPDATED_AT, 0L)?.takeIf { it > 0 })
+    private val _wealthCurrency = MutableStateFlow(prefs?.getString(WEALTH_CURRENCY, null) ?: DEFAULT_CURRENCY)
+    private val _lastRatesDate = MutableStateFlow(prefs?.getString(LAST_RATES_DATE, null))
     private val _availableUpdate = MutableStateFlow(prefs?.getString(AVAILABLE_UPDATE, null))
     private val _googleConnected = MutableStateFlow(prefs?.getBoolean(GOOGLE_CONNECTED, false) ?: false)
     private val _glass = MutableStateFlow(prefs?.getBoolean(GLASS, false) ?: false)
@@ -61,6 +64,30 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
 
     /** The newest release tag found by the last check (e.g. "v0.3.0"), shown on the More screen when it is newer than the installed version. */
     val availableUpdate: StateFlow<String?> = _availableUpdate
+
+    /** When (epoch millis) the bank rates were last fetched successfully; null before the first fetch. */
+    val ratesUpdatedAt: StateFlow<Long?> = _ratesUpdatedAt
+
+    fun setRatesUpdatedAt(millis: Long) {
+        _ratesUpdatedAt.value = millis
+        prefs?.edit()?.putLong(RATES_UPDATED_AT, millis)?.apply()
+    }
+
+    /** The currency the Wealth and Compound interest screens show (the owner's switch); stored amounts stay in [DEFAULT_CURRENCY]. */
+    val wealthCurrency: StateFlow<String> = _wealthCurrency
+
+    fun setWealthCurrency(code: String) {
+        _wealthCurrency.value = code
+        prefs?.edit()?.putString(WEALTH_CURRENCY, code)?.apply()
+    }
+
+    /** The day (YYYY-MM-DD, device local) the app last asked the National Bank for rates: it asks once a day. */
+    val lastRatesDate: StateFlow<String?> = _lastRatesDate
+
+    fun setLastRatesDate(date: String) {
+        _lastRatesDate.value = date
+        prefs?.edit()?.putString(LAST_RATES_DATE, date)?.apply()
+    }
 
     fun setLastUpdateCheck(millis: Long) {
         _lastUpdateCheck.value = millis
@@ -214,7 +241,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
 
     companion object {
         const val DEFAULT_THRESHOLD = 100
-        val NAV_POOL = listOf("home", "history", "charts", "accounts", "categories", "tags")
+        val NAV_POOL = listOf("home", "history", "charts", "accounts", "categories", "tags", "wealth")
         val NAV_DEFAULT = NAV_POOL.take(4)
         const val NAV_MIN = 2
         const val NAV_MAX = 5
@@ -229,6 +256,9 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val GLASS = "glass"
         private const val GOOGLE_CONNECTED = "googleConnected"
         private const val LAST_UPDATE_CHECK = "lastUpdateCheck"
+        private const val LAST_RATES_DATE = "lastRatesDate"
+        private const val WEALTH_CURRENCY = "wealthCurrency"
+        private const val RATES_UPDATED_AT = "ratesUpdatedAt"
         private const val AVAILABLE_UPDATE = "availableUpdate"
         private const val PENDING_SPREADSHEET_ID = "pendingSpreadsheetId"
         private const val SPREADSHEET_ID = "spreadsheetId"

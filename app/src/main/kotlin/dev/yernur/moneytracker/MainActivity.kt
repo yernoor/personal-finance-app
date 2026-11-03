@@ -8,8 +8,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.lifecycle.lifecycleScope
 import dev.yernur.moneytracker.ui.AppRoot
 import dev.yernur.moneytracker.ui.AppTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -17,6 +19,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val container = (application as MoneyApp).container
         askForNotificationsOnce()
+        lifecycleScope.launch { container.dailyWealthRefresh() }
         setContent {
             CompositionLocalProvider(LocalAppContainer provides container) {
                 AppTheme { AppRoot() }
