@@ -170,12 +170,12 @@ private fun Result(rows: List<CompoundYear>, currency: String) {
         Column(Modifier.fillMaxWidth().padding(20.dp)) {
             Text("Balance after ${rows.size} years", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
             Text(
-                Money.format(last.balance, currency), fontSize = 32.sp, color = MaterialTheme.colorScheme.onPrimaryContainer,
+                Money.formatRounded(last.balance, currency), fontSize = 32.sp, color = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.padding(top = 2.dp).testTag("compound-balance"),
             )
             Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("You put in ${Money.format(last.contributed, currency)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.testTag("compound-contributed"))
-                Text("Interest ${Money.format(last.interest, currency)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.testTag("compound-interest"))
+                Text("You put in ${Money.formatRounded(last.contributed, currency)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.testTag("compound-contributed"))
+                Text("Interest ${Money.formatRounded(last.interest, currency)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.testTag("compound-interest"))
             }
         }
     }

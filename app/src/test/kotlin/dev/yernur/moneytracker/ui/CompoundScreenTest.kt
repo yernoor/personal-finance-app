@@ -45,18 +45,18 @@ class CompoundScreenTest {
 
     @Test
     fun theDefaultExample_showsTheHandCheckedBalance() {
-        // 1,000,000 + 100,000 a month at 12% for 10 years, monthly interest, paid at the end; closed-form check in Python: 26,304,255.84
-        compose.onNodeWithTag("compound-balance").assertTextEquals("₸26,304,255.84")
+        // 1,000,000 + 100,000 a month at 12% for 10 years, monthly interest, paid at the end; closed-form check in Python: 26,304,255.84, shown in whole tenge
+        compose.onNodeWithTag("compound-balance").assertTextEquals("₸26,304,256")
         compose.onNodeWithTag("compound-contributed").assertTextContains("₸13,000,000", substring = true)
     }
 
     @Test
     fun yearlyInterest_andPaymentAtTheStart_changeTheResult() {
         compose.onNodeWithTag("compound-capitalization-1").performClick()
-        compose.onNodeWithTag("compound-balance").assertTextEquals("₸25,322,546.81") // simple interest inside each year, credited at year end; closed form P = P * 1.12 + 1,266,000 each year
+        compose.onNodeWithTag("compound-balance").assertTextEquals("₸25,322,547") // simple interest inside each year, credited at year end; closed form P = P * 1.12 + 1,266,000 each year
         compose.onNodeWithTag("compound-capitalization-0").performClick()
         compose.onNodeWithTag("compound-timing-0").performClick()
-        compose.onNodeWithTag("compound-balance").assertTextEquals("₸26,534,294.53") // 1,000,000 * 1.01^120 + the ordinary annuity part times 1.01
+        compose.onNodeWithTag("compound-balance").assertTextEquals("₸26,534,295") // 1,000,000 * 1.01^120 + the ordinary annuity part times 1.01
     }
 
     @Test
@@ -107,3 +107,4 @@ class CompoundFormTest {
         assertEquals(form, form.inCurrency("KZT", "GBP", rates))
     }
 }
+

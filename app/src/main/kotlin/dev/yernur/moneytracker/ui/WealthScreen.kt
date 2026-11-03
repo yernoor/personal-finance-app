@@ -109,7 +109,7 @@ fun WealthScreen(embedded: Boolean = false, onCompound: () -> Unit, onBack: () -
         val choices = remember(data.rates) { currencyChoices(data.rates) }
         // Without a rate for the chosen currency everything stays in tenge, and says so.
         val shown = if (currency in choices) currency else "KZT"
-        fun show(minor: Long) = Money.format(fromDefault(minor, shown, data.rates), shown)
+        fun show(minor: Long) = Money.formatRounded(fromDefault(minor, shown, data.rates), shown)
 
         Column(
             Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = LocalChromeInset.current + 16.dp),
