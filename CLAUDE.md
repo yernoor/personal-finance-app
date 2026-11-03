@@ -63,7 +63,7 @@ Not known: reports/charts, budgets UI, recurring items, widgets, search, filters
    (fake network, real-backup totals vs snapshot); the live Google round trip needs the owner's Cloud OAuth client: docs/GOOGLE_SETUP.md.
 7. Two-way sync + Apps Script `onEdit` stamping (`/sheets/Code.gs`) + conflict log. PARTLY BUILT: "Sync now" and a weekly WorkManager job
    (pull, then push; phone edits since the last sync win; first sync pushes only). Apps Script and the conflict log are not built. See docs/SYNC_DESIGN.md.
-8. Polish, backup/restore of the local DB, release APK signed with the owner's local keystore (sideload).
+8. Polish, backup/restore of the local DB, release APK signed with the owner's local keystore (sideload). Backup/restore to a file BUILT in 0.4.0 (with app lock, widgets, wealth tools: see docs/FEATURES.md "Version 0.4.0 at a glance").
 
 ## Verification rules (the owner values checkable work)
 - Every claim about the backup format or Google APIs is checked against the actual file or current docs.

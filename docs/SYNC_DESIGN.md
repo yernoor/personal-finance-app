@@ -44,6 +44,7 @@
 - `lastSyncAt` (UTC, set when a push finishes; stamped from the start of that push) decides who wins in the pull: a phone row whose `modified`
   is later than it is kept, including phone-side deletes; otherwise the sheet wins. With no `lastSyncAt` (first sync, or after "Forget this sheet")
   the run **only pushes**, so an old sheet can never overwrite phone edits.
+- Not synced: the wealth data (manual assets and loans, goals, bonds, monthly money, net-worth history, version 0.4.0) lives on the phone only and has no tab in the sheet. Back it up with More -> Back up to a file, which copies the whole database.
 - Known limits: a push rewrites whole tabs (a dropped connection can leave the sheet empty until the next run); a row deleted on the PC without
   a `_deleted` entry comes back on the next push; edits made in the sheet before the very first sync are overwritten by it; no conflict log yet;
   the Apps Script `onEdit` stamping (`/sheets/Code.gs`) is not built. Unverified against live Google; covered with a fake transport
