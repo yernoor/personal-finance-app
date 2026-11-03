@@ -177,12 +177,10 @@ Sizes on a 5x4 grid are roughly 73n-16 by 118m-16 dp (Android docs, Pixel 4; the
 | Recent operations | 4x4 / 4x6 | Last 8-12 operations, per-row category icon, tap to edit | edit screen |
 | Month dashboard | 4x6 | Totals + chart + limits + recent in one tall card | Home |
 
-- **From the wealth branch** (`claude/finance-app-features-208bd5`, not merged; the Wealth screen is still uncommitted there, so it may change): net worth + the 30-day change as 2x2; a goal progress ring as 2x2; compound-interest "balance in N years" as 2x2 (the scenario is typed in the app, the widget only shows the last saved one); bond coupon/maturity ladder, "next coupon in 12 days, 14,500 KZT" as 4x2; financial-health tiles (savings rate, months covered) as 4x2; a 4x4 "wealth" card with net worth sparkline from the daily snapshots. These need that branch merged first, so they are last in the order.
-- **Suggested build order**: shared widget style + Month at a glance (2x2) + Quick add + Today, then Limits and Recent operations (4x4); the 4x6 and wealth widgets last (after that branch merges).
-- **Owner decisions (2026-11-04)**: likes all of them; wants the wealth-branch widgets in the plan (they are, above). Spending amounts may show on the home screen; **account balances and totals never do**.
-  That removes "Total balance" and "Accounts" from the table. It also applies to the wealth widgets: net worth, goal progress and any balance-derived figure are balances, so
-  they are **hidden by default** (show a % or "tap to open" instead) with a setting to reveal them; owner to confirm. Spending, limits, coupons-due dates and savings rate are not balances.
-- **Widget font options** (owner to pick; Nothing OS offers Roboto or Geist). All free fonts are bundled in the APK under their licence; never copy Nothing's own Ndot font files.
+- **Wealth widgets: dropped** (owner, 2026-11-04). The wealth branch (`claude/finance-app-features-208bd5`) gets no widgets.
+- **Suggested build order**: shared widget style + Month at a glance (2x2) + Quick add + Today, then Limits and Recent operations (4x4); the 4x6 Month dashboard last.
+- **Owner decisions (2026-11-04)**: likes all of them. Spending amounts may show on the home screen; **account balances and totals never do**, which removed "Total balance" and "Accounts" from the table.
+- **Font (owner decision, 2026-11-04)**: the system font for the whole app and for widget small text. Only the optional big numerals in widgets are still open; options, all free fonts bundled under their licence (never copy Nothing's own Ndot files):
   | Option | Look | Licence |
   |---|---|---|
   | System / Roboto | Neutral, matches the rest of the app | Apache 2.0 (system font, nothing to bundle) |
@@ -190,9 +188,8 @@ Sizes on a 5x4 grid are roughly 73n-16 by 118m-16 dp (Android docs, Pixel 4; the
   | Geist Mono | Same family, monospaced digits: amounts line up | SIL OFL 1.1 (third-party listing; check the repo's LICENSE) |
   | Doto (Google Fonts, Oliver Lalan) | True dot-matrix, variable weight 100-900, rounded-dot axis | SIL OFL 1.1 (Fontsource, Google Fonts mirror) |
   | Geist Pixel (Vercel) | Pixel variants (square, grid, circle, triangle, line) for display text | OFL inferred from the family, not stated in its repo: verify before bundling |
-  Proposal: Doto for big numerals and headings (the Nothing look, but check it stays readable for Cyrillic category names: the sources say 382 languages, unverified for our titles), Geist or Roboto for small text.
-  Doto is a display face, so never use it below roughly 16 sp. Make the font part of the widget style switch in More.
-- Tests: Glance has no Robolectric-friendly renderer, so keep the logic (what each widget shows, formatting, hide-when-locked) in plain functions with unit tests, and check the look on the emulator and the phone.
+  Still to decide: use the system font for the big numerals too, or Doto there for the dot-matrix look (Doto is a display face: nothing below about 16 sp; check Cyrillic category names render, the sources say 382 languages, unverified for our titles). Make it a switch in the widget style setting.
+- Tests: Glance has no Robolectric-friendly renderer, so keep the logic (what each widget shows, formatting, no balances) in plain functions with unit tests, and check the look on the emulator and the phone.
 
 ### 4. Local database backup and restore (owner request, 2026-11-04)
 Verified in the code today: `allowBackup="false"` ([AndroidManifest.xml](app/src/main/AndroidManifest.xml):17); the sheet push empties every tab and then rewrites it
