@@ -1,6 +1,6 @@
 # FAQ
 
-**Is my data sent anywhere?** Only if you connect Google Sheets, and then only to the sheet the app created. There are no analytics or ads. The update check contacts GitHub.
+**Is my data sent anywhere?** Only if you connect Google Sheets, and then only to the sheet the app created. There are no analytics or ads. The app also contacts GitHub (update check) and the National Bank of Kazakhstan (one exchange-rate request a day); no personal data goes in either request.
 
 **Which Android versions work?** Android 16 (API 36). Older versions are not supported.
 
@@ -17,3 +17,13 @@
 **An entry has no category.** It is a balance correction (see [Entering data](Entering-Data.md)).
 
 **Where are regular payments (mortgage etc.)?** Not built yet; the importer reads them but there is no screen.
+
+**I forgot my PIN.** There is no reset (no server). Clear the app's data in Android settings and restore a backup file ([Privacy and backup](Privacy-and-Backup.md)).
+
+**Is my wealth data in the Google Sheet?** No, it is on the phone only. *Back up to a file* copies it.
+
+**Do widgets show my balances?** No. They show spending only, by design.
+
+**Why does the widget picker show the app icon?** Previews are planned but not built yet ([Widgets](Widgets.md)).
+
+**The exchange rates look old.** Rates are fetched once a day when the phone is online and cached; the Wealth screen says when they were last updated.
