@@ -241,3 +241,22 @@ data class BondEntity(
     val modified: String,
     val isRemoved: Boolean = false,
 )
+
+enum class CashflowKind { Income, Obligation }
+
+/**
+ * A recurring monthly amount entered by hand: a salary ([CashflowKind.Income]) or a mortgage, loan or subscription ([CashflowKind.Obligation]).
+ * [inLedger] means the owner already logs it as expenses, so the health summary must not subtract it a second time.
+ */
+@Entity(tableName = "cashflow_item")
+data class CashflowItemEntity(
+    @PrimaryKey val uid: String,
+    val title: String,
+    val kind: CashflowKind,
+    val currencyCode: String,
+    val monthlyMinor: Long,
+    val inLedger: Boolean,
+    val created: String,
+    val modified: String,
+    val isRemoved: Boolean = false,
+)

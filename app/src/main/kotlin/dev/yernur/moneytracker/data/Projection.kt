@@ -119,7 +119,7 @@ private fun warningsFor(limit: Long?, threshold: Int, spent: Long, runRate: Long
 }
 
 /** Past full months that can contribute, at most [HISTORY_MONTHS]. The earliest month counts as a full month (unverified for partial data). */
-private fun monthsAvailable(earliest: LocalDate?, current: YearMonth): Int {
+internal fun monthsAvailable(earliest: LocalDate?, current: YearMonth): Int {
     if (earliest == null) return 0
     val first = YearMonth.from(earliest)
     if (first >= current) return 0

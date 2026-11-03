@@ -144,6 +144,16 @@ network call is the daily rate fetch.
 6. **Currency converter.** Rates from the National Bank of Kazakhstan feed (`nationalbank.kz/rss/get_rates.cfm?fdate=DD.MM.YYYY`, verified 2026-11-04: returns KZT per `quant` units).
    The owner allows **one request per day**, cached; the converter works offline on the cached rates. The backup's `rate` table is not used.
 
+### Wealth backend as built (2026-11-04; unit-tested on Robolectric, no UI yet)
+Code in `data/wealth/`, schema 2 -> 6 (one migration per step, each tested). All money is `Long` minor units in KZT unless a row names its currency.
+- `Compound.kt`: monthly or yearly capitalization (yearly = interest accrues monthly on the principal and is credited in month 12), contributions at start or end of month, optional inflation. Checked against hand-computed annuity values.
+- `Fx.kt` / `FxRepository`: National Bank feed parsed per `quant`, cached in `fx_rate`, at most one request per local day; an unreachable network does not use up the day, a bad HTTP answer does. Converts through KZT.
+- `WealthRepository`: net worth = every active account (also those hidden from the Total) + manual assets + bonds at current value - liabilities, snapshotted once a day (skipped while a currency has no rate, so a gap never looks like a loss); goals on net worth or one account with the monthly amount needed to arrive on time.
+- `Bonds.kt`: coupons counted back from maturity (assumption: real schedules may differ by days), current yield, yield to maturity (bisection, actual/365, ignores accrued interest, tax and fees: an estimate), maturity ladder. Prices are typed in by hand.
+  A broker account tracked as an app account AND as bonds would count twice in net worth: use one of the two.
+- `Health.kt`: available per month = income - average ledger spending (last 3 full months, balance corrections skipped) - obligations not already in the ledger (`inLedger` flag per item); savings rate, obligations share, months of expenses covered. `projectNetWorth` compounds accounts and investments at their own rates and splits the monthly surplus between them.
+- Known gap: an investment logged as an expense category (current practice, question 6 above) counts as spending in the health summary.
+
 ## Other / unverified, decide later
 
 | Feature | Rating | Notes |

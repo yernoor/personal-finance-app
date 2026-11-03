@@ -256,3 +256,15 @@ interface BondDao {
     @Query("SELECT * FROM bond WHERE isRemoved = 0 ORDER BY maturityDate, title")
     suspend fun getLive(): List<BondEntity>
 }
+
+@Dao
+interface CashflowItemDao {
+    @Upsert
+    suspend fun upsert(item: CashflowItemEntity)
+
+    @Query("SELECT * FROM cashflow_item WHERE isRemoved = 0 ORDER BY kind, title")
+    fun observeLive(): Flow<List<CashflowItemEntity>>
+
+    @Query("SELECT * FROM cashflow_item WHERE isRemoved = 0 ORDER BY kind, title")
+    suspend fun getLive(): List<CashflowItemEntity>
+}

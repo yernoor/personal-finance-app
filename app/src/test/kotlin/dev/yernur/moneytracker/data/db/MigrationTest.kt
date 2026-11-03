@@ -56,6 +56,13 @@ class MigrationTest {
         assertEquals("0", v5.scalar("SELECT investmentsMinor FROM net_worth_snapshot WHERE date = '2026-11-04'"))
     }
 
+    @Test
+    fun migrate5To6_addsAnEmptyCashflowTable() {
+        helper.createDatabase(DB, 5).close()
+        val v6 = helper.runMigrationsAndValidate(DB, 6, true, MIGRATION_5_6)
+        assertEquals("0", v6.scalar("SELECT COUNT(*) FROM cashflow_item"))
+    }
+
     private companion object {
         const val DB = "migration-test"
     }

@@ -21,8 +21,9 @@ import androidx.sqlite.execSQL
         NetWorthSnapshotEntity::class,
         GoalEntity::class,
         BondEntity::class,
+        CashflowItemEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -38,6 +39,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun netWorthSnapshotDao(): NetWorthSnapshotDao
     abstract fun goalDao(): GoalDao
     abstract fun bondDao(): BondDao
+    abstract fun cashflowItemDao(): CashflowItemDao
 }
 
 /** Adds the per-category warning threshold and projection mode (milestone 5). */
@@ -69,5 +71,12 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(connection: SQLiteConnection) {
         connection.execSQL("CREATE TABLE IF NOT EXISTS `bond` (`uid` TEXT NOT NULL, `title` TEXT NOT NULL, `currencyCode` TEXT NOT NULL, `faceMinor` INTEGER NOT NULL, `quantity` INTEGER NOT NULL, `costMinor` INTEGER NOT NULL, `couponRateBp` INTEGER NOT NULL, `couponsPerYear` INTEGER NOT NULL, `maturityDate` TEXT NOT NULL, `currentValueMinor` INTEGER, `created` TEXT NOT NULL, `modified` TEXT NOT NULL, `isRemoved` INTEGER NOT NULL, PRIMARY KEY(`uid`))")
         connection.execSQL("ALTER TABLE net_worth_snapshot ADD COLUMN investmentsMinor INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+/** Adds recurring income and obligations for the financial health summary. */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("CREATE TABLE IF NOT EXISTS `cashflow_item` (`uid` TEXT NOT NULL, `title` TEXT NOT NULL, `kind` TEXT NOT NULL, `currencyCode` TEXT NOT NULL, `monthlyMinor` INTEGER NOT NULL, `inLedger` INTEGER NOT NULL, `created` TEXT NOT NULL, `modified` TEXT NOT NULL, `isRemoved` INTEGER NOT NULL, PRIMARY KEY(`uid`))")
     }
 }

@@ -3,7 +3,12 @@ package dev.yernur.moneytracker.data.wealth
 import dev.yernur.moneytracker.data.DEFAULT_CURRENCY
 import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.db.BondEntity
+import dev.yernur.moneytracker.data.db.CashflowItemEntity
+import dev.yernur.moneytracker.data.db.CashflowKind
 import dev.yernur.moneytracker.data.db.GoalEntity
+import dev.yernur.moneytracker.data.db.TransactionType
+import dev.yernur.moneytracker.data.monthsAvailable
+import java.time.YearMonth
 import dev.yernur.moneytracker.data.db.ManualAssetEntity
 import dev.yernur.moneytracker.data.db.ManualKind
 import dev.yernur.moneytracker.data.db.NetWorthSnapshotEntity
@@ -73,6 +78,47 @@ class WealthRepository(private val db: AppDatabase, private val fx: FxRepository
     suspend fun deleteBond(uid: String) {
         val item = db.bondDao().getLive().firstOrNull { it.uid == uid } ?: return
         db.bondDao().upsert(item.copy(isRemoved = true, modified = nowUtc()))
+    }
+
+    suspend fun saveCashflowItem(uid: String?, item: CashflowItemEntity) {
+        val now = nowUtc()
+        val existing = uid?.let { id -> db.cashflowItemDao().getLive().firstOrNull { it.uid == id } }
+        db.cashflowItemDao().upsert(item.copy(uid = existing?.uid ?: UUID.randomUUID().toString(), created = existing?.created ?: now, modified = now, isRemoved = false))
+    }
+
+    suspend fun deleteCashflowItem(uid: String) {
+        val item = db.cashflowItemDao().getLive().firstOrNull { it.uid == uid } ?: return
+        db.cashflowItemDao().upsert(item.copy(isRemoved = true, modified = nowUtc()))
+    }
+
+    /**
+     * Average monthly expenses over the last full months (up to 3) in the default currency; null with no earlier month. Operations without
+     * a category (balance corrections) are skipped, they are not spending.
+     */
+    suspend fun averageMonthlySpending(today: LocalDate): Long? {
+        val month = YearMonth.from(today)
+        val earliest = db.transactionDao().observeEarliestDate().first()?.let(LocalDate::parse)
+        val months = monthsAvailable(earliest, month)
+        if (months == 0) return null
+        val from = month.minusMonths(months.toLong()).atDay(1).toString()
+        val to = month.minusMonths(1).atEndOfMonth().toString()
+        val total = db.transactionDao().getLite(from, to).filter { it.type == TransactionType.Expense && it.categoryUid != null }.sumOf { it.amount }
+        return total / months
+    }
+
+    /** Income and obligations as entered, plus the ledger's average spending and today's net worth, boiled down by [healthSummary]. */
+    suspend fun health(today: LocalDate): HealthSummary {
+        val rates = fx.rates.first()
+        val items = db.cashflowItemDao().getLive()
+        fun kztSum(kind: CashflowKind, onlyOutsideLedger: Boolean = false) = items.filter { it.kind == kind && !(onlyOutsideLedger && it.inLedger) }
+            .sumOf { convertViaKzt(it.monthlyMinor, it.currencyCode, DEFAULT_CURRENCY, rates) ?: 0L }
+        return healthSummary(
+            incomeMinor = kztSum(CashflowKind.Income),
+            obligationsMinor = kztSum(CashflowKind.Obligation),
+            obligationsOutsideLedgerMinor = kztSum(CashflowKind.Obligation, onlyOutsideLedger = true),
+            averageSpendingMinor = averageMonthlySpending(today),
+            savingsMinor = currentNetWorth().accountsMinor,
+        )
     }
 
     suspend fun saveGoal(uid: String?, title: String, targetMinor: Long, targetDate: LocalDate?, accountUid: String?) {
