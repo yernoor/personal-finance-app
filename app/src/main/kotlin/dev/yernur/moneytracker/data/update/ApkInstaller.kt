@@ -129,7 +129,7 @@ class ApkInstaller(
 fun describeInstallFailure(status: Int, message: String?): String = when {
     message?.contains("UPDATE_INCOMPATIBLE") == true ->
         "Android refused the update: it is signed with a different key than the installed app (a debug build and a release build cannot replace each other). " +
-            "Sync now first (Google Sheets screen), or data since the last sync is lost. Then uninstall the app, which deletes its local data, and install the release."
+            "Back up first (More, Back up to a file), because uninstalling the app deletes its local data. Then uninstall, install the release, and restore the backup from More."
     message != null -> message
     else -> "The install failed (code $status)."
 }

@@ -191,7 +191,7 @@ Sizes on a 5x4 grid are roughly 73n-16 by 118m-16 dp (Android docs, Pixel 4; the
   **Decided (owner, 2026-11-04, after a mock-up of both):** Doto for the big numerals only (bundled font file, OFL licence text shipped with the app); system font for everything else, including small amounts, because Doto is a display face and stays at 16 sp or larger. Still to check on the phone: Cyrillic category names are not set in Doto, so only digits and the currency sign matter; verify the tenge sign (₸) exists in Doto, else fall back to the system font for it.
 - Tests: Glance has no Robolectric-friendly renderer, so keep the logic (what each widget shows, formatting, no balances) in plain functions with unit tests, and check the look on the emulator and the phone.
 
-### 4. Local database backup and restore (owner request, 2026-11-04)
+### 4. Local database backup and restore (owner request, 2026-11-04). BUILT: manual backup/restore and the pre-update copy; not built: weekly folder backup, 30-day warning
 Verified in the code today: `allowBackup="false"` ([AndroidManifest.xml](app/src/main/AndroidManifest.xml):17); the sheet push empties every tab and then rewrites it
 (`SheetsSync.reuse` calls `api.clear`), so a dropped connection leaves the sheet partly empty until the next run (already listed under "Known limits" in docs/SYNC_DESIGN.md);
 and the update-failure text in `ApkInstaller.kt:132` tells the owner to uninstall the app, which deletes the database. So the sheet is the only copy outside the phone and it can be the broken one.

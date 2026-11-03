@@ -7,6 +7,7 @@ import dev.yernur.moneytracker.data.AppSettings
 import dev.yernur.moneytracker.data.ForecastRepository
 import dev.yernur.moneytracker.data.LedgerRepository
 import dev.yernur.moneytracker.data.WarningNotifier
+import dev.yernur.moneytracker.data.backup.DbBackup
 import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.db.MIGRATION_1_2
 import dev.yernur.moneytracker.data.importer.ImportRepository
@@ -29,6 +30,8 @@ class AppContainer(
     val updateInstaller: UpdateInstaller? = null,
     val updateDownloads: UpdateDownloads? = null,
     val installedVersion: String = "0.0.0",
+    /** Null in tests that do not need files. */
+    val backups: DbBackup? = null,
 ) {
     val ledger = LedgerRepository(db)
     val importer = ImportRepository(db)
@@ -62,11 +65,18 @@ class MoneyApp : Application() {
 
     val container by lazy {
         val version = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
+        val db = Room.databaseBuilder(this, AppDatabase::class.java, DB_NAME).addMigrations(MIGRATION_1_2).build()
         AppContainer(
-            Room.databaseBuilder(this, AppDatabase::class.java, "moneytracker.db").addMigrations(MIGRATION_1_2).build(),
+            db,
             AppSettings(getSharedPreferences("settings", MODE_PRIVATE)),
             { db, settings, forecasts -> WarningNotifier(this, db, settings, forecasts) },
             UpdateChecker(UrlConnectionTransport(), version), ApkInstaller(this), WorkDownloads(this), version,
+            DbBackup(db, getDatabasePath(DB_NAME), java.io.File(filesDir, "backups"), DB_VERSION),
         )
+    }
+
+    private companion object {
+        const val DB_NAME = "moneytracker.db"
+        const val DB_VERSION = 2 // keep equal to @Database(version) in AppDatabase
     }
 }

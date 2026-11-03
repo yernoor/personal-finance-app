@@ -20,6 +20,8 @@ import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.BlurOn
 import androidx.compose.material.icons.outlined.CloudSync
+import androidx.compose.material.icons.outlined.Restore
+import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.History
@@ -64,6 +66,8 @@ import dev.yernur.moneytracker.data.IconStyle
 import dev.yernur.moneytracker.data.PeriodUnit
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import dev.yernur.moneytracker.data.backup.BackupException
+import dev.yernur.moneytracker.data.backup.BackupInfo
 import dev.yernur.moneytracker.data.importer.MmbackupMapper
 import dev.yernur.moneytracker.data.importer.MmbackupReader
 import dev.yernur.moneytracker.data.update.isNewer
@@ -98,6 +102,30 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
                     result.warnings.take(5).joinToString("") { "\n• $it" }
             } catch (e: Exception) {
                 "Import failed: ${e.message}"
+            }
+        }
+    }
+
+    val backups = container.backups
+    var staged by remember { mutableStateOf<Pair<java.io.File, BackupInfo>?>(null) }
+    val backupPicker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri: Uri? ->
+        if (uri == null || backups == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            message = try {
+                withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)!!.use { backups.write(it) } }
+                "Backup saved."
+            } catch (e: Exception) {
+                "Backup failed: ${e.message}"
+            }
+        }
+    }
+    val restorePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri == null || backups == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            try {
+                staged = withContext(Dispatchers.IO) { backups.stage(context.contentResolver.openInputStream(uri)!!) }
+            } catch (e: Exception) {
+                message = if (e is BackupException) e.message else "Could not read that file: ${e.message}"
             }
         }
     }
@@ -195,6 +223,18 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
             leadingContent = { Icon(Icons.Outlined.FileUpload, null) }, headlineContent = { Text("Import .mmbackup") },
             supportingContent = { Text("Adds rows the phone does not have; nothing is overwritten or deleted") },
         )
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+            modifier = Modifier.clickable { backupPicker.launch("moneytracker-${java.time.LocalDate.now()}.db") }.testTag("backup"),
+            leadingContent = { Icon(Icons.Outlined.Save, null) }, headlineContent = { Text("Back up to a file") },
+            supportingContent = { Text("A copy of all data on the phone; keep it somewhere safe. It is not encrypted") },
+        )
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+            modifier = Modifier.clickable { restorePicker.launch(arrayOf("*/*")) }.testTag("restore"),
+            leadingContent = { Icon(Icons.Outlined.Restore, null) }, headlineContent = { Text("Restore from a backup file") },
+            supportingContent = { Text("Replaces everything on the phone with the file's data") },
+        )
         SectionHeader("App")
         val availableUpdate by container.settings.availableUpdate.collectAsStateWithLifecycle()
         val newer = availableUpdate?.takeIf { tag ->
@@ -213,12 +253,39 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
     if (showHistoryPeriod) HistoryPeriodDialog(container.settings) { showHistoryPeriod = false }
     if (showReminder) ReminderDialog(container.settings, context.applicationContext) { showReminder = false }
     if (showWarnings) WarningSettingsDialog(container.settings) { showWarnings = false }
+    staged?.let { (file, info) ->
+        AlertDialog(
+            onDismissRequest = { file.delete(); staged = null }, containerColor = glassContainer(AlertDialogDefaults.containerColor),
+            title = { Text("Restore this backup?") },
+            text = {
+                GlassWindowBlur()
+                Text("${info.transactions} transactions and ${info.accounts} accounts. Everything now on the phone is replaced; the app restarts. The current data is kept once as a .bak file next to the database.")
+            },
+            confirmButton = {
+                TextButton({
+                    staged = null
+                    scope.launch {
+                        withContext(Dispatchers.IO) { backups?.restore(file) }
+                        restartApp(context)
+                    }
+                }, modifier = Modifier.testTag("confirm-restore")) { Text("Restore") }
+            },
+            dismissButton = { TextButton({ file.delete(); staged = null }) { Text("Cancel") } },
+        )
+    }
     message?.let {
         AlertDialog(
             onDismissRequest = { message = null }, containerColor = glassContainer(AlertDialogDefaults.containerColor),
             confirmButton = { TextButton({ message = null }) { Text("OK") } }, text = { GlassWindowBlur(); Text(it) },
         )
     }
+}
+
+/** The database was swapped under the running app: start fresh in a new process. */
+private fun restartApp(context: android.content.Context) {
+    val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)!!.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+    context.startActivity(launch)
+    android.os.Process.killProcess(android.os.Process.myPid())
 }
 
 @Composable
