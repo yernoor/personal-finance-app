@@ -6,11 +6,13 @@ import org.junit.Test
 import java.math.BigDecimal
 
 class CompoundTest {
-    private fun input(start: Long = 0, rate: String = "0", monthly: Long = 0, years: Int = 1, n: Int = 12, inflation: String = "0") =
-        CompoundInput(start, BigDecimal(rate), monthly, years, n, BigDecimal(inflation))
+    private fun input(
+        start: Long = 0, rate: String = "0", monthly: Long = 0, years: Int = 1,
+        cap: Capitalization = Capitalization.Monthly, timing: ContributionTiming = ContributionTiming.End, inflation: String = "0",
+    ) = CompoundInput(start, BigDecimal(rate), monthly, years, cap, timing, BigDecimal(inflation))
 
     @Test
-    fun lumpSum_monthlyCompounding_matchesHandComputedValue() {
+    fun lumpSum_monthlyCapitalization_matchesHandComputedValue() {
         // 1000.00 * 1.01^12 = 1126.8250301...
         val year = compound(input(start = 100_000, rate = "12")).single()
         assertEquals(112_683L, year.balance)
@@ -19,12 +21,45 @@ class CompoundTest {
     }
 
     @Test
-    fun monthlyContributions_matchTheAnnuityFormula() {
+    fun contributionsAtTheEnd_matchTheOrdinaryAnnuity() {
         // 100.00 a month at 1% a month: 100 * (1.01^12 - 1) / 0.01 = 1268.25
         val year = compound(input(monthly = 10_000, rate = "12")).single()
         assertEquals(126_825L, year.balance)
         assertEquals(120_000L, year.contributed)
         assertEquals(6_825L, year.interest)
+    }
+
+    @Test
+    fun contributionsAtTheStart_matchTheAnnuityDue() {
+        // the ordinary annuity times 1.01 = 1280.93
+        assertEquals(128_093L, compound(input(monthly = 10_000, rate = "12", timing = ContributionTiming.Start)).single().balance)
+    }
+
+    @Test
+    fun yearlyCapitalization_creditsInterestOnlyAtYearEnd() {
+        // 1000.00 at 10%: exactly 1100.00, then 1210.00 (interest on interest only from the second year)
+        val rows = compound(input(start = 100_000, rate = "10", years = 2, cap = Capitalization.Yearly))
+        assertEquals(110_000L, rows[0].balance)
+        assertEquals(121_000L, rows[1].balance)
+    }
+
+    @Test
+    fun yearlyCapitalization_withMonthlyContributions_accruesSimpleInterestWithinTheYear() {
+        // 100.00 a month at 1% a month, interest not compounding within the year.
+        // End of month: month m earns on 100 * (m - 1), sum 66 -> 1200 + 66.00 = 1266.00
+        assertEquals(126_600L, compound(input(monthly = 10_000, rate = "12", cap = Capitalization.Yearly)).single().balance)
+        // Start of month: month m earns on 100 * m, sum 78 -> 1278.00
+        assertEquals(
+            127_800L,
+            compound(input(monthly = 10_000, rate = "12", cap = Capitalization.Yearly, timing = ContributionTiming.Start)).single().balance,
+        )
+    }
+
+    @Test
+    fun yearlyIsNeverMoreThanMonthly() {
+        val monthly = compound(input(start = 100_000, monthly = 5_000, rate = "9", years = 10)).last().balance
+        val yearly = compound(input(start = 100_000, monthly = 5_000, rate = "9", years = 10, cap = Capitalization.Yearly)).last().balance
+        assertTrue(yearly < monthly)
     }
 
     @Test
@@ -38,14 +73,6 @@ class CompoundTest {
     fun inflation_deflatesTheRealBalance() {
         // 1000.00 / 1.03 = 970.87
         assertEquals(97_087L, compound(input(start = 100_000, inflation = "3")).single().realBalance)
-    }
-
-    @Test
-    fun yearlyCompounding_growsByOneStepPerYear() {
-        // 10% yearly on 1000.00: 1100.00, 1210.00 (a Double power may be off by a cent; allow 1)
-        val rows = compound(input(start = 100_000, rate = "10", years = 2, n = 1))
-        assertEquals(110_000.0, rows[0].balance.toDouble(), 1.0)
-        assertEquals(121_000.0, rows[1].balance.toDouble(), 1.0)
     }
 
     @Test

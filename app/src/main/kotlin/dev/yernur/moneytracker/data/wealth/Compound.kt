@@ -4,13 +4,20 @@ import java.math.BigDecimal
 import java.math.MathContext
 import java.math.RoundingMode
 
-/** [annualRatePercent] 12 means 12% a year, compounded [compoundsPerYear] times a year. Contributions are paid at the end of each month. */
+/** When interest is added to the balance that earns further interest. Yearly: interest accrues each month but is credited on the last month of the year. */
+enum class Capitalization { Monthly, Yearly }
+
+/** Whether each month's contribution is paid before (Start) or after (End) that month's interest is calculated. */
+enum class ContributionTiming { Start, End }
+
+/** [annualRatePercent] 12 means 12% a year, accruing r/12 each month. */
 data class CompoundInput(
     val startMinor: Long,
     val annualRatePercent: BigDecimal,
     val monthlyContributionMinor: Long,
     val years: Int,
-    val compoundsPerYear: Int = 12,
+    val capitalization: Capitalization = Capitalization.Monthly,
+    val contributionTiming: ContributionTiming = ContributionTiming.End,
     val inflationPercent: BigDecimal = BigDecimal.ZERO,
 )
 
@@ -20,23 +27,30 @@ data class CompoundYear(val year: Int, val contributed: Long, val interest: Long
 private val precision = MathContext(30)
 private val hundred = BigDecimal(100)
 
-/** Growth factor of one month: (1 + r/n)^(n/12). Exact for monthly compounding; otherwise a Double power, which is plenty for a rate. */
-private fun monthlyFactor(annualRatePercent: BigDecimal, compoundsPerYear: Int): BigDecimal {
-    val perPeriod = BigDecimal.ONE + annualRatePercent.divide(hundred.multiply(BigDecimal(compoundsPerYear)), precision)
-    if (compoundsPerYear == 12) return perPeriod
-    return BigDecimal(Math.pow(perPeriod.toDouble(), compoundsPerYear / 12.0))
-}
-
 fun compound(input: CompoundInput): List<CompoundYear> {
-    require(input.years >= 0 && input.compoundsPerYear > 0) { "years must not be negative and compoundsPerYear must be positive" }
-    val factor = monthlyFactor(input.annualRatePercent, input.compoundsPerYear)
+    require(input.years >= 0) { "years must not be negative" }
+    val monthlyRate = input.annualRatePercent.divide(hundred.multiply(BigDecimal(12)), precision)
     val inflation = BigDecimal.ONE + input.inflationPercent.divide(hundred, precision)
     val contribution = BigDecimal(input.monthlyContributionMinor)
-    var balance = BigDecimal(input.startMinor)
+    var principal = BigDecimal(input.startMinor) // earns interest
+    var pending = BigDecimal.ZERO // yearly capitalization: accrued, not yet earning
     var contributed = input.startMinor
     return (1..input.years).map { year ->
-        repeat(12) { balance = balance.multiply(factor, precision) + contribution }
+        for (month in 1..12) {
+            if (input.contributionTiming == ContributionTiming.Start) principal += contribution
+            val accrued = principal.multiply(monthlyRate, precision)
+            when (input.capitalization) {
+                Capitalization.Monthly -> principal += accrued
+                Capitalization.Yearly -> pending += accrued
+            }
+            if (input.contributionTiming == ContributionTiming.End) principal += contribution
+            if (month == 12) {
+                principal += pending
+                pending = BigDecimal.ZERO
+            }
+        }
         contributed += input.monthlyContributionMinor * 12
+        val balance = principal
         val rounded = balance.setScale(0, RoundingMode.HALF_UP).toLong()
         val real = balance.divide(inflation.pow(year), precision).setScale(0, RoundingMode.HALF_UP).toLong()
         CompoundYear(year, contributed, rounded - contributed, rounded, real)
