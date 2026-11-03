@@ -18,7 +18,7 @@ class ApkInstallerTest {
     private val bytes = ByteArray(200_000) { (it % 251).toByte() }
     private val sha = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
-    private fun installer(content: ByteArray = bytes) = ApkInstaller(context, open = { ByteArrayInputStream(content) })
+    private fun installer(content: ByteArray = bytes) = ApkInstaller(context, open = { _, _ -> Opened(ByteArrayInputStream(content), false) })
     private fun apk(size: Long = bytes.size.toLong(), sha256: String? = sha) = ApkAsset("update.apk", "https://example/update.apk", size, sha256)
 
     @Test
@@ -41,8 +41,42 @@ class ApkInstallerTest {
 
     @Test
     fun aShortDownload_isRejected() {
-        val error = assertThrows(UpdateException::class.java) { installer(bytes.copyOf(1_000)).download(apk(sha256 = null)) {} }
+        val error = assertThrows(java.io.IOException::class.java) { installer(bytes.copyOf(1_000)).download(apk(sha256 = null)) {} }
         assertTrue(error.message!!.contains("incomplete"))
+        assertEquals(1_000L, java.io.File(context.cacheDir, "updates/update.apk.part").length()) // kept, so the next try resumes
+    }
+
+    @Test
+    fun aCutOffDownload_resumesFromThePartialFile() {
+        val offsets = mutableListOf<Long>()
+        val cutOff = object : java.io.InputStream() {
+            var sent = 0
+            override fun read(): Int = throw java.io.IOException("reset")
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                if (sent >= 70_000) throw java.io.IOException("reset")
+                val n = minOf(len, 70_000 - sent)
+                System.arraycopy(bytes, sent, b, off, n)
+                sent += n
+                return n
+            }
+        }
+        val first = ApkInstaller(context, open = { _, offset -> offsets += offset; Opened(cutOff, false) })
+        assertThrows(java.io.IOException::class.java) { first.download(apk()) {} }
+        assertTrue(java.io.File(context.cacheDir, "updates/update.apk.part").length() == 70_000L)
+
+        val second = ApkInstaller(context, open = { _, offset -> offsets += offset; Opened(ByteArrayInputStream(bytes, offset.toInt(), bytes.size), true) })
+        val file = second.download(apk()) {}
+        assertEquals(listOf(0L, 70_000L), offsets)
+        assertEquals(bytes.size.toLong(), file.length())
+        assertTrue(file.readBytes().contentEquals(bytes))
+    }
+
+    @Test
+    fun aServerThatIgnoresRange_restartsFromZero() {
+        installer().download(apk()) {}.delete()
+        java.io.File(context.cacheDir, "updates/update.apk.part").writeBytes(bytes.copyOf(5_000))
+        val file = installer().download(apk()) {}
+        assertTrue(file.readBytes().contentEquals(bytes))
     }
 
     @Test

@@ -13,9 +13,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 /** What the update screen needs from the installer; a fake stands in for it in tests. */
 interface UpdateInstaller {
-    /** Blocking. Downloads and checks the APK; [progress] goes 0..1. */
-    fun download(apk: ApkAsset, progress: (Float) -> Unit): File
-
     /** Hands the file to Android's installer. The system confirms, installs and restarts the app. */
     fun install(file: File)
 }
@@ -25,43 +22,84 @@ object InstallStatus {
     val failure = MutableStateFlow<String?>(null)
 }
 
+/** A response body; [resumed] is true when the server honoured the Range request and the body starts at the requested offset. */
+class Opened(val input: InputStream, val resumed: Boolean) : java.io.Closeable {
+    override fun close() = input.close()
+}
+
 /**
  * Downloads the release APK into the cache and installs it through [PackageInstaller], as an update of this very app. Android only accepts it
  * when it is signed with the same key as the installed one, so a tampered file cannot replace the app; the sha256 check on top catches a bad download early.
+ * A download that is cut off keeps its `.part` file, and the next call continues from there (HTTP Range).
  */
 class ApkInstaller(
     private val context: Context,
-    private val open: (String) -> InputStream = { url ->
-        (URL(url).openConnection() as java.net.HttpURLConnection).apply { connectTimeout = 20_000; readTimeout = 60_000 }.inputStream
+    private val open: (url: String, offset: Long) -> Opened = { url, offset ->
+        val connection = (URL(url).openConnection() as java.net.HttpURLConnection).apply {
+            connectTimeout = 20_000
+            readTimeout = 60_000
+            if (offset > 0) setRequestProperty("Range", "bytes=$offset-")
+        }
+        Opened(connection.inputStream, connection.responseCode == 206)
     },
 ) : UpdateInstaller {
-    override fun download(apk: ApkAsset, progress: (Float) -> Unit): File {
-        val dir = File(context.cacheDir, "updates").apply { deleteRecursively(); mkdirs() } // one update at a time: drop any older download
+    /** Blocking. Downloads and checks the APK; [progress] goes 0..1. An IOException leaves the partial file for the next try. */
+    fun download(apk: ApkAsset, progress: (Float) -> Unit): File {
+        val dir = File(context.cacheDir, "updates").apply { mkdirs() }
         val file = File(dir, apk.name)
-        val digest = MessageDigest.getInstance("SHA-256")
-        var bytes = 0L
-        try {
-            open(apk.url).use { input ->
-                file.outputStream().use { out ->
-                    val buffer = ByteArray(64 * 1024)
-                    while (true) {
-                        val n = input.read(buffer)
-                        if (n < 0) break
-                        out.write(buffer, 0, n)
-                        digest.update(buffer, 0, n)
-                        bytes += n
-                        if (apk.size > 0) progress((bytes.toFloat() / apk.size).coerceAtMost(1f))
-                    }
-                }
-            }
-            if (apk.size > 0 && bytes != apk.size) throw UpdateException("The download is incomplete ($bytes of ${apk.size} bytes).")
-            val actual = digest.digest().joinToString("") { "%02x".format(it) }
-            if (apk.sha256 != null && !actual.equals(apk.sha256, ignoreCase = true)) throw UpdateException("The downloaded file does not match GitHub's checksum.")
-        } catch (e: Exception) {
+        val part = File(dir, apk.name + ".part")
+        dir.listFiles()?.filter { it != file && it != part }?.forEach { it.delete() } // one update at a time: drop any older download
+        if (file.exists()) {
+            runCatching { verify(file, apk) }.onSuccess { return file }
             file.delete()
+        }
+        try {
+            fetch(apk, part, progress)
+            verify(part, apk)
+        } catch (e: UpdateException) {
+            part.delete()
             throw e
         }
+        if (!part.renameTo(file)) throw UpdateException("Could not save the downloaded file.")
         return file
+    }
+
+    private fun fetch(apk: ApkAsset, part: File, progress: (Float) -> Unit) {
+        var offset = if (apk.size > 0 && part.length() in 1 until apk.size) part.length() else 0L
+        open(apk.url, offset).use { opened ->
+            if (!opened.resumed) offset = 0 // the server sent the whole file again
+            java.io.FileOutputStream(part, offset > 0).use { out ->
+                var bytes = offset
+                val buffer = ByteArray(64 * 1024)
+                while (true) {
+                    val n = opened.input.read(buffer)
+                    if (n < 0) break
+                    out.write(buffer, 0, n)
+                    bytes += n
+                    if (apk.size > 0) progress((bytes.toFloat() / apk.size).coerceAtMost(1f))
+                }
+            }
+        }
+    }
+
+    private fun verify(file: File, apk: ApkAsset) {
+        if (apk.size > 0 && file.length() != apk.size) {
+            // A cut-off stream is not a failure to throw away: the next call resumes. Only a full-length file that is wrong gets deleted.
+            if (file.length() < apk.size) throw java.io.IOException("The download is incomplete (${file.length()} of ${apk.size} bytes).")
+            throw UpdateException("The downloaded file has the wrong size.")
+        }
+        if (apk.sha256 == null) return
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(64 * 1024)
+            while (true) {
+                val n = input.read(buffer)
+                if (n < 0) break
+                digest.update(buffer, 0, n)
+            }
+        }
+        val actual = digest.digest().joinToString("") { "%02x".format(it) }
+        if (!actual.equals(apk.sha256, ignoreCase = true)) throw UpdateException("The downloaded file does not match GitHub's checksum.")
     }
 
     override fun install(file: File) {

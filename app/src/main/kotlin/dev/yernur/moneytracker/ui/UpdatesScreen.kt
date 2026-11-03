@@ -36,13 +36,16 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.yernur.moneytracker.data.AppSettings
+import dev.yernur.moneytracker.data.update.DownloadStatus
 import dev.yernur.moneytracker.data.update.InstallStatus
 import dev.yernur.moneytracker.data.update.Release
 import dev.yernur.moneytracker.data.update.UpdateChecker
+import dev.yernur.moneytracker.data.update.UpdateDownloads
 import dev.yernur.moneytracker.data.update.UpdateException
 import dev.yernur.moneytracker.data.update.UpdateInstaller
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -53,6 +56,7 @@ sealed interface UpdateState {
     data object UpToDate : UpdateState
     data class Available(val release: Release) : UpdateState
     data class Downloading(val progress: Float) : UpdateState
+    data class Downloaded(val release: Release, val file: java.io.File) : UpdateState
     data object Installing : UpdateState
     data class Failed(val message: String) : UpdateState
 }
@@ -66,10 +70,13 @@ private fun describe(e: Throwable) = when (e) {
 class UpdatesViewModel(
     private val checker: UpdateChecker?,
     private val installer: UpdateInstaller?,
+    private val downloads: UpdateDownloads?,
     private val settings: AppSettings,
 ) : ViewModel() {
     var state by mutableStateOf<UpdateState>(UpdateState.Idle)
         private set
+
+    private var watching: Job? = null
 
     init {
         // The installer answers in a broadcast, possibly after this screen was left: show a parked failure, once.
@@ -89,24 +96,44 @@ class UpdatesViewModel(
                 .onSuccess {
                     settings.setAvailableUpdate(it?.tag)
                     state = if (it == null) UpdateState.UpToDate else UpdateState.Available(it)
+                    if (it != null) watch(it) // a download started earlier (screen left, phone locked) is picked up again
                 }
                 .onFailure { state = UpdateState.Failed(describe(it)) }
         }
     }
 
-    // shortcut: the download lives in this screen's scope, so leaving the screen cancels it; move it to a service if 49 MB on a slow link becomes a problem
+    /** The download runs in WorkManager, not in this screen: here it is only started and watched. */
     fun install(release: Release) {
-        val installer = installer ?: return
         val apk = release.apk ?: run { state = UpdateState.Failed("This release has no APK attached."); return }
+        val downloads = downloads ?: return
         state = UpdateState.Downloading(0f)
+        downloads.start(apk)
+        watch(release)
+    }
+
+    /** A finished download is already on disk: hand it over. */
+    fun installDownloaded(file: java.io.File) {
+        val installer = installer ?: return
+        state = UpdateState.Installing
         viewModelScope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    val file = installer.download(apk) { state = UpdateState.Downloading(it) }
-                    state = UpdateState.Installing
-                    installer.install(file)
+            runCatching { withContext(Dispatchers.IO) { installer.install(file) } }.onFailure { state = UpdateState.Failed(describe(it)) }
+        }
+    }
+
+    private fun watch(release: Release) {
+        val apk = release.apk ?: return
+        val downloads = downloads ?: return
+        watching?.cancel()
+        watching = viewModelScope.launch {
+            downloads.status(apk).collect { status ->
+                val started = state is UpdateState.Downloading // a download begun on this screen goes straight to the installer
+                when (status) {
+                    DownloadStatus.Idle -> Unit
+                    is DownloadStatus.Running -> state = UpdateState.Downloading(status.progress)
+                    is DownloadStatus.Done -> if (started) installDownloaded(status.file) else if (state is UpdateState.Available) state = UpdateState.Downloaded(release, status.file)
+                    is DownloadStatus.Failed -> if (started) state = UpdateState.Failed(status.message)
                 }
-            }.onFailure { state = UpdateState.Failed(describe(it)) }
+            }
         }
     }
 }
@@ -115,7 +142,7 @@ class UpdatesViewModel(
 @Composable
 fun UpdatesScreen(onBack: () -> Unit) {
     val container = dev.yernur.moneytracker.LocalAppContainer.current
-    val vm = appViewModel { UpdatesViewModel(it.updateChecker, it.updateInstaller, it.settings) }
+    val vm = appViewModel { UpdatesViewModel(it.updateChecker, it.updateInstaller, it.updateDownloads, it.settings) }
     val context = LocalContext.current
     val state = vm.state
     var needsPermission by remember { mutableStateOf(false) }
@@ -150,11 +177,17 @@ fun UpdatesScreen(onBack: () -> Unit) {
                         { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(state.release.pageUrl))) },
                         Modifier.fillMaxWidth().testTag("open-release-page"),
                     ) { Text("Release page") }
+                    ReleaseNotesCard(state.release)
                     if (needsPermission) Text("Allow this app to install updates in the settings that just opened, then come back and tap Download and install.")
                 }
                 is UpdateState.Downloading -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Downloading the update")
+                    Text("Downloading the update. You can leave this screen or lock the phone; it keeps going.")
                     LinearProgressIndicator({ state.progress }, Modifier.fillMaxWidth().testTag("download-progress"))
+                }
+                is UpdateState.Downloaded -> Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.testTag("update-downloaded")) {
+                    Text("Version ${state.release.tag.removePrefix("v")} is downloaded", style = MaterialTheme.typography.titleMedium)
+                    Button({ vm.installDownloaded(state.file) }, Modifier.fillMaxWidth().testTag("install-downloaded")) { Text("Install") }
+                    ReleaseNotesCard(state.release)
                 }
                 UpdateState.Installing -> Text("Installing. Android may ask you to confirm; the app restarts when it is done.", modifier = Modifier.testTag("installing"))
                 is UpdateState.Failed -> Text(state.message, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("update-error"))
@@ -163,4 +196,11 @@ fun UpdatesScreen(onBack: () -> Unit) {
             OutlinedButton(vm::check, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("check-updates")) { Text("Check for updates") }
         }
     }
+}
+
+@Composable
+private fun ReleaseNotesCard(release: Release) {
+    if (release.notes.isEmpty()) return
+    Text("What's new", style = MaterialTheme.typography.titleSmall)
+    ReleaseNotes(release.notes, Modifier.testTag("release-notes"))
 }

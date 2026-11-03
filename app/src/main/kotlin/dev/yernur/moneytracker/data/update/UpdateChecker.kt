@@ -7,7 +7,8 @@ import org.json.JSONObject
 /** The APK attached to a release; [sha256] is GitHub's digest of it (null when the release has none). */
 class ApkAsset(val name: String, val url: String, val size: Long, val sha256: String?)
 
-class Release(val tag: String, val pageUrl: String, val apk: ApkAsset?)
+/** [notes] is the release description GitHub holds, as Markdown (empty when there is none). */
+class Release(val tag: String, val pageUrl: String, val apk: ApkAsset?, val notes: String = "")
 
 class UpdateException(message: String) : Exception(message)
 
@@ -45,7 +46,7 @@ class UpdateChecker(private val transport: HttpTransport, private val installedV
         val latest = parseVersion(tag) ?: throw UpdateException("The latest release has an unexpected name: $tag.")
         val installed = parseVersion(installedVersion) ?: return null // an odd local build: never nag
         if (!isNewer(latest, installed)) return null
-        return Release(tag, json.getString("html_url"), apkOf(json))
+        return Release(tag, json.getString("html_url"), apkOf(json), (if (json.isNull("body")) "" else json.getString("body")).trim())
     }
 
     private fun apkOf(release: JSONObject): ApkAsset? {
