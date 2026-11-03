@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build a fictional `.mmbackup` for README/wiki screenshots. Stdlib only, deterministic.
 
-    python tools/make_demo_backup.py data/demo.mmbackup [--today 2026-11-04]
+    python tools/make_demo_backup.py data/demo/demo.mmbackup [--today 2026-11-04]
 
 The schema is the one in docs/FORMAT.md (user_version 35); every row is invented. The integrity hash is a
 placeholder (the app does not check it).
@@ -170,6 +170,7 @@ def main() -> None:
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
             z.write(db_path, "MyFinance.db")
             z.writestr("backup_meta", json.dumps({"version": 1, "hash": "0" * 64}))
+    args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_bytes(b"\x08" * 8 + buf.getvalue())
     print(f"wrote {args.out}")
 

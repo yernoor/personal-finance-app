@@ -81,7 +81,7 @@ More detail (screens, tips, FAQ) is in the wiki pages under [docs/wiki](docs/wik
 The screenshots come from a generated, fictional backup, never from real data:
 
 ```bash
-python tools/make_demo_backup.py data/demo.mmbackup --today 2026-11-04
+python tools/make_demo_backup.py data/demo/demo.mmbackup --today 2026-11-04
 ```
 
 Copy it to the phone or emulator and import it from *More*. `data/` is git-ignored.
