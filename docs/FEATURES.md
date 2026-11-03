@@ -153,7 +153,11 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 - Data: extend `TxLite` (or add a DAO query by `categoryUid` + date range) with uid, account, comment. Expand state keyed by category uid, reset when the bar changes. Works for Expenses and Income tabs; the "Balance correction" row (null category) expands too. Transfers never appear here.
 - Tests: expanded totals equal the row amount to the cent (same invariant as `buckets`).
 
-### 3. Home-screen widgets (Nothing Phone 3a, Nothing OS 5.0 = Android 17)
+### 3. Home-screen widgets (Nothing Phone 3a, Nothing OS 5.0 = Android 17). BUILT (Glance 1.2.0)
+Built: Month at a glance 2x2, Today 2x2, Quick add 2x1, Limits 4x2, Month by category (Budget) 4x4, Recent operations 4x4, Month dashboard 4x6; More -> Widgets: glass or solid look, Doto numerals on/off; refreshed after every saved change and every 30 min.
+Doto is drawn into a bitmap (Glance cannot set a custom font); the tenge sign and all small text stay in the system font. Seen working on an Android 16 emulator: only Month at a glance was placed and looked at (Doto digits render, glass card readable over a light and a dark wallpaper). **Not yet looked at**: the other six, the solid look, and everything on the Nothing 3a itself.
+Known gaps: the picker shows the app icon instead of a preview (no preview layout or generated preview yet); on the emulator's launcher the 4x6 dashboard is offered as 1x1 (its grid has no room for 6 rows: the Nothing launcher may differ); tapping an operation row is wired to open its edit screen but was never tried; no "hide when locked" (not needed: no balances are shown).
+
 **What the internet says** (checked 2026-11-04):
 - Nothing publishes **no widget SDK or design guide for third-party apps**. Its developer programme covers Glyph (`GlyphMatrix-Developer-Kit`), which is the back LEDs, not home-screen widgets. A request for a widget design manual sits unanswered on Nothing's community forum.
 - Nothing's OS 5.0 page lists "transparent widgets", wallpaper-aware colours and tinted icons for the refreshed home screen; it does **not** mention frosted glass for widgets. (The frosted glass in news about the 3a is the Community Edition's back panel and the OS translucent menus.)
