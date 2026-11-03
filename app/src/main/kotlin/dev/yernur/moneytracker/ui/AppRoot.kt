@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -86,6 +87,9 @@ private const val ENTRY = "entry?uid={uid}&kind={kind}"
 private const val CATEGORY = "category/{uid}?type={type}"
 private const val ACCOUNT = "account/{uid}"
 
+/** Where a widget tap should land: an add screen of this kind ("expense", "income", "transfer"), or the operation with this uid. Null kind and uid: just open the app. */
+data class AppLaunch(val kind: String?, val uid: String?)
+
 private fun entryRoute(uid: String? = null, kind: EntryKind = EntryKind.Expense) = "entry?uid=${uid.orEmpty()}&kind=$kind"
 
 // Motion: screens always overlap while they swap, so nothing blinks out before the next one is there.
@@ -96,7 +100,17 @@ private val slideEasing = FastOutSlowInEasing
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppRoot(nav: NavHostController = rememberNavController()) {
+fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch? = null, onLaunched: () -> Unit = {}) {
+    LaunchedEffect(launch) {
+        val target = launch ?: return@LaunchedEffect
+        val kind = when (target.kind) {
+            "income" -> EntryKind.Income
+            "transfer" -> EntryKind.Transfer
+            else -> EntryKind.Expense
+        }
+        nav.navigate(entryRoute(target.uid, kind))
+        onLaunched()
+    }
     val settings = LocalAppContainer.current.settings
     val tabIds by settings.navTabs.collectAsStateWithLifecycle()
     val tabs = tabIds.mapNotNull { id -> NavTab.entries.firstOrNull { it.id == id } }

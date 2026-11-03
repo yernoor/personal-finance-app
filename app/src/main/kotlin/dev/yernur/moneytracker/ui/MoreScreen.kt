@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Dashboard
@@ -237,6 +238,24 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
             modifier = Modifier.clickable { showRecents = true }.testTag("recents-mode"),
             leadingContent = { Icon(Icons.Outlined.VisibilityOff, null) }, headlineContent = { Text("In the recent apps list") },
             supportingContent = { Text("${recents.label}. Screenshots inside the app always work") },
+        )
+        SectionHeader("Widgets")
+        val widgetGlass by container.settings.widgetGlass.collectAsStateWithLifecycle()
+        val widgetDot by container.settings.widgetDotNumerals.collectAsStateWithLifecycle()
+        fun refreshWidgets() { scope.launch { dev.yernur.moneytracker.widget.updateAllWidgets(context.applicationContext) } }
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier.clickable { container.settings.setWidgetGlass(!widgetGlass); refreshWidgets() }.testTag("widget-glass"),
+            leadingContent = { Icon(Icons.Outlined.Widgets, null) }, headlineContent = { Text("Glass widgets") },
+            supportingContent = { Text(if (widgetGlass) "Dark translucent cards" else "Solid cards that follow light and dark mode") },
+            trailingContent = { Switch(widgetGlass, { container.settings.setWidgetGlass(it); refreshWidgets() }) },
+        )
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier.clickable { container.settings.setWidgetDotNumerals(!widgetDot); refreshWidgets() }.testTag("widget-dot"),
+            leadingContent = { Icon(Icons.Outlined.Tune, null) }, headlineContent = { Text("Dot-matrix numbers") },
+            supportingContent = { Text("The big widget numbers in the Doto font. Widgets show spending, never account balances") },
+            trailingContent = { Switch(widgetDot, { container.settings.setWidgetDotNumerals(it); refreshWidgets() }) },
         )
         SectionHeader("Data and sync")
         val sheetUrl by container.settings.spreadsheetUrl.collectAsStateWithLifecycle()

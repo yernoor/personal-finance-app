@@ -33,6 +33,8 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _recentsMode = MutableStateFlow(
         prefs?.getString(RECENTS_MODE, null)?.let { name -> RecentsMode.entries.firstOrNull { it.name == name } } ?: RecentsMode.Off,
     )
+    private val _widgetGlass = MutableStateFlow(prefs?.getBoolean(WIDGET_GLASS, true) ?: true)
+    private val _widgetDotNumerals = MutableStateFlow(prefs?.getBoolean(WIDGET_DOT_NUMERALS, true) ?: true)
     private val _spreadsheetId = MutableStateFlow(prefs?.getString(SPREADSHEET_ID, null))
     private val _spreadsheetUrl = MutableStateFlow(prefs?.getString(SPREADSHEET_URL, null))
     private val _showAllAccounts = MutableStateFlow(prefs?.getBoolean(SHOW_ALL_ACCOUNTS, false) ?: false)
@@ -158,6 +160,22 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         prefs?.edit()?.putString(ICON_STYLE, style.name)?.apply()
     }
 
+    /** Widget look: glass (dark translucent) or a solid card that follows the phone's light/dark mode. */
+    val widgetGlass: StateFlow<Boolean> = _widgetGlass
+
+    fun setWidgetGlass(enabled: Boolean) {
+        _widgetGlass.value = enabled
+        prefs?.edit()?.putBoolean(WIDGET_GLASS, enabled)?.apply()
+    }
+
+    /** Big widget numerals in the dot-matrix font (Doto) instead of the system font. */
+    val widgetDotNumerals: StateFlow<Boolean> = _widgetDotNumerals
+
+    fun setWidgetDotNumerals(enabled: Boolean) {
+        _widgetDotNumerals.value = enabled
+        prefs?.edit()?.putBoolean(WIDGET_DOT_NUMERALS, enabled)?.apply()
+    }
+
     /** The app-lock PIN (hash only), or null when there is none. */
     val pin: StateFlow<StoredPin?> = _pin
 
@@ -271,6 +289,8 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val HISTORY_PERIOD = "historyPeriod"
         private const val NAV_TABS = "navTabs"
         private const val GLASS = "glass"
+        private const val WIDGET_GLASS = "widgetGlass"
+        private const val WIDGET_DOT_NUMERALS = "widgetDotNumerals"
         private const val PIN_HASH = "pinHash"
         private const val PIN_SALT = "pinSalt"
         private const val PIN_LENGTH = "pinLength"

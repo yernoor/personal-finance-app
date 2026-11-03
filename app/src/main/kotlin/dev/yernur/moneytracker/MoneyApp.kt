@@ -33,6 +33,8 @@ class AppContainer(
     val installedVersion: String = "0.0.0",
     /** Null in tests that do not need files. */
     val backups: DbBackup? = null,
+    /** Redraws the home-screen widgets; a no-op in tests. */
+    private val widgetsChanged: suspend () -> Unit = {},
 ) {
     val ledger = LedgerRepository(db)
     val importer = ImportRepository(db)
@@ -51,6 +53,7 @@ class AppContainer(
     /** Call after anything that changes spending: may post a limit warning. */
     suspend fun afterLedgerChange() {
         notifier?.checkAndNotify()
+        runCatching { widgetsChanged() }
     }
 }
 
@@ -74,6 +77,7 @@ class MoneyApp : Application() {
             { db, settings, forecasts -> WarningNotifier(this, db, settings, forecasts) },
             UpdateChecker(UrlConnectionTransport(), version), ApkInstaller(this), WorkDownloads(this), version,
             DbBackup(db, getDatabasePath(DB_NAME), java.io.File(filesDir, "backups"), DB_VERSION),
+            { dev.yernur.moneytracker.widget.updateAllWidgets(this) },
         )
     }
 

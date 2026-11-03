@@ -18,7 +18,10 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.yernur.moneytracker.data.security.RecentsMode
+import dev.yernur.moneytracker.ui.AppLaunch
 import dev.yernur.moneytracker.ui.LockScreen
+import dev.yernur.moneytracker.widget.EXTRA_KIND
+import dev.yernur.moneytracker.widget.EXTRA_UID
 import dev.yernur.moneytracker.ui.AppRoot
 import dev.yernur.moneytracker.ui.AppTheme
 
@@ -28,6 +31,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val container = (application as MoneyApp).container
         askForNotificationsOnce()
+        launch = launchFrom(intent)
         setContent {
             CompositionLocalProvider(LocalAppContainer provides container) {
                 AppTheme {
@@ -35,12 +39,26 @@ class MainActivity : ComponentActivity() {
                     val pin by container.settings.pin.collectAsStateWithLifecycle()
                     Box {
                         // Kept composed under the lock screen, so unlocking returns to the same screen.
-                        Box(Modifier.blur(if (covered) 30.dp else 0.dp)) { AppRoot() }
+                        Box(Modifier.blur(if (covered) 30.dp else 0.dp)) { AppRoot(launch = launch, onLaunched = { launch = null }) }
                         pin?.takeIf { locked }?.let { LockScreen(container.lock, it.length) }
                     }
                 }
             }
         }
+    }
+
+    /** A widget tap that asked for an add screen or an operation; consumed once by AppRoot. */
+    private var launch by mutableStateOf<AppLaunch?>(null)
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        launch = launchFrom(intent)
+    }
+
+    private fun launchFrom(intent: android.content.Intent?): AppLaunch? {
+        val kind = intent?.getStringExtra(EXTRA_KIND)
+        val uid = intent?.getStringExtra(EXTRA_UID)
+        return if (kind == null && uid == null) null else AppLaunch(kind, uid)
     }
 
     /** Blur mode: true while the app is not in front, so the thumbnail the system takes for recents shows a blurred app. Unverified that every launcher takes it after this is drawn. */
