@@ -7,6 +7,8 @@ import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.sheets.FakeTransport
 import dev.yernur.moneytracker.data.sheets.HttpResponse
 import dev.yernur.moneytracker.data.sheets.ok
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -71,6 +73,31 @@ class FxTest {
         assertEquals(45_326L, repo.convert(100, "USD", "KZT"))
         assertTrue(repo.refreshDaily(day.plusDays(1)))
         assertEquals(2, transport.requests.size)
+    }
+
+    @Test
+    fun aBodyThatIsNotTheFeed_usesUpTheDay_withoutThrowing() = runBlocking {
+        val transport = FakeTransport { ok("<html><body>Service unavailable</body>") } // status 200, not even well-formed XML
+        val repo = repo(transport)
+        assertFalse(repo.refreshDaily(day))
+        assertFalse(repo.refreshDaily(day))
+        assertEquals(1, transport.requests.size)
+        assertTrue(db.fxRateDao().getAll().isEmpty())
+    }
+
+    @Test
+    fun aDocumentTypeDeclaration_isRefused() = runBlocking {
+        val hostile = "<!DOCTYPE rates [<!ENTITY x SYSTEM \"file:///etc/passwd\">]><rates><item><title>USD</title><description>1</description><quant>1</quant></item></rates>"
+        assertFalse(repo(FakeTransport { ok(hostile) }).refreshDaily(day))
+        assertTrue(db.fxRateDao().getAll().isEmpty())
+    }
+
+    @Test
+    fun twoScreensStartingTogether_askTheBankOnce() = runBlocking {
+        val transport = FakeTransport { ok(feed) }
+        val repo = repo(transport)
+        listOf(async { repo.refreshDaily(day) }, async { repo.refreshDaily(day) }).awaitAll()
+        assertEquals(1, transport.requests.size)
     }
 
     @Test

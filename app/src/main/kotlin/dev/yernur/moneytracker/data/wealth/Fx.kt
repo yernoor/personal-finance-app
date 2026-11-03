@@ -30,6 +30,8 @@ class NbkRatesClient(private val transport: HttpTransport) {
 }
 
 fun parseNbkRates(xml: String): Map<String, Double> {
+    // The real feed has no DOCTYPE; refusing one rules out entity tricks in a body from the network without relying on parser features.
+    if (xml.contains("<!DOCTYPE", ignoreCase = true)) throw FxException("The rates feed has an unexpected document type.")
     val factory = DocumentBuilderFactory.newInstance()
     val items = factory.newDocumentBuilder().parse(ByteArrayInputStream(xml.toByteArray(Charsets.UTF_8))).getElementsByTagName("item")
     val rates = LinkedHashMap<String, Double>()
