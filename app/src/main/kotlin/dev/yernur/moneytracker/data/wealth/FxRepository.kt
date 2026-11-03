@@ -13,7 +13,12 @@ import java.io.IOException
 import java.time.LocalDate
 
 /** Caches the National Bank rates in Room and asks the network at most once a day. */
-class FxRepository(private val db: AppDatabase, private val settings: AppSettings, private val client: NbkRatesClient?) {
+class FxRepository(
+    private val db: AppDatabase,
+    private val settings: AppSettings,
+    private val client: NbkRatesClient?,
+    private val now: () -> Long = System::currentTimeMillis,
+) {
     val rates: Flow<Map<String, Double>> = db.fxRateDao().observeAll().map { rows -> rows.associate { it.currencyCode to it.kztPerUnit } }
 
     /** Backup rates overridden by the bank's, for every screen that converts accounts to tenge. */
@@ -43,6 +48,7 @@ class FxRepository(private val db: AppDatabase, private val settings: AppSetting
         }
         db.fxRateDao().upsertAll(fetched.map { (code, rate) -> FxRateEntity(code, rate, today.toString()) })
         settings.setLastRatesDate(today.toString())
+        settings.setRatesUpdatedAt(now())
         true
     }
 }

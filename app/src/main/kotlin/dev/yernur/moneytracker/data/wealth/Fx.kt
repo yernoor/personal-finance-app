@@ -85,3 +85,20 @@ fun convertWithRates(minor: Long, from: String, to: String, rates: Map<Pair<Stri
     dev.yernur.moneytracker.data.Money.convert(minor, from, to, rates)
         ?: dev.yernur.moneytracker.data.Money.convert(minor, from, DEFAULT_CURRENCY, rates)
             ?.let { dev.yernur.moneytracker.data.Money.convert(it, DEFAULT_CURRENCY, to, rates) }
+
+private const val RATE_UNIT = 100_000_000_000L // a billion units in minor units, so small rates keep their digits
+
+/** "1 USD = 453.26 KZT": the foreign currency is the one counted, against tenge; between two foreign ones, the sent currency. Null without a rate. */
+fun rateLabel(from: String, to: String, rates: Map<Pair<String, String>, Double>): String? {
+    if (from == to) return null
+    val (base, quote) = if (from == DEFAULT_CURRENCY) to to from else from to to
+    val converted = convertWithRates(RATE_UNIT, base, quote, rates) ?: return null
+    val value = BigDecimal(converted).divide(BigDecimal(RATE_UNIT))
+    // 453.26 and 1.1032 and 0.01759: cents for big rates, five significant digits for small ones
+    val shown = if (value >= BigDecimal(100)) value.setScale(2, RoundingMode.HALF_UP) else value.round(java.math.MathContext(5))
+    return "1 $base = ${shown.stripTrailingZeros().toPlainString()} $quote"
+}
+
+/** "04.11.2026 09:15", in [zone] (the phone's by default). */
+fun updatedLabel(epochMillis: Long, zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): String =
+    java.time.Instant.ofEpochMilli(epochMillis).atZone(zone).format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"))

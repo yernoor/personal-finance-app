@@ -67,6 +67,7 @@ import dev.yernur.moneytracker.data.wealth.fromDefault
 import dev.yernur.moneytracker.data.wealth.netWorthChange
 import dev.yernur.moneytracker.data.wealth.projectNetWorth
 import dev.yernur.moneytracker.data.wealth.sparklinePoints
+import dev.yernur.moneytracker.data.wealth.updatedLabel
 import java.math.BigDecimal
 import java.time.LocalDate
 
@@ -116,8 +117,10 @@ fun WealthScreen(embedded: Boolean = false, onCompound: () -> Unit, onBack: () -
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                val updatedAt by container.settings.ratesUpdatedAt.collectAsStateWithLifecycle()
                 Text(
-                    data.rates.let { if (it.isEmpty()) "No exchange rates yet" else "National Bank rates" },
+                    if (data.rates.isEmpty()) "No exchange rates yet"
+                    else "National Bank rates" + (updatedAt?.let { ", updated ${updatedLabel(it)}" } ?: ""),
                     style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 CurrencySwitch(shown, choices, { container.settings.setWealthCurrency(it) })

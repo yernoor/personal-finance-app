@@ -17,6 +17,7 @@ import dev.yernur.moneytracker.LocalAppContainer
 import dev.yernur.moneytracker.data.db.AccountEntity
 import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.db.FxRateEntity
+import dev.yernur.moneytracker.data.wealth.updatedLabel
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -30,6 +31,7 @@ import org.robolectric.RobolectricTestRunner
 class TransferAutofillTest {
     @get:Rule val compose = createComposeRule()
     private lateinit var db: AppDatabase
+    private lateinit var container: AppContainer
 
     @Before
     fun setUp() = runBlocking {
@@ -42,7 +44,8 @@ class TransferAutofillTest {
             ),
         )
         db.fxRateDao().upsertAll(listOf(FxRateEntity("USD", 450.0, "2026-11-04")))
-        val container = AppContainer(db)
+        container = AppContainer(db)
+        container.settings.setRatesUpdatedAt(UPDATED_AT)
         compose.setContent { CompositionLocalProvider(LocalAppContainer provides container) { AppTheme { EntryScreen(null, EntryKind.Transfer) {} } } }
     }
 
@@ -66,7 +69,10 @@ class TransferAutofillTest {
         compose.onNodeWithTag("amount").performTextInput("4500")
         compose.waitUntil(10_000) { compose.onAllNodesWithText("10", substring = false).fetchSemanticsNodes().isNotEmpty() }
         received().assertTextContains("10") // 4,500 / 450
-        waitForTag("to-amount-hint")
+        waitForTag("to-amount-rate")
+        // the live bank rate and when it was fetched, instead of a note about the calculation
+        compose.onNodeWithTag("to-amount-rate").assertTextContains("1 USD = 450 KZT · updated ${updatedLabel(UPDATED_AT)}")
+        assertEquals(0, compose.onAllNodesWithText("Calculated with the bank rate", substring = true).fetchSemanticsNodes().size)
 
         compose.onNodeWithTag("amount").performTextReplacement("9000")
         compose.waitUntil(10_000) { compose.onAllNodesWithText("20", substring = false).fetchSemanticsNodes().isNotEmpty() }
@@ -85,7 +91,7 @@ class TransferAutofillTest {
         compose.onNodeWithTag("amount").performTextReplacement("4600")
         compose.waitForIdle()
         received().assertTextContains("9.8")
-        assertEquals(0, compose.onAllNodesWithTag("to-amount-hint").fetchSemanticsNodes().size)
+        compose.onNodeWithTag("to-amount-rate").assertTextContains("1 USD = 450 KZT", substring = true) // still shown after typing
 
         save()
         compose.waitUntil(10_000) { runBlocking { db.transferDao().getAll() }.isNotEmpty() }
@@ -103,8 +109,7 @@ class TransferAutofillTest {
         compose.waitUntil(10_000) { compose.onAllNodesWithText("10", substring = false).fetchSemanticsNodes().isNotEmpty() }
         received().performScrollTo().performTextReplacement("3")
         received().performTextReplacement("")
-        compose.waitUntil(10_000) { compose.onAllNodesWithTag("to-amount-hint").fetchSemanticsNodes().isNotEmpty() }
-        received().assertTextContains("10")
+        compose.waitUntil(10_000) { runCatching { received().assertTextContains("10") }.isSuccess }
     }
 
     @Test
@@ -114,9 +119,13 @@ class TransferAutofillTest {
         tap("to-gbp")
         compose.onNodeWithTag("amount").performTextInput("4500")
         compose.waitForIdle()
-        assertEquals(0, compose.onAllNodesWithTag("to-amount-hint").fetchSemanticsNodes().size)
+        assertEquals(0, compose.onAllNodesWithTag("to-amount-rate").fetchSemanticsNodes().size) // no GBP rate: nothing to show
         save()
         compose.onNodeWithTag("error").assertTextContains("Enter the received amount")
         assertEquals(0, runBlocking { db.transferDao().getAll() }.size)
+    }
+
+    private companion object {
+        const val UPDATED_AT = 1_793_700_000_000L
     }
 }

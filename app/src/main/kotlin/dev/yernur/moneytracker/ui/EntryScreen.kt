@@ -66,6 +66,8 @@ import dev.yernur.moneytracker.data.Money
 import dev.yernur.moneytracker.data.TransactionDraft
 import dev.yernur.moneytracker.data.TransferDraft
 import dev.yernur.moneytracker.data.wealth.convertWithRates
+import dev.yernur.moneytracker.data.wealth.rateLabel
+import dev.yernur.moneytracker.data.wealth.updatedLabel
 import kotlinx.coroutines.flow.first
 import dev.yernur.moneytracker.data.db.AccountEntity
 import dev.yernur.moneytracker.data.db.AppDatabase
@@ -100,6 +102,8 @@ class EntryViewModel(
     private val afterSave: suspend () -> Unit = {},
     /** Rates for the received amount of a transfer between currencies (bank over backup). */
     private val rates: suspend () -> Map<Pair<String, String>, Double> = { emptyMap() },
+    /** When the bank rates were fetched (epoch millis), for the line under the received amount. */
+    private val ratesUpdatedAt: () -> Long? = { null },
     private val today: () -> LocalDate = LocalDate::now,
 ) : ViewModel() {
     var kind by mutableStateOf(initialKind)
@@ -112,7 +116,10 @@ class EntryViewModel(
     var toAccountUid by mutableStateOf<String?>(null)
         private set
     /** The received amount was typed by the owner (or stored with the transfer), so the converted figure no longer overwrites it. */
-    var toAmountTyped by mutableStateOf(false)
+    private var toAmountTyped = false
+
+    /** "1 USD = 453.26 KZT · updated 04.11.2026 09:15" for the chosen pair of accounts; empty when there is nothing to show. */
+    var rateNote by mutableStateOf("")
         private set
     var categoryUid by mutableStateOf<String?>(null)
     var date by mutableStateOf(today())
@@ -173,6 +180,17 @@ class EntryViewModel(
     fun pickAccount(uid: String) { accountUid = uid; toAmountTyped = false; fillReceived() }
 
     fun pickToAccount(uid: String) { toAccountUid = uid; toAmountTyped = false; fillReceived() }
+
+    /** Call when the accounts or the account list change. */
+    fun refreshRateNote() {
+        val from = currencyOf(accountUid)
+        val to = currencyOf(toAccountUid)
+        if (kind != EntryKind.Transfer || from == null || to == null || from == to) { rateNote = ""; return }
+        viewModelScope.launch {
+            val label = rateLabel(from, to, rates())
+            rateNote = if (label == null) "" else label + (ratesUpdatedAt()?.let { " · updated ${updatedLabel(it)}" } ?: "")
+        }
+    }
 
     /** Fills "Amount received" from the sent amount and the rates, while the owner has not typed it. Left empty when no rate is known. */
     private fun fillReceived() {
@@ -237,12 +255,13 @@ class EntryViewModel(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
-    val vm = appViewModel(key = "entry-$uid-$kind") { EntryViewModel(it.db, it.ledger, uid, kind, it::afterLedgerChange, { it.fx.allRates.first() }) }
+    val vm = appViewModel(key = "entry-$uid-$kind") { EntryViewModel(it.db, it.ledger, uid, kind, it::afterLedgerChange, { it.fx.allRates.first() }, { it.settings.ratesUpdatedAt.value }) }
     val options by vm.options.collectAsStateWithLifecycle()
     val balances by vm.balances.collectAsStateWithLifecycle()
     var confirmDelete by remember { mutableStateOf(false) }
     var addingTag by remember { mutableStateOf(false) }
     val isTransfer = vm.kind == EntryKind.Transfer
+    LaunchedEffect(vm.accountUid, vm.toAccountUid, vm.kind, options.accounts) { vm.refreshRateNote() }
     val amountFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { if (!vm.isEditing) amountFocus.requestFocus() } // fast entry: keyboard is ready on open
 
@@ -297,11 +316,8 @@ fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
                 BalanceLine(balances[vm.toAccountUid], vm.currencyOf(vm.toAccountUid), received?.takeIf { it > 0 && !vm.isEditing }, "to-balance")
                 if (vm.needsToAmount()) {
                     AmountField(vm.toAmount, vm::changeToAmount, "Amount received", vm.currencyOf(vm.toAccountUid).orEmpty(), "to-amount")
-                    if (!vm.toAmountTyped && vm.toAmount.isNotEmpty()) {
-                        Text(
-                            "Calculated with the bank rate. Change it to what your bank really gave.",
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("to-amount-hint"),
-                        )
+                    if (vm.rateNote.isNotEmpty()) {
+                        Text(vm.rateNote, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("to-amount-rate"))
                     }
                 }
             } else {

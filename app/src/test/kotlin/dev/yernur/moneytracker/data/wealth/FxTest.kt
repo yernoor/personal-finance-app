@@ -83,6 +83,15 @@ class FxTest {
     }
 
     @Test
+    fun aSuccessfulFetch_recordsWhenItHappened_aFailedOneDoesNot() = runBlocking {
+        val own = AppSettings()
+        FxRepository(db, own, NbkRatesClient(FakeTransport { HttpResponse(500, "") }), now = { 111L }).refreshDaily(day)
+        assertNull(own.ratesUpdatedAt.value)
+        FxRepository(db, own, NbkRatesClient(FakeTransport { ok(feed) }), now = { 222L }).refreshDaily(day.plusDays(1))
+        assertEquals(222L, own.ratesUpdatedAt.value)
+    }
+
+    @Test
     fun aBodyThatIsNotTheFeed_usesUpTheDay_withoutThrowing() = runBlocking {
         val transport = FakeTransport { ok("<html><body>Service unavailable</body>") } // status 200, not even well-formed XML
         val repo = repo(transport)
@@ -176,5 +185,29 @@ class ConvertWithRatesTest {
         assertEquals(100L, convertWithRates(45_000, "KZT", "USD", rates))
         assertEquals(111_111L, convertWithRates(100_000, "EUR", "USD", rates)) // 1000.00 EUR = 500,000 KZT = 1111.11 USD
         assertNull(convertWithRates(100, "USD", "GBP", rates))
+    }
+}
+
+class RateLabelTest {
+    private val rates = mapOf(("USD" to "KZT") to 453.26, ("EUR" to "KZT") to 500.0, ("VND" to "KZT") to 0.01759)
+
+    @Test
+    fun theForeignCurrencyIsCounted_againstTenge_inEitherDirection() {
+        assertEquals("1 USD = 453.26 KZT", rateLabel("USD", "KZT", rates))
+        assertEquals("1 USD = 453.26 KZT", rateLabel("KZT", "USD", rates))
+        assertEquals("1 EUR = 1.1031 USD", rateLabel("EUR", "USD", rates)) // 500 / 453.26 = 1.10312
+        assertEquals("1 VND = 0.01759 KZT", rateLabel("VND", "KZT", rates))
+        assertEquals("1 USD = 450 KZT", rateLabel("USD", "KZT", mapOf(("USD" to "KZT") to 450.0)))
+    }
+
+    @Test
+    fun noLabelForTheSameCurrencyOrAMissingRate() {
+        assertNull(rateLabel("USD", "USD", rates))
+        assertNull(rateLabel("GBP", "KZT", rates))
+    }
+
+    @Test
+    fun updatedLabel_isDayMonthYearAndTime() {
+        assertEquals("04.11.2026 09:15", updatedLabel(1_793_783_700_000L, java.time.ZoneOffset.UTC))
     }
 }
