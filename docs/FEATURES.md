@@ -133,15 +133,64 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 - (original request) Redraw all category/account icons from scratch (original art). Colors derive from the Material 3 scheme / chosen accent,
   with enough chroma and hue spread that categories stay easy to tell apart.
 
+## Planned, not built (owner requests, 2026-11-04)
+
+### 1. PIN lock and hidden recents
+- **Lock**: 4-6 digit PIN, stored as a salted PBKDF2 hash (never the PIN). Wrong tries back off (30 s, 1 min, 5 min...). Optional biometric unlock
+  (`androidx.biometric`, new dependency). Auto-lock delay in More: immediately / 30 s / 1 min / 5 min after the app leaves the screen.
+  The gate is a full-screen layer above `AppRoot` in `MainActivity`; its "unlocked" state is not saved across process death.
+- **Recents privacy**, setting with three modes: Off / Blur / Hide. Screenshots stay allowed inside the app in every mode, so `FLAG_SECURE` is never set while the app is in front.
+  - *Hide*: `Activity.setRecentsScreenshotEnabled(false)` while the app is paused (API 33; the exact behaviour is **unverified**, the docs fetch did not cover it), or `FLAG_SECURE` set in `onPause` and cleared in `onResume` (this also blanks the thumbnail and the app in screen recordings only while backgrounded).
+  - *Blur*: Android has no "blurred thumbnail" switch. Draw a frosted cover (reuse the `Glass.kt` backdrop, or `Modifier.blur`, API 31) over the whole UI in `onPause`. **Unverified**: the system takes the thumbnail after `onPause`, so the cover may not be drawn in time on every launcher; test on the Nothing 3a and fall back to Hide if it flashes the real content.
+  - `onPause` also fires for permission dialogs and the system file picker, so the cover must not trigger the lock timer, only the cover.
+- **Amounts outside the app**: with the PIN on, widgets (below) hide amounts when the phone is locked, and warning notifications get a private version (no amounts) for the lock screen.
+- **Forgot PIN**: there is no server. Recovery = clear app data and re-sync from the Sheet (so sync should have run). Alternative: allow the phone's own screen lock as a fallback (`DEVICE_CREDENTIAL`). Owner to choose.
+- Tests: hash/verify/back-off as pure functions; Robolectric UI test that a locked app shows the keypad and never composes the screens.
+
+### 2. Charts: expand a category to its transactions
+- Today `CategoryAmountRow` ([ChartsScreen.kt](app/src/main/kotlin/dev/yernur/moneytracker/ui/ChartsScreen.kt)) is a flat row; the chart rows come from `TxLite`, which has no comment or uid.
+- Plan: tap a row to expand it in place (chevron, animated) into that category's operations in the **selected bar's period**: date, account, comment, amount. Tap an operation to open the edit screen; a small "Open in History" link carries the category and period.
+- Data: extend `TxLite` (or add a DAO query by `categoryUid` + date range) with uid, account, comment. Expand state keyed by category uid, reset when the bar changes. Works for Expenses and Income tabs; the "Balance correction" row (null category) expands too. Transfers never appear here.
+- Tests: expanded totals equal the row amount to the cent (same invariant as `buckets`).
+
+### 3. Home-screen widgets (Nothing Phone 3a, Nothing OS 5.0 = Android 17)
+**What the internet says** (checked 2026-11-04):
+- Nothing publishes **no widget SDK or design guide for third-party apps**. Its developer programme covers Glyph (`GlyphMatrix-Developer-Kit`), which is the back LEDs, not home-screen widgets. A request for a widget design manual sits unanswered on Nothing's community forum.
+- Nothing's OS 5.0 page lists "transparent widgets", wallpaper-aware colours and tinted icons for the refreshed home screen; it does **not** mention frosted glass for widgets. (The frosted glass in news about the 3a is the Community Edition's back panel and the OS translucent menus.)
+- So "Nothing style" widgets are ordinary Android app widgets that we style ourselves. Standard docs: [widget layouts and sizes](https://developer.android.com/develop/ui/views/appwidgets/layouts), [enhance widgets (dynamic colours)](https://developer.android.com/develop/ui/views/appwidgets/enhance), [Jetpack Glance](https://developer.android.com/develop/ui/compose/glance).
+- Nothing's own look, from reviews: monochrome, dot-matrix type (Ndot / Doto-like font), high contrast, big numerals. The Nothing launcher shows the widget background transparent or not as the user chooses.
+
+**Frosted glass: the hard limit.** An app widget is `RemoteViews` drawn by the launcher; the app cannot blur what is behind it. Real backdrop blur is impossible from our side (unverified whether Nothing OS 5.0 blurs widgets itself: test on the phone). We can fake the look: translucent white/black fill (about 12-25% alpha) + 1 dp light edge + big rounded corners (use `system_app_widget_background_radius`) + soft inner highlight drawn as a drawable. That reads as glass on a wallpaper and also matches the in-app "Liquid glass" option.
+
+**Build approach (proposal).** Jetpack Glance (Compose-style, RemoteViews underneath; not interoperable with normal Compose, so widgets get their own small composables and share only the data layer). Alternative: plain `RemoteViews` XML if Glance fights the glass drawables. Responsive via `SizeMode.Responsive` / `targetCellWidth/Height`, `previewLayout`, `@android:id/background` for the launch animation. Data from Room via a small read-only repository; refresh from WorkManager and after each saved transaction (`updateAll`). Style switch in More: Glass / Dot-matrix mono / Material-you colours. Tap opens the matching screen (or add-entry).
+Sizes on a 5x4 grid are roughly 73n-16 by 118m-16 dp (Android docs, Pixel 4; the 3a's grid may differ, measure it).
+
+| Widget | Size | Shows | Tap |
+|---|---|---|---|
+| Quick add | 2x1 (or 1x1) | Expense / Income / Transfer buttons | opens add screen on that kind |
+| Month at a glance | 2x2 | Spent this month, bar vs. projection, limit warning dot | Home |
+| Total balance | 2x2 | Main-accounts total, second line = incl. hidden; hides when locked | Accounts |
+| Today | 2x2 | Spent today, last 3 operations | History |
+| Limits | 4x2 | Top 3-4 categories as bars vs limit (+ projection tick) | Charts, forecast tab |
+| Budget + chart | 4x4 | Month category stacked bar, top categories, projection line (the Home/Charts summary) | Charts |
+| Accounts | 4x4 | Accounts with balances, scrollable list | Accounts |
+| Recent operations | 4x4 / 4x6 | Last 8-12 operations, per-row category icon, tap to edit | edit screen |
+| Month dashboard | 4x6 | Totals + chart + limits + recent in one tall card | Home |
+
+- **From the wealth branch** (`claude/finance-app-features-208bd5`, not merged; the Wealth screen is still uncommitted there, so it may change): net worth + the 30-day change as 2x2; a goal progress ring as 2x2; compound-interest "balance in N years" as 2x2 (the scenario is typed in the app, the widget only shows the last saved one); bond coupon/maturity ladder, "next coupon in 12 days, 14,500 KZT" as 4x2; financial-health tiles (savings rate, months covered) as 4x2; a 4x4 "wealth" card with net worth sparkline from the daily snapshots. These need that branch merged first, so they are last in the order.
+- **Suggested build order**: shared widget style + Month at a glance (2x2) + Quick add, then Total balance, Limits, Recent operations (4x4); the 4x6 and wealth widgets last. Widgets reveal data on the home screen, so the PIN work (item 1) goes first: the "hide amounts when locked" rule is part of it.
+- **Open for the owner**: which of the nine you would actually use; whether amounts should show on the home screen at all; widget font (system, or a bundled open-licence dot-matrix font: check the licence, do not copy Nothing's own font files).
+- Tests: Glance has no Robolectric-friendly renderer, so keep the logic (what each widget shows, formatting, hide-when-locked) in plain functions with unit tests, and check the look on the emulator and the phone.
+
 ## Other / unverified, decide later
 
 | Feature | Rating | Notes |
 |---|---|---|
-| PIN lock | nice | Settings menu has PIN. Not opened. |
+| PIN lock + hidden recents | must | Owner request 2026-11-04, plan in "Planned, not built" below. |
 | Themes / appearance | nice | Own palette; follow system dark mode. |
 | Photo attachments on transactions | skip | "Photo" row exists in add-transaction; no table seen in backup (`sync_file` has 0 rows). |
 | Transaction search and filters | nice | Search icons seen (tag search, transfers). Operation-list filters not captured. |
-| Home-screen widgets | skip | Not seen. |
+| Home-screen widgets | must | Owner request 2026-11-04 (Nothing Phone 3a, Nothing OS 5.0), plan in "Planned, not built" below. |
 | Settings: Personalization, Advanced customization, Data and storage, Extra | unknown | Not opened. Owner to say if anything there matters. |
 | "Restore purchases", "Turn off ads", share / rate / contact support | skip | Seen in drawer. Non-goal (no ads, no payments). |
 | Navigation drawer with profile header and total balance | nice | Seen. Header shows a name and balance; last-sync timestamp at the bottom (maps to our Sheets sync status). |
