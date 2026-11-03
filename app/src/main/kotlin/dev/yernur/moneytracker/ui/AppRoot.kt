@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Label
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.BarChart
@@ -80,6 +81,7 @@ enum class NavTab(val id: String, val label: String, val icon: ImageVector) {
     Accounts("accounts", "Accounts", Icons.Outlined.AccountBalanceWallet),
     Categories("categories", "Categories", Icons.Outlined.Category),
     Tags("tags", "Tags", Icons.AutoMirrored.Outlined.Label),
+    Wealth("wealth", "Wealth", Icons.AutoMirrored.Outlined.TrendingUp),
 }
 
 private const val ENTRY = "entry?uid={uid}&kind={kind}"
@@ -233,8 +235,11 @@ fun AppRoot(nav: NavHostController = rememberNavController()) {
                     onCategories = { nav.navigate("categories") }, onTags = { nav.navigate("tags") },
                     onNavbar = { nav.navigate("navbar-settings") }, onHomeLayout = { nav.navigate("home-settings") },
                     onSync = { nav.navigate("sync") }, onUpdates = { nav.navigate("updates") },
-                    onCompound = { nav.navigate("compound") },
+                    onCompound = { nav.navigate("compound") }, onWealth = { nav.navigate("wealth") },
                 )
+            }
+            composable("wealth") {
+                WealthScreen(embedded = "wealth" in tabRoutes, onCompound = { nav.navigate("compound") }, onBack = { nav.popBackStack() })
             }
             composable("compound") { CompoundScreen { nav.popBackStack() } }
             composable("sync") { SyncScreen { nav.popBackStack() } }

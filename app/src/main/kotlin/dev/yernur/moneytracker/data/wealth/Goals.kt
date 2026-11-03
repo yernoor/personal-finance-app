@@ -33,3 +33,11 @@ private fun requiredMonthly(current: Long, target: Long, months: Int, annualRetu
     if (gap.signum() <= 0) return 0 // the current money alone grows past the target
     return gap.multiply(i, precision).divide(growth - BigDecimal.ONE, 0, RoundingMode.CEILING).toLong()
 }
+
+/** How net worth moved: the difference to the newest snapshot that is at least [days] old, else to the oldest one (null with no earlier snapshot). */
+fun netWorthChange(snapshotTotals: List<Pair<LocalDate, Long>>, today: LocalDate, current: Long, days: Long = 30): Pair<Long, LocalDate>? {
+    val earlier = snapshotTotals.filter { it.first < today }.sortedBy { it.first }
+    if (earlier.isEmpty()) return null
+    val base = earlier.lastOrNull { it.first <= today.minusDays(days) } ?: earlier.first()
+    return (current - base.second) to base.first
+}

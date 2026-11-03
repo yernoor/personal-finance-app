@@ -232,7 +232,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
 
     companion object {
         const val DEFAULT_THRESHOLD = 100
-        val NAV_POOL = listOf("home", "history", "charts", "accounts", "categories", "tags")
+        val NAV_POOL = listOf("home", "history", "charts", "accounts", "categories", "tags", "wealth")
         val NAV_DEFAULT = NAV_POOL.take(4)
         const val NAV_MIN = 2
         const val NAV_MAX = 5

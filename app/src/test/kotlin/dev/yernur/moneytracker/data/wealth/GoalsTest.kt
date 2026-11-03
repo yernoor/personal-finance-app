@@ -47,3 +47,20 @@ class GoalsTest {
         assertNull(goalProgress(0, 1_000_000, null, today).requiredMonthly)
     }
 }
+
+class NetWorthChangeTest {
+    private val today = LocalDate.of(2026, 11, 4)
+    private val history = listOf(LocalDate.of(2026, 9, 1) to 100L, LocalDate.of(2026, 10, 3) to 150L, LocalDate.of(2026, 11, 1) to 190L)
+
+    @Test
+    fun comparesWithTheNewestSnapshotAtLeastThirtyDaysOld() {
+        assertEquals((200L - 150L) to LocalDate.of(2026, 10, 3), netWorthChange(history, today, 200))
+    }
+
+    @Test
+    fun fallsBackToTheOldestSnapshot_andIsNullWithNoEarlierOne() {
+        assertEquals((200L - 190L) to LocalDate.of(2026, 11, 1), netWorthChange(history.takeLast(1), today, 200))
+        assertNull(netWorthChange(listOf(today to 190L), today, 200)) // today's own snapshot is not a comparison
+        assertNull(netWorthChange(emptyList(), today, 200))
+    }
+}

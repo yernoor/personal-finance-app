@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Label
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.BlurOn
@@ -74,7 +75,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onCompound: () -> Unit) {
+fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onCompound: () -> Unit, onWealth: () -> Unit) {
     var showReminder by remember { mutableStateOf(false) }
     var showWarnings by remember { mutableStateOf(false) }
     var showHistoryPeriod by remember { mutableStateOf(false) }
@@ -110,6 +111,12 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
     }
     Column(Modifier.verticalScroll(rememberScrollState())) {
         SectionHeader("Wealth")
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+            modifier = Modifier.clickable(onClick = onWealth).testTag("open-wealth"),
+            leadingContent = { Icon(Icons.AutoMirrored.Outlined.TrendingUp, null) }, headlineContent = { Text("Wealth") },
+            supportingContent = { Text("Net worth, goals, bonds, monthly money") },
+        )
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
             modifier = Modifier.clickable(onClick = onCompound).testTag("open-compound"),

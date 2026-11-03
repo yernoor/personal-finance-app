@@ -144,7 +144,7 @@ network call is the daily rate fetch.
 6. **Currency converter.** Rates from the National Bank of Kazakhstan feed (`nationalbank.kz/rss/get_rates.cfm?fdate=DD.MM.YYYY`, verified 2026-11-04: returns KZT per `quant` units).
    The owner allows **one request per day**, cached; the converter works offline on the cached rates. The backup's `rate` table is not used.
 
-### Wealth backend as built (2026-11-04; unit-tested on Robolectric, no UI yet)
+### Wealth backend as built (2026-11-04; unit-tested on Robolectric)
 Code in `data/wealth/`, schema 2 -> 6 (one migration per step, each tested). All money is `Long` minor units in KZT unless a row names its currency.
 - `Compound.kt`: monthly or yearly capitalization (yearly = interest accrues monthly on the principal and is credited in month 12), contributions at start or end of month, optional inflation. Checked against hand-computed annuity values.
 - `Fx.kt` / `FxRepository`: National Bank feed parsed per `quant`, cached in `fx_rate`, at most one request per local day; an unreachable network does not use up the day, a bad HTTP answer does. Converts through KZT.
@@ -153,6 +153,10 @@ Code in `data/wealth/`, schema 2 -> 6 (one migration per step, each tested). All
   A broker account tracked as an app account AND as bonds would count twice in net worth: use one of the two.
 - `Health.kt`: available per month = income - average ledger spending (last 3 full months, balance corrections skipped) - obligations not already in the ledger (`inLedger` flag per item); savings rate, obligations share, months of expenses covered. `projectNetWorth` compounds accounts and investments at their own rates and splits the monthly surplus between them.
 - Transfers live in their own table and are never income or expense: a regression test (`HealthTest`) moves money between accounts and checks spending, the health summary and net worth do not change.
+- UI (owner chose the Material style from the mock-ups): `ui/WealthScreen` (More > Wealth, or add it as a bottom-bar tab in Navigation bar settings) and `ui/CompoundScreen` (More > Compound interest, or the button on Wealth).
+  Both have a currency switch (`CurrencySwitch`; KZT plus the cached USD/EUR/RUB/...); the choice is remembered (`AppSettings.wealthCurrency`) and stored amounts stay in KZT. The calculator converts its typed amounts when the currency changes.
+  Items are added and edited in dialogs (`FormDialog`): manual assets and loans, goals, bonds, income and payments. Covered by Robolectric flow tests (`WealthScreenTest`, `CompoundScreenTest`).
+  Not checked: the screens on the emulator or the phone (only Robolectric).
 - Known gap: an investment logged as an expense category (current practice, question 6 above) counts as spending in the health summary.
 
 ## Other / unverified, decide later
