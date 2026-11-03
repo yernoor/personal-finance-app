@@ -61,6 +61,12 @@ class AppContainer(
         runCatching { withContext(Dispatchers.IO) { fx.refreshDaily(today) } }
     }
 
+    /** What the app does once on start: yesterday's gap in the history is filled with today's point. Rates first, so a foreign account has its rate. */
+    suspend fun dailyWealthRefresh() {
+        refreshRatesDaily()
+        snapshotNetWorth()
+    }
+
     /** Writes today's net worth snapshot (once per day; later calls the same day refresh it). Silent on failure. */
     suspend fun snapshotNetWorth(today: LocalDate = LocalDate.now()) {
         runCatching { wealth.recordSnapshot(today) }

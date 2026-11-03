@@ -66,6 +66,7 @@ import dev.yernur.moneytracker.data.wealth.currencyChoices
 import dev.yernur.moneytracker.data.wealth.fromDefault
 import dev.yernur.moneytracker.data.wealth.netWorthChange
 import dev.yernur.moneytracker.data.wealth.projectNetWorth
+import dev.yernur.moneytracker.data.wealth.sparklinePoints
 import java.math.BigDecimal
 import java.time.LocalDate
 
@@ -163,7 +164,7 @@ private fun NetWorthCard(data: WealthOverview, show: (Long) -> String) {
             Text("Net worth", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
             Text(show(total), fontSize = 34.sp, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.testTag("net-worth"))
             Text(
-                change?.let { (diff, since) -> "${if (diff >= 0) "+" else ""}${show(diff)} since $since" } ?: "History starts today: one point is saved each day",
+                change?.let { (diff, since) -> "${if (diff >= 0) "+" else ""}${show(diff)} since $since" } ?: "History starts today: one point is saved each day you open the app",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
             if (data.netWorth.missingCurrencies.isNotEmpty()) {
@@ -172,19 +173,19 @@ private fun NetWorthCard(data: WealthOverview, show: (Long) -> String) {
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.padding(top = 4.dp).testTag("missing-rates"),
                 )
             }
-            if (data.snapshots.size >= 2) Sparkline(data.snapshots.map { it.totalMinor }, MaterialTheme.colorScheme.primary, Modifier.fillMaxWidth().height(56.dp).padding(top = 12.dp))
+            sparklinePoints(data.snapshots.map { LocalDate.parse(it.date) to it.totalMinor })?.let {
+                Sparkline(it, MaterialTheme.colorScheme.primary, Modifier.fillMaxWidth().height(56.dp).padding(top = 12.dp))
+            }
         }
     }
 }
 
 @Composable
-private fun Sparkline(values: List<Long>, color: Color, modifier: Modifier) {
+private fun Sparkline(points: List<Pair<Float, Float>>, color: Color, modifier: Modifier) {
     Canvas(modifier) {
-        val low = values.min().toFloat()
-        val span = (values.max().toFloat() - low).coerceAtLeast(1f)
         val path = Path()
-        values.forEachIndexed { i, v ->
-            val point = Offset(size.width * i / (values.size - 1), size.height - (v - low) / span * size.height)
+        points.forEachIndexed { i, (x, y) ->
+            val point = Offset(size.width * x, size.height * (1 - y))
             if (i == 0) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y)
         }
         drawPath(path, color, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
