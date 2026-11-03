@@ -180,7 +180,7 @@ Sizes on a 5x4 grid are roughly 73n-16 by 118m-16 dp (Android docs, Pixel 4; the
 - **Wealth widgets: dropped** (owner, 2026-11-04). The wealth branch (`claude/finance-app-features-208bd5`) gets no widgets.
 - **Suggested build order**: shared widget style + Month at a glance (2x2) + Quick add + Today, then Limits and Recent operations (4x4); the 4x6 Month dashboard last.
 - **Owner decisions (2026-11-04)**: likes all of them. Spending amounts may show on the home screen; **account balances and totals never do**, which removed "Total balance" and "Accounts" from the table.
-- **Font (owner decision, 2026-11-04)**: the system font for the whole app and for widget small text. Only the optional big numerals in widgets are still open; options, all free fonts bundled under their licence (never copy Nothing's own Ndot files):
+- **Font (owner decision, 2026-11-04)**: the system font for the whole app and for widget small text; Doto for widget big numerals. Options considered, all free fonts bundled under their licence (never copy Nothing's own Ndot files):
   | Option | Look | Licence |
   |---|---|---|
   | System / Roboto | Neutral, matches the rest of the app | Apache 2.0 (system font, nothing to bundle) |
@@ -188,7 +188,7 @@ Sizes on a 5x4 grid are roughly 73n-16 by 118m-16 dp (Android docs, Pixel 4; the
   | Geist Mono | Same family, monospaced digits: amounts line up | SIL OFL 1.1 (third-party listing; check the repo's LICENSE) |
   | Doto (Google Fonts, Oliver Lalan) | True dot-matrix, variable weight 100-900, rounded-dot axis | SIL OFL 1.1 (Fontsource, Google Fonts mirror) |
   | Geist Pixel (Vercel) | Pixel variants (square, grid, circle, triangle, line) for display text | OFL inferred from the family, not stated in its repo: verify before bundling |
-  Still to decide: use the system font for the big numerals too, or Doto there for the dot-matrix look (Doto is a display face: nothing below about 16 sp; check Cyrillic category names render, the sources say 382 languages, unverified for our titles). Make it a switch in the widget style setting.
+  **Decided (owner, 2026-11-04, after a mock-up of both):** Doto for the big numerals only (bundled font file, OFL licence text shipped with the app); system font for everything else, including small amounts, because Doto is a display face and stays at 16 sp or larger. Still to check on the phone: Cyrillic category names are not set in Doto, so only digits and the currency sign matter; verify the tenge sign (₸) exists in Doto, else fall back to the system font for it.
 - Tests: Glance has no Robolectric-friendly renderer, so keep the logic (what each widget shows, formatting, no balances) in plain functions with unit tests, and check the look on the emulator and the phone.
 
 ### 4. Local database backup and restore (owner request, 2026-11-04)
