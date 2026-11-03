@@ -270,7 +270,12 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
         SectionHeader("Widgets")
         val widgetGlass by container.settings.widgetGlass.collectAsStateWithLifecycle()
         val widgetDot by container.settings.widgetDotNumerals.collectAsStateWithLifecycle()
-        fun refreshWidgets() { scope.launch { dev.yernur.moneytracker.widget.updateAllWidgets(context.applicationContext) } }
+        fun refreshWidgets() {
+            scope.launch {
+                dev.yernur.moneytracker.widget.updateAllWidgets(context.applicationContext)
+                dev.yernur.moneytracker.widget.updateWidgetPreviews(context.applicationContext)
+            }
+        }
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             modifier = Modifier.clickable { container.settings.setWidgetGlass(!widgetGlass); refreshWidgets() }.testTag("widget-glass"),

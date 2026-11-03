@@ -64,4 +64,12 @@ class WidgetDataTest {
         assertEquals("0", wholeUnits(19))
         assertEquals("8 450", wholeUnits(845_000))
     }
+
+    @Test
+    fun sampleDataFillsEveryWidgetAndHasNoBalances() {
+        val sample = sampleWidgetData(today)
+        assertTrue(sample.monthSpent > 0 && sample.todayCount > 0)
+        assertTrue(sample.limits.size >= 3 && sample.topCategories.size >= 5 && sample.recent.size >= 8)
+        assertTrue(sample.limits.any { it.spent > it.limit })
+    }
 }
