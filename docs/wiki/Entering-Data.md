@@ -16,7 +16,7 @@ Tap **+** (bottom right of Home and History).
 The calculator icon in the amount field opens a keypad: `C`, smart parentheses, `%`, `÷ × − +`, decimals, backspace, `=` and a live preview. Percent works like the phone's calculator: `1000 + 10%` = 1100, `200 × 10%` = 20. **Use result** puts it in the field. Results round to cents.
 
 ## Transfer
-Choose **Transfer**, pick From and To accounts, amount, date and comment. Between accounts in different currencies the two amounts can differ.
+Choose **Transfer**, pick From and To accounts, amount, date and comment. Between accounts in different currencies the two amounts can differ: **Amount received** is filled in from the sent amount with the bank rates and stays editable (type your own figure to keep it; clear the field to get the calculation back).
 
 ## Edit or delete
 Open **History**, tap an entry, change it and save, or use the trash icon at the top to delete (with confirmation).

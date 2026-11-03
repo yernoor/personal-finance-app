@@ -20,5 +20,8 @@ Rules: only live rows are imported; the import **adds** rows the phone does not 
 
 <img src="../screenshots/more.png" width="240" alt="More screen">
 
+## Make a backup
+After your first data is in, *More → Data and sync → Back up to a file* saves the whole database ([Privacy and backup](Privacy-and-Backup.md)).
+
 ## Allow notifications
 Android asks for notification permission the first time you switch on the daily reminder or spending warnings. Without it, neither can show.

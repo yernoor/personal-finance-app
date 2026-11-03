@@ -17,5 +17,8 @@ Keeps a copy of your data in a Google Sheet you can open on a computer. The app 
 - Afterwards a row you changed or deleted on the phone since the last sync is never overwritten; otherwise the sheet's version wins.
 - The `Transactions` tab keeps its column order (Date, Type, Account, Category, Tags, Amount, Currency, Net, Comment, Created, Modified, UID) so existing formulas keep working. Amounts are decimals, not minor units.
 
+## What is not in the sheet
+The wealth data (assets, loans, goals, bonds, monthly money, net-worth history) lives on the phone only. Use *More → Back up to a file* for it ([Privacy and backup](Privacy-and-Backup.md)).
+
 ## Known limits
 A push rewrites whole tabs (a dropped connection can leave the sheet empty until the next run); a row deleted on the PC without a `_deleted` entry comes back; there is no conflict log yet. Details: [docs/SYNC_DESIGN.md](../SYNC_DESIGN.md). The live Google round trip is not yet verified.

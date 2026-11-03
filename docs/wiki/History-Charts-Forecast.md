@@ -14,6 +14,9 @@
 - Same Day / Week / Month / Year slicer and period arrows as History. By month shows 3 bars, by day 7, by week 4, by year 3.
 - **General**: income, expenses and profit/loss bars. **Expenses** and **Income**: stacked by category.
 - Tap a bar for its totals and category shares.
+- Tap a category row to expand its operations in the selected period (date, account, comment, amount); tap an operation to edit it.
+
+<img src="../screenshots/charts-drilldown.png" width="240" alt="Charts drill-down">
 
 ## Forecast
 <img src="../screenshots/forecast.png" width="240" alt="Forecast">
