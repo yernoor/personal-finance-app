@@ -10,6 +10,7 @@ import dev.yernur.moneytracker.data.db.CashflowKind
 import dev.yernur.moneytracker.data.db.CategoryEntity
 import dev.yernur.moneytracker.data.db.TransactionEntity
 import dev.yernur.moneytracker.data.db.TransactionType
+import dev.yernur.moneytracker.data.db.TransferEntity
 import dev.yernur.moneytracker.data.sheets.FakeTransport
 import dev.yernur.moneytracker.data.sheets.ok
 import kotlinx.coroutines.runBlocking
@@ -109,6 +110,29 @@ class HealthTest {
         val uid = db.cashflowItemDao().getLive().first { it.title == "Mortgage" }.uid
         wealth.deleteCashflowItem(uid)
         assertEquals(0L, wealth.health(today).obligationsMinor)
+    }
+
+    @Test
+    fun transfersBetweenAccounts_areNeitherSpendingNorIncome_andLeaveNetWorthAlone() = runBlocking {
+        db.accountDao().insertAll(listOf(AccountEntity("dep", "dep", "KZT", null, null, null, null, false, true, false, false, TS, TS)))
+        db.transactionDao().insertAll(listOf(tx("a", "2026-10-10", TransactionType.Expense, 4_000_000), tx("b", "2026-10-11", TransactionType.Income, 20_000_000)))
+        wealth.saveCashflowItem(null, item("Salary", CashflowKind.Income, 45_000_000))
+        val spendingBefore = wealth.averageMonthlySpending(today)
+        val healthBefore = wealth.health(today)
+        val netWorthBefore = wealth.currentNetWorth().totalMinor
+
+        // 100,000.00 moved into the deposit and 30,000.00 back, in the checked months and in the running one
+        db.transferDao().insertAll(
+            listOf(
+                TransferEntity("t1", "kzt", "dep", 10_000_000, "KZT", null, null, "2026-10-12", null, TS, TS),
+                TransferEntity("t2", "dep", "kzt", 3_000_000, "KZT", null, null, "2026-10-20", null, TS, TS),
+                TransferEntity("t3", "kzt", "dep", 5_000_000, "KZT", null, null, "2026-11-02", null, TS, TS),
+            ),
+        )
+
+        assertEquals(spendingBefore, wealth.averageMonthlySpending(today))
+        assertEquals(healthBefore, wealth.health(today))
+        assertEquals(netWorthBefore, wealth.currentNetWorth().totalMinor)
     }
 
     @Test

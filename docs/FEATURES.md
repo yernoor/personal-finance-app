@@ -152,6 +152,7 @@ Code in `data/wealth/`, schema 2 -> 6 (one migration per step, each tested). All
 - `Bonds.kt`: coupons counted back from maturity (assumption: real schedules may differ by days), current yield, yield to maturity (bisection, actual/365, ignores accrued interest, tax and fees: an estimate), maturity ladder. Prices are typed in by hand.
   A broker account tracked as an app account AND as bonds would count twice in net worth: use one of the two.
 - `Health.kt`: available per month = income - average ledger spending (last 3 full months, balance corrections skipped) - obligations not already in the ledger (`inLedger` flag per item); savings rate, obligations share, months of expenses covered. `projectNetWorth` compounds accounts and investments at their own rates and splits the monthly surplus between them.
+- Transfers live in their own table and are never income or expense: a regression test (`HealthTest`) moves money between accounts and checks spending, the health summary and net worth do not change.
 - Known gap: an investment logged as an expense category (current practice, question 6 above) counts as spending in the health summary.
 
 ## Other / unverified, decide later
