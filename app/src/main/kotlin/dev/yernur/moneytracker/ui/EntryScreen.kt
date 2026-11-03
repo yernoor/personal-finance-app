@@ -65,6 +65,8 @@ import dev.yernur.moneytracker.data.LedgerRepository
 import dev.yernur.moneytracker.data.Money
 import dev.yernur.moneytracker.data.TransactionDraft
 import dev.yernur.moneytracker.data.TransferDraft
+import dev.yernur.moneytracker.data.wealth.convertWithRates
+import kotlinx.coroutines.flow.first
 import dev.yernur.moneytracker.data.db.AccountEntity
 import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.db.CategoryEntity
@@ -96,13 +98,22 @@ class EntryViewModel(
     private val uid: String?,
     initialKind: EntryKind,
     private val afterSave: suspend () -> Unit = {},
+    /** Rates for the received amount of a transfer between currencies (bank over backup). */
+    private val rates: suspend () -> Map<Pair<String, String>, Double> = { emptyMap() },
     private val today: () -> LocalDate = LocalDate::now,
 ) : ViewModel() {
     var kind by mutableStateOf(initialKind)
     var amount by mutableStateOf("")
+        private set
     var toAmount by mutableStateOf("")
+        private set
     var accountUid by mutableStateOf<String?>(null)
+        private set
     var toAccountUid by mutableStateOf<String?>(null)
+        private set
+    /** The received amount was typed by the owner (or stored with the transfer), so the converted figure no longer overwrites it. */
+    var toAmountTyped by mutableStateOf(false)
+        private set
     var categoryUid by mutableStateOf<String?>(null)
     var date by mutableStateOf(today())
     var tagUids by mutableStateOf<Set<String>>(emptySet())
@@ -148,7 +159,32 @@ class EntryViewModel(
             kind = EntryKind.Transfer
             accountUid = t.fromAccountUid; toAccountUid = t.toAccountUid
             amount = Money.editable(t.fromAmount); toAmount = t.toAmount?.let(Money::editable).orEmpty()
+            toAmountTyped = toAmount.isNotEmpty()
             date = LocalDate.parse(t.date); comment = t.comment.orEmpty()
+        }
+    }
+
+    fun changeAmount(text: String) { amount = text; fillReceived() }
+
+    /** Typing a received amount keeps it; clearing the field hands it back to the calculation. */
+    fun changeToAmount(text: String) { toAmount = text; toAmountTyped = text.isNotBlank(); fillReceived() }
+
+    /** A different account means a different currency pair, so an earlier typed figure no longer applies. */
+    fun pickAccount(uid: String) { accountUid = uid; toAmountTyped = false; fillReceived() }
+
+    fun pickToAccount(uid: String) { toAccountUid = uid; toAmountTyped = false; fillReceived() }
+
+    /** Fills "Amount received" from the sent amount and the rates, while the owner has not typed it. Left empty when no rate is known. */
+    private fun fillReceived() {
+        if (kind != EntryKind.Transfer || toAmountTyped) return
+        val sent = Money.parseMinor(amount)?.takeIf { it > 0 }
+        val from = currencyOf(accountUid)
+        val to = currencyOf(toAccountUid)
+        if (sent == null || from == null || to == null || from == to) { toAmount = ""; return }
+        val asked = amount
+        viewModelScope.launch {
+            val converted = convertWithRates(sent, from, to, rates())?.let(Money::editable).orEmpty()
+            if (amount == asked && !toAmountTyped) toAmount = converted // the owner may have typed on meanwhile
         }
     }
 
@@ -201,7 +237,7 @@ class EntryViewModel(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
-    val vm = appViewModel(key = "entry-$uid-$kind") { EntryViewModel(it.db, it.ledger, uid, kind, it::afterLedgerChange) }
+    val vm = appViewModel(key = "entry-$uid-$kind") { EntryViewModel(it.db, it.ledger, uid, kind, it::afterLedgerChange, { it.fx.allRates.first() }) }
     val options by vm.options.collectAsStateWithLifecycle()
     val balances by vm.balances.collectAsStateWithLifecycle()
     var confirmDelete by remember { mutableStateOf(false) }
@@ -246,20 +282,28 @@ fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
             }
 
             AmountField(
-                vm.amount, { vm.amount = it }, if (isTransfer) "Amount sent" else "Amount", vm.currencyOf(vm.accountUid).orEmpty(), "amount",
+                vm.amount, vm::changeAmount, if (isTransfer) "Amount sent" else "Amount", vm.currencyOf(vm.accountUid).orEmpty(), "amount",
                 Modifier.focusRequester(amountFocus),
             )
 
             Text(if (isTransfer) "From account" else "Account", style = MaterialTheme.typography.labelLarge)
-            AccountChips(options.accounts, vm.accountUid, tagPrefix = if (isTransfer) "from" else "account") { vm.accountUid = it }
+            AccountChips(options.accounts, vm.accountUid, tagPrefix = if (isTransfer) "from" else "account", onPick = vm::pickAccount)
             val sign = if (vm.kind == EntryKind.Income) 1 else -1 // an expense and a transfer both take money out of this account
             BalanceLine(balances[vm.accountUid], vm.currencyOf(vm.accountUid), Money.parseMinor(vm.amount)?.takeIf { it > 0 && !vm.isEditing }?.times(sign), "account-balance")
             if (isTransfer) {
                 Text("To account", style = MaterialTheme.typography.labelLarge)
-                AccountChips(options.accounts, vm.toAccountUid, tagPrefix = "to") { vm.toAccountUid = it }
+                AccountChips(options.accounts, vm.toAccountUid, tagPrefix = "to", onPick = vm::pickToAccount)
                 val received = if (vm.needsToAmount()) Money.parseMinor(vm.toAmount) else Money.parseMinor(vm.amount)
                 BalanceLine(balances[vm.toAccountUid], vm.currencyOf(vm.toAccountUid), received?.takeIf { it > 0 && !vm.isEditing }, "to-balance")
-                if (vm.needsToAmount()) AmountField(vm.toAmount, { vm.toAmount = it }, "Amount received", vm.currencyOf(vm.toAccountUid).orEmpty(), "to-amount")
+                if (vm.needsToAmount()) {
+                    AmountField(vm.toAmount, vm::changeToAmount, "Amount received", vm.currencyOf(vm.toAccountUid).orEmpty(), "to-amount")
+                    if (!vm.toAmountTyped && vm.toAmount.isNotEmpty()) {
+                        Text(
+                            "Calculated with the bank rate. Change it to what your bank really gave.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("to-amount-hint"),
+                        )
+                    }
+                }
             } else {
                 val type = if (vm.kind == EntryKind.Income) TransactionType.Income else TransactionType.Expense
                 Text("Category", style = MaterialTheme.typography.labelLarge)

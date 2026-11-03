@@ -166,3 +166,15 @@ class MergedRatesTest {
         assertEquals(mapOf(("USD" to "KZT") to 400.0), mergedRates(backup.filterKeys { it.first == "USD" && it.second == "KZT" }, emptyMap()))
     }
 }
+
+class ConvertWithRatesTest {
+    private val rates = mapOf(("USD" to "KZT") to 450.0, ("EUR" to "KZT") to 500.0)
+
+    @Test
+    fun aPairIsUsedDirectly_otherwiseTheConversionGoesThroughTenge() {
+        assertEquals(45_000L, convertWithRates(100, "USD", "KZT", rates))
+        assertEquals(100L, convertWithRates(45_000, "KZT", "USD", rates))
+        assertEquals(111_111L, convertWithRates(100_000, "EUR", "USD", rates)) // 1000.00 EUR = 500,000 KZT = 1111.11 USD
+        assertNull(convertWithRates(100, "USD", "GBP", rates))
+    }
+}

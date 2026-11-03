@@ -79,3 +79,9 @@ fun mergedRates(backup: Map<Pair<String, String>, Double>, kztPerUnit: Map<Strin
     }
     return merged
 }
+
+/** Converts with a rate table of [mergedRates]: the pair itself when there is one, else through tenge (USD to EUR). Null when a rate is missing. */
+fun convertWithRates(minor: Long, from: String, to: String, rates: Map<Pair<String, String>, Double>): Long? =
+    dev.yernur.moneytracker.data.Money.convert(minor, from, to, rates)
+        ?: dev.yernur.moneytracker.data.Money.convert(minor, from, DEFAULT_CURRENCY, rates)
+            ?.let { dev.yernur.moneytracker.data.Money.convert(it, DEFAULT_CURRENCY, to, rates) }

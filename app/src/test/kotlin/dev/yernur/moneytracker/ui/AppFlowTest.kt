@@ -3,6 +3,7 @@ package dev.yernur.moneytracker.ui
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -142,25 +143,21 @@ class AppFlowTest {
     }
 
     @Test
-    fun crossCurrencyTransfer_needsReceivedAmount_andStoresBothAmounts() {
+    fun crossCurrencyTransfer_fillsTheReceivedAmount_andStoresWhatTheOwnerSettlesOn() {
         tap("tab-accounts")
         compose.onNodeWithText("New transfer").performClick()
         compose.onNodeWithTag("amount").performTextInput("4500")
         waitForText("Main · KZT")
         tapInForm("from-main")
         tapInForm("to-usd")
-        compose.onNodeWithTag("to-amount").performScrollTo().assertIsDisplayed()
+        eventually { runCatching { compose.onNodeWithTag("to-amount").performScrollTo().assertTextContains("10") }.isSuccess } // 4,500 / 450
 
-        tap("save") // received amount still empty
-        compose.onNodeWithText("Enter the received amount").assertIsDisplayed()
-        assertTrue(runBlocking { db.transferDao().getAll() }.isEmpty())
-
-        compose.onNodeWithTag("to-amount").performTextInput("10")
+        compose.onNodeWithTag("to-amount").performTextReplacement("9.9") // the bank gave a bit less
         tap("save")
         eventually { runBlocking { db.transferDao().getAll() }.isNotEmpty() }
         val transfer = runBlocking { db.transferDao().getAll() }.single()
         assertEquals(450_000L, transfer.fromAmount)
-        assertEquals(1_000L, transfer.toAmount)
+        assertEquals(990L, transfer.toAmount)
         assertEquals("USD", transfer.toCurrencyCode)
     }
 
