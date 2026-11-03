@@ -35,6 +35,15 @@ object Money {
         return if (minor < 0) "-$symbol${plain(-minor)}" else "$symbol${plain(minor)}"
     }
 
+    /** Like [format], but whole units from 1,000 up: cents are noise on a net worth, a projection or a calculator result. */
+    fun formatRounded(minor: Long, currency: String?): String {
+        if (kotlin.math.abs(minor) < ROUND_FROM) return format(minor, currency)
+        val units = BigDecimal.valueOf(minor, 2).setScale(0, RoundingMode.HALF_UP)
+        return format(units.movePointRight(2).toLong(), currency)
+    }
+
+    private const val ROUND_FROM = 100_000L // 1,000.00
+
     /** Text for an edit field: 135370 -> "1353.7" (no grouping). */
     fun editable(minor: Long): String = BigDecimal.valueOf(minor, 2).stripTrailingZeros().toPlainString()
 

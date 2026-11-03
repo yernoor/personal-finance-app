@@ -164,3 +164,99 @@ data class RateEntity(
     val value: Double,
     val modified: String,
 )
+
+/**
+ * Latest official rate fetched from the National Bank of Kazakhstan: KZT per ONE unit of [currencyCode] (the feed's price divided by its
+ * `quant`). Separate from [RateEntity], which holds what the .mmbackup brought. [date] is the day the feed published it for.
+ */
+@Entity(tableName = "fx_rate")
+data class FxRateEntity(
+    @PrimaryKey val currencyCode: String,
+    /** Exchange rate, not money: Double is fine. */
+    val kztPerUnit: Double,
+    val date: String,
+)
+
+enum class ManualKind { Asset, Liability }
+
+/** Something worth money that is not an account: property, a car, a loan. [valueMinor] is positive for both kinds, in [currencyCode]. */
+@Entity(tableName = "manual_asset")
+data class ManualAssetEntity(
+    @PrimaryKey val uid: String,
+    val title: String,
+    val kind: ManualKind,
+    val currencyCode: String,
+    val valueMinor: Long,
+    val created: String,
+    val modified: String,
+    val isRemoved: Boolean = false,
+)
+
+/** One day's net worth in the default currency, written by the app (never edited). [accountsMinor] counts every active account. */
+@Entity(tableName = "net_worth_snapshot")
+data class NetWorthSnapshotEntity(
+    @PrimaryKey val date: String,
+    val accountsMinor: Long,
+    val assetsMinor: Long,
+    val liabilitiesMinor: Long,
+    /** Added in schema 5: bond holdings at their current value. */
+    @ColumnInfo(defaultValue = "0") val investmentsMinor: Long = 0,
+) {
+    val totalMinor: Long get() = accountsMinor + assetsMinor + investmentsMinor - liabilitiesMinor
+}
+
+/** A savings target in the default currency. [accountUid] null means the target is on total net worth; otherwise on that account's balance. */
+@Entity(tableName = "goal")
+data class GoalEntity(
+    @PrimaryKey val uid: String,
+    val title: String,
+    val targetMinor: Long,
+    /** YYYY-MM-DD; null = no deadline. */
+    val targetDate: String?,
+    val accountUid: String?,
+    val created: String,
+    val modified: String,
+    val isRemoved: Boolean = false,
+)
+
+/**
+ * A bond position (one row per bond, [quantity] pieces). Money fields are in [currencyCode]; [costMinor] is the total paid for all pieces.
+ * [currentValueMinor] is entered by hand (no live quotes); null = valued at cost. Coupon dates are counted back from [maturityDate].
+ */
+@Entity(tableName = "bond")
+data class BondEntity(
+    @PrimaryKey val uid: String,
+    val title: String,
+    val currencyCode: String,
+    val faceMinor: Long,
+    val quantity: Int,
+    val costMinor: Long,
+    /** Annual coupon rate in basis points: 7.5% = 750. */
+    val couponRateBp: Int,
+    /** 1, 2, 4 or 12. */
+    val couponsPerYear: Int,
+    val maturityDate: String,
+    val currentValueMinor: Long?,
+    val created: String,
+    val modified: String,
+    val isRemoved: Boolean = false,
+)
+
+enum class CashflowKind { Income, Obligation }
+
+/**
+ * A recurring monthly amount entered by hand: a salary ([CashflowKind.Income]) or a mortgage, loan or subscription ([CashflowKind.Obligation]).
+ * [inLedger] means the owner already logs it as expenses, so the health summary must not subtract it a second time.
+ */
+@Entity(tableName = "cashflow_item")
+data class CashflowItemEntity(
+    @PrimaryKey val uid: String,
+    val title: String,
+    val kind: CashflowKind,
+    val currencyCode: String,
+    val monthlyMinor: Long,
+    val inLedger: Boolean,
+    val created: String,
+    val modified: String,
+    val isRemoved: Boolean = false,
+)

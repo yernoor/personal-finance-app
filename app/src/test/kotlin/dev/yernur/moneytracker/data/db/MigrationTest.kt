@@ -32,6 +32,37 @@ class MigrationTest {
         assertTrue(v2.query("SELECT warnThresholdPercent FROM category").use { it.moveToFirst(); it.isNull(0) })
     }
 
+    @Test
+    fun migrate2To3_addsAnEmptyFxRateTable() {
+        helper.createDatabase(DB, 2).close()
+        val v3 = helper.runMigrationsAndValidate(DB, 3, true, MIGRATION_2_3)
+        assertEquals("0", v3.scalar("SELECT COUNT(*) FROM fx_rate"))
+    }
+
+    @Test
+    fun migrate3To4_addsEmptyWealthTables() {
+        helper.createDatabase(DB, 3).close()
+        val v4 = helper.runMigrationsAndValidate(DB, 4, true, MIGRATION_3_4)
+        for (table in listOf("manual_asset", "net_worth_snapshot", "goal")) assertEquals("0", v4.scalar("SELECT COUNT(*) FROM $table"))
+    }
+
+    @Test
+    fun migrate4To5_addsBonds_andKeepsSnapshotsWithZeroInvestments() {
+        helper.createDatabase(DB, 4).use { v4 ->
+            v4.execSQL("INSERT INTO net_worth_snapshot (date, accountsMinor, assetsMinor, liabilitiesMinor) VALUES ('2026-11-04', 100, 50, 20)")
+        }
+        val v5 = helper.runMigrationsAndValidate(DB, 5, true, MIGRATION_4_5)
+        assertEquals("0", v5.scalar("SELECT COUNT(*) FROM bond"))
+        assertEquals("0", v5.scalar("SELECT investmentsMinor FROM net_worth_snapshot WHERE date = '2026-11-04'"))
+    }
+
+    @Test
+    fun migrate5To6_addsAnEmptyCashflowTable() {
+        helper.createDatabase(DB, 5).close()
+        val v6 = helper.runMigrationsAndValidate(DB, 6, true, MIGRATION_5_6)
+        assertEquals("0", v6.scalar("SELECT COUNT(*) FROM cashflow_item"))
+    }
+
     private companion object {
         const val DB = "migration-test"
     }

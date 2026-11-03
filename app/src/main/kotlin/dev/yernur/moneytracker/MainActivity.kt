@@ -22,8 +22,10 @@ import dev.yernur.moneytracker.ui.AppLaunch
 import dev.yernur.moneytracker.ui.LockScreen
 import dev.yernur.moneytracker.widget.EXTRA_KIND
 import dev.yernur.moneytracker.widget.EXTRA_UID
+import androidx.lifecycle.lifecycleScope
 import dev.yernur.moneytracker.ui.AppRoot
 import dev.yernur.moneytracker.ui.AppTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,6 +34,7 @@ class MainActivity : FragmentActivity() {
         val container = (application as MoneyApp).container
         askForNotificationsOnce()
         launch = launchFrom(intent)
+        lifecycleScope.launch { container.dailyWealthRefresh() }
         setContent {
             CompositionLocalProvider(LocalAppContainer provides container) {
                 AppTheme {

@@ -204,3 +204,75 @@ interface RateDao {
     @Query("SELECT * FROM rate")
     fun observeAll(): Flow<List<RateEntity>>
 }
+
+@Dao
+interface FxRateDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(items: List<FxRateEntity>)
+
+    @Query("SELECT * FROM fx_rate ORDER BY currencyCode")
+    suspend fun getAll(): List<FxRateEntity>
+
+    @Query("SELECT * FROM fx_rate ORDER BY currencyCode")
+    fun observeAll(): Flow<List<FxRateEntity>>
+}
+
+@Dao
+interface ManualAssetDao {
+    @Upsert
+    suspend fun upsert(item: ManualAssetEntity)
+
+    @Query("SELECT * FROM manual_asset WHERE isRemoved = 0 ORDER BY title")
+    fun observeLive(): Flow<List<ManualAssetEntity>>
+
+    @Query("SELECT * FROM manual_asset WHERE isRemoved = 0")
+    suspend fun getLive(): List<ManualAssetEntity>
+}
+
+@Dao
+interface NetWorthSnapshotDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun put(item: NetWorthSnapshotEntity)
+
+    @Query("SELECT * FROM net_worth_snapshot ORDER BY date")
+    fun observeAll(): Flow<List<NetWorthSnapshotEntity>>
+
+    @Query("SELECT * FROM net_worth_snapshot ORDER BY date")
+    suspend fun getAll(): List<NetWorthSnapshotEntity>
+}
+
+@Dao
+interface GoalDao {
+    @Upsert
+    suspend fun upsert(item: GoalEntity)
+
+    @Query("SELECT * FROM goal WHERE isRemoved = 0 ORDER BY targetDate IS NULL, targetDate, title")
+    fun observeLive(): Flow<List<GoalEntity>>
+
+    @Query("SELECT * FROM goal WHERE isRemoved = 0")
+    suspend fun getLive(): List<GoalEntity>
+}
+
+@Dao
+interface BondDao {
+    @Upsert
+    suspend fun upsert(item: BondEntity)
+
+    @Query("SELECT * FROM bond WHERE isRemoved = 0 ORDER BY maturityDate, title")
+    fun observeLive(): Flow<List<BondEntity>>
+
+    @Query("SELECT * FROM bond WHERE isRemoved = 0 ORDER BY maturityDate, title")
+    suspend fun getLive(): List<BondEntity>
+}
+
+@Dao
+interface CashflowItemDao {
+    @Upsert
+    suspend fun upsert(item: CashflowItemEntity)
+
+    @Query("SELECT * FROM cashflow_item WHERE isRemoved = 0 ORDER BY kind, title")
+    fun observeLive(): Flow<List<CashflowItemEntity>>
+
+    @Query("SELECT * FROM cashflow_item WHERE isRemoved = 0 ORDER BY kind, title")
+    suspend fun getLive(): List<CashflowItemEntity>
+}
