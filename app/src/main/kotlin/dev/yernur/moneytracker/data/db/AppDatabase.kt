@@ -6,6 +6,9 @@ import androidx.room.migration.Migration
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
 
+/** The schema version in one place: Room's `@Database` and the backup's "is this file from a newer app" check both read it. */
+const val DB_VERSION = 6
+
 @Database(
     entities = [
         AccountEntity::class,
@@ -23,7 +26,7 @@ import androidx.sqlite.execSQL
         BondEntity::class,
         CashflowItemEntity::class,
     ],
-    version = 6,
+    version = DB_VERSION,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {

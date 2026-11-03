@@ -9,6 +9,7 @@ import dev.yernur.moneytracker.data.LedgerRepository
 import dev.yernur.moneytracker.data.WarningNotifier
 import dev.yernur.moneytracker.data.backup.DbBackup
 import dev.yernur.moneytracker.data.db.AppDatabase
+import dev.yernur.moneytracker.data.db.DB_VERSION
 import dev.yernur.moneytracker.data.db.MIGRATION_1_2
 import dev.yernur.moneytracker.data.db.MIGRATION_2_3
 import dev.yernur.moneytracker.data.db.MIGRATION_3_4
@@ -113,6 +114,5 @@ class MoneyApp : Application() {
 
     private companion object {
         const val DB_NAME = "moneytracker.db"
-        const val DB_VERSION = 6 // keep equal to @Database(version) in AppDatabase
     }
 }

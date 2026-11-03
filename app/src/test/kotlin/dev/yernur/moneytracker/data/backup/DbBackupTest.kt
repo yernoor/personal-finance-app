@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import dev.yernur.moneytracker.data.db.AccountEntity
 import dev.yernur.moneytracker.data.db.AppDatabase
+import dev.yernur.moneytracker.data.db.DB_VERSION
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -82,9 +83,5 @@ class DbBackupTest {
         val written = backup.writeAutoBackup()
         assertEquals(written, backup.autoBackup())
         assertEquals(DB_VERSION, backup.inspect(written).schemaVersion)
-    }
-
-    private companion object {
-        const val DB_VERSION = 2
     }
 }
