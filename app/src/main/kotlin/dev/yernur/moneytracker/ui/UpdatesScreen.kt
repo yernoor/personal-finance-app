@@ -72,6 +72,8 @@ class UpdatesViewModel(
     private val installer: UpdateInstaller?,
     private val downloads: UpdateDownloads?,
     private val settings: AppSettings,
+    /** Runs on the IO thread right before the installer takes over: the pre-update database copy. A failure must not block the update. */
+    private val beforeInstall: () -> Unit = {},
 ) : ViewModel() {
     var state by mutableStateOf<UpdateState>(UpdateState.Idle)
         private set
@@ -116,7 +118,7 @@ class UpdatesViewModel(
         val installer = installer ?: return
         state = UpdateState.Installing
         viewModelScope.launch {
-            runCatching { withContext(Dispatchers.IO) { installer.install(file) } }.onFailure { state = UpdateState.Failed(describe(it)) }
+            runCatching { withContext(Dispatchers.IO) { runCatching(beforeInstall); installer.install(file) } }.onFailure { state = UpdateState.Failed(describe(it)) }
         }
     }
 
@@ -142,7 +144,7 @@ class UpdatesViewModel(
 @Composable
 fun UpdatesScreen(onBack: () -> Unit) {
     val container = dev.yernur.moneytracker.LocalAppContainer.current
-    val vm = appViewModel { UpdatesViewModel(it.updateChecker, it.updateInstaller, it.updateDownloads, it.settings) }
+    val vm = appViewModel { UpdatesViewModel(it.updateChecker, it.updateInstaller, it.updateDownloads, it.settings) { it.backups?.writeAutoBackup() } }
     val context = LocalContext.current
     val state = vm.state
     var needsPermission by remember { mutableStateOf(false) }

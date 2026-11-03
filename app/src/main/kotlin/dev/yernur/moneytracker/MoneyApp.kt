@@ -7,13 +7,16 @@ import dev.yernur.moneytracker.data.AppSettings
 import dev.yernur.moneytracker.data.ForecastRepository
 import dev.yernur.moneytracker.data.LedgerRepository
 import dev.yernur.moneytracker.data.WarningNotifier
+import dev.yernur.moneytracker.data.backup.DbBackup
 import dev.yernur.moneytracker.data.db.AppDatabase
+import dev.yernur.moneytracker.data.db.DB_VERSION
 import dev.yernur.moneytracker.data.db.MIGRATION_1_2
 import dev.yernur.moneytracker.data.db.MIGRATION_2_3
 import dev.yernur.moneytracker.data.db.MIGRATION_3_4
 import dev.yernur.moneytracker.data.db.MIGRATION_4_5
 import dev.yernur.moneytracker.data.db.MIGRATION_5_6
 import dev.yernur.moneytracker.data.importer.ImportRepository
+import dev.yernur.moneytracker.data.security.AppLock
 import dev.yernur.moneytracker.data.sheets.UrlConnectionTransport
 import dev.yernur.moneytracker.data.update.ApkInstaller
 import dev.yernur.moneytracker.data.update.UpdateChecker
@@ -40,9 +43,14 @@ class AppContainer(
     val installedVersion: String = "0.0.0",
     /** Null in tests, like [updateChecker]. */
     fxClient: NbkRatesClient? = null,
+    /** Null in tests that do not need files. */
+    val backups: DbBackup? = null,
+    /** Redraws the home-screen widgets; a no-op in tests. */
+    private val widgetsChanged: suspend () -> Unit = {},
 ) {
     val importer = ImportRepository(db)
     val forecasts = ForecastRepository(db, settings)
+    val lock = AppLock(settings)
     val fx = FxRepository(db, settings, fxClient)
     val ledger = LedgerRepository(db, allRates = { fx.allRates.first() })
     val wealth = WealthRepository(db, fx)
@@ -75,6 +83,7 @@ class AppContainer(
     /** Call after anything that changes spending: may post a limit warning. */
     suspend fun afterLedgerChange() {
         notifier?.checkAndNotify()
+        runCatching { widgetsChanged() }
     }
 }
 
@@ -91,12 +100,19 @@ class MoneyApp : Application() {
 
     val container by lazy {
         val version = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
+        val db = Room.databaseBuilder(this, AppDatabase::class.java, DB_NAME).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build()
         AppContainer(
-            Room.databaseBuilder(this, AppDatabase::class.java, "moneytracker.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build(),
+            db,
             AppSettings(getSharedPreferences("settings", MODE_PRIVATE)),
             { db, settings, forecasts -> WarningNotifier(this, db, settings, forecasts) },
             UpdateChecker(UrlConnectionTransport(), version), ApkInstaller(this), WorkDownloads(this), version,
-            NbkRatesClient(UrlConnectionTransport()),
+            fxClient = NbkRatesClient(UrlConnectionTransport()),
+            backups = DbBackup(db, getDatabasePath(DB_NAME), java.io.File(filesDir, "backups"), DB_VERSION),
+            widgetsChanged = { dev.yernur.moneytracker.widget.updateAllWidgets(this) },
         )
+    }
+
+    private companion object {
+        const val DB_NAME = "moneytracker.db"
     }
 }

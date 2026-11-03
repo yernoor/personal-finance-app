@@ -24,6 +24,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import androidx.compose.ui.semantics.getOrNull
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
@@ -74,6 +75,12 @@ class ReportsFlowTest {
         }
     }
 
+    private fun operationRows() = compose.onAllNodes(
+        androidx.compose.ui.test.SemanticsMatcher("operation row") {
+            it.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)?.startsWith("operation-") == true
+        },
+    ).fetchSemanticsNodes().size
+
     private fun waitForText(text: String) = eventually { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
 
     @Test
@@ -96,6 +103,19 @@ class ReportsFlowTest {
         compose.onNodeWithTag("chart-tab-Expenses").performClick()
         waitForText("Кафе")
         waitForText("100%")
+    }
+
+    @Test
+    fun chartsCategoryRow_expandsToItsOperations_andCollapsesAgain() {
+        compose.onNodeWithTag("tab-charts").performClick()
+        compose.onNodeWithTag("zoom-Day").performClick()
+        compose.onNodeWithTag("chart-tab-Expenses").performClick()
+        waitForText("Кафе")
+        assertEquals(0, operationRows())
+        compose.onNodeWithTag("category-row-cafe").performScrollTo().performClick()
+        eventually { operationRows() == 1 }
+        compose.onNodeWithTag("category-row-cafe").performClick()
+        eventually { operationRows() == 0 }
     }
 
     @Test

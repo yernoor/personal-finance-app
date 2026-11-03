@@ -1,6 +1,8 @@
 package dev.yernur.moneytracker.data
 
 import android.content.SharedPreferences
+import dev.yernur.moneytracker.data.security.RecentsMode
+import dev.yernur.moneytracker.data.security.StoredPin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.util.UUID
@@ -23,6 +25,17 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     )
     private val _iconStyle = MutableStateFlow(storedIconStyle(prefs, ICON_STYLE, glass = false, IconStyle.Springboard))
     private val _glassIconStyle = MutableStateFlow(storedIconStyle(prefs, GLASS_ICON_STYLE, glass = true, IconStyle.LiquidTile))
+    private val _pin = MutableStateFlow(
+        prefs?.getString(PIN_HASH, null)?.let { hash -> StoredPin(hash, prefs.getString(PIN_SALT, "").orEmpty(), prefs.getInt(PIN_LENGTH, 4)) },
+    )
+    private val _pinFailures = MutableStateFlow((prefs?.getInt(PIN_FAILURES, 0) ?: 0) to (prefs?.getLong(PIN_LOCKED_UNTIL, 0L) ?: 0L))
+    private val _biometricUnlock = MutableStateFlow(prefs?.getBoolean(BIOMETRIC_UNLOCK, false) ?: false)
+    private val _autoLockSeconds = MutableStateFlow(prefs?.getInt(AUTO_LOCK_SECONDS, 30) ?: 30)
+    private val _recentsMode = MutableStateFlow(
+        prefs?.getString(RECENTS_MODE, null)?.let { name -> RecentsMode.entries.firstOrNull { it.name == name } } ?: RecentsMode.Off,
+    )
+    private val _widgetGlass = MutableStateFlow(prefs?.getBoolean(WIDGET_GLASS, true) ?: true)
+    private val _widgetDotNumerals = MutableStateFlow(prefs?.getBoolean(WIDGET_DOT_NUMERALS, true) ?: true)
     private val _spreadsheetId = MutableStateFlow(prefs?.getString(SPREADSHEET_ID, null))
     private val _spreadsheetUrl = MutableStateFlow(prefs?.getString(SPREADSHEET_URL, null))
     private val _showAllAccounts = MutableStateFlow(prefs?.getBoolean(SHOW_ALL_ACCOUNTS, false) ?: false)
@@ -175,6 +188,64 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         prefs?.edit()?.putString(ICON_STYLE, style.name)?.apply()
     }
 
+    /** Widget look: glass (dark translucent) or a solid card that follows the phone's light/dark mode. */
+    val widgetGlass: StateFlow<Boolean> = _widgetGlass
+
+    fun setWidgetGlass(enabled: Boolean) {
+        _widgetGlass.value = enabled
+        prefs?.edit()?.putBoolean(WIDGET_GLASS, enabled)?.apply()
+    }
+
+    /** Big widget numerals in the dot-matrix font (Doto) instead of the system font. */
+    val widgetDotNumerals: StateFlow<Boolean> = _widgetDotNumerals
+
+    fun setWidgetDotNumerals(enabled: Boolean) {
+        _widgetDotNumerals.value = enabled
+        prefs?.edit()?.putBoolean(WIDGET_DOT_NUMERALS, enabled)?.apply()
+    }
+
+    /** The app-lock PIN (hash only), or null when there is none. */
+    val pin: StateFlow<StoredPin?> = _pin
+
+    fun setPin(value: StoredPin?) {
+        _pin.value = value
+        prefs?.edit()?.apply {
+            if (value == null) remove(PIN_HASH).remove(PIN_SALT).remove(PIN_LENGTH)
+            else putString(PIN_HASH, value.hash).putString(PIN_SALT, value.salt).putInt(PIN_LENGTH, value.length)
+        }?.apply()
+    }
+
+    /** Wrong tries in a row, and the epoch millis until which the keypad refuses (0 = not waiting). */
+    val pinFailures: StateFlow<Pair<Int, Long>> = _pinFailures
+
+    fun setPinFailures(count: Int, lockedUntil: Long) {
+        _pinFailures.value = count to lockedUntil
+        prefs?.edit()?.putInt(PIN_FAILURES, count)?.putLong(PIN_LOCKED_UNTIL, lockedUntil)?.apply()
+    }
+
+    /** Offer fingerprint / face on the lock screen; the PIN always still works. */
+    val biometricUnlock: StateFlow<Boolean> = _biometricUnlock
+
+    fun setBiometricUnlock(enabled: Boolean) {
+        _biometricUnlock.value = enabled
+        prefs?.edit()?.putBoolean(BIOMETRIC_UNLOCK, enabled)?.apply()
+    }
+
+    /** How long the app may be away before it asks for the PIN again (0 = every time). */
+    val autoLockSeconds: StateFlow<Int> = _autoLockSeconds
+
+    fun setAutoLockSeconds(seconds: Int) {
+        _autoLockSeconds.value = seconds
+        prefs?.edit()?.putInt(AUTO_LOCK_SECONDS, seconds)?.apply()
+    }
+
+    val recentsMode: StateFlow<RecentsMode> = _recentsMode
+
+    fun setRecentsMode(mode: RecentsMode) {
+        _recentsMode.value = mode
+        prefs?.edit()?.putString(RECENTS_MODE, mode.name)?.apply()
+    }
+
     /** The icon look while liquid glass is on (only glass looks are allowed there). Defaults to the frosted tile. */
     val glassIconStyle: StateFlow<IconStyle> = _glassIconStyle
 
@@ -254,6 +325,16 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val HISTORY_PERIOD = "historyPeriod"
         private const val NAV_TABS = "navTabs"
         private const val GLASS = "glass"
+        private const val WIDGET_GLASS = "widgetGlass"
+        private const val WIDGET_DOT_NUMERALS = "widgetDotNumerals"
+        private const val PIN_HASH = "pinHash"
+        private const val PIN_SALT = "pinSalt"
+        private const val PIN_LENGTH = "pinLength"
+        private const val PIN_FAILURES = "pinFailures"
+        private const val PIN_LOCKED_UNTIL = "pinLockedUntil"
+        private const val BIOMETRIC_UNLOCK = "biometricUnlock"
+        private const val AUTO_LOCK_SECONDS = "autoLockSeconds"
+        private const val RECENTS_MODE = "recentsMode"
         private const val GOOGLE_CONNECTED = "googleConnected"
         private const val LAST_UPDATE_CHECK = "lastUpdateCheck"
         private const val LAST_RATES_DATE = "lastRatesDate"

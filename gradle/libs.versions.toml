@@ -4,6 +4,9 @@ agp = "9.4.1"
 kotlin = "2.4.21"
 ksp = "2.3.12"
 composeBom = "2026.09.00"
+glance = "1.2.0"
+biometric = "1.1.0" # newest stable; 1.2+ and 1.4 are alpha
+fragment = "1.9.1" # biometric 1.1.0 brings fragment 1.2.5, too old for activity-compose 1.13
 activityCompose = "1.13.0"
 room = "2.8.5"
 coroutines = "1.11.0"
@@ -27,6 +30,9 @@ compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 backdrop = { module = "io.github.kyant0:backdrop", version.ref = "backdrop" }
 play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
+biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
+fragment = { module = "androidx.fragment:fragment", version.ref = "fragment" }
+glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
 work-runtime = { module = "androidx.work:work-runtime", version.ref = "work" }
 navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation" }
 lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }

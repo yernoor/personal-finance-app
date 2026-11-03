@@ -3,28 +3,93 @@ package dev.yernur.moneytracker
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
+import android.view.WindowManager
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.yernur.moneytracker.data.security.RecentsMode
+import dev.yernur.moneytracker.ui.AppLaunch
+import dev.yernur.moneytracker.ui.LockScreen
+import dev.yernur.moneytracker.widget.EXTRA_KIND
+import dev.yernur.moneytracker.widget.EXTRA_UID
 import androidx.lifecycle.lifecycleScope
 import dev.yernur.moneytracker.ui.AppRoot
 import dev.yernur.moneytracker.ui.AppTheme
 import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val container = (application as MoneyApp).container
         askForNotificationsOnce()
+        launch = launchFrom(intent)
         lifecycleScope.launch { container.dailyWealthRefresh() }
         setContent {
             CompositionLocalProvider(LocalAppContainer provides container) {
-                AppTheme { AppRoot() }
+                AppTheme {
+                    val locked by container.lock.locked.collectAsStateWithLifecycle()
+                    val pin by container.settings.pin.collectAsStateWithLifecycle()
+                    val biometric by container.settings.biometricUnlock.collectAsStateWithLifecycle()
+                    Box {
+                        // Kept composed under the lock screen, so unlocking returns to the same screen.
+                        Box(Modifier.blur(if (covered) 30.dp else 0.dp)) { AppRoot(launch = launch, onLaunched = { launch = null }) }
+                        pin?.takeIf { locked }?.let { LockScreen(container.lock, it.length, biometric) }
+                    }
+                }
             }
         }
+    }
+
+    /** A widget tap that asked for an add screen or an operation; consumed once by AppRoot. */
+    private var launch by mutableStateOf<AppLaunch?>(null)
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        launch = launchFrom(intent)
+    }
+
+    private fun launchFrom(intent: android.content.Intent?): AppLaunch? {
+        val kind = intent?.getStringExtra(EXTRA_KIND)
+        val uid = intent?.getStringExtra(EXTRA_UID)
+        return if (kind == null && uid == null) null else AppLaunch(kind, uid)
+    }
+
+    /** Blur mode: true while the app is not in front, so the thumbnail the system takes for recents shows a blurred app. Unverified that every launcher takes it after this is drawn. */
+    private var covered by mutableStateOf(false)
+
+    override fun onPause() {
+        super.onPause()
+        val mode = (application as MoneyApp).container.settings.recentsMode.value
+        covered = mode == RecentsMode.Blur
+        // Hide: FLAG_SECURE only while the app is not in front, so screenshots still work inside it.
+        if (mode == RecentsMode.Hide) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        covered = false
+        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        (application as MoneyApp).container.lock.onBackground()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        (application as MoneyApp).container.lock.onForeground()
     }
 
     /** Android 13+ needs a runtime grant before limit warnings can notify; ask on the first launch only. */

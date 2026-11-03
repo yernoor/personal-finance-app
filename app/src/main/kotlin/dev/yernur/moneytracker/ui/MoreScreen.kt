@@ -22,6 +22,13 @@ import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.BlurOn
 import androidx.compose.material.icons.outlined.CloudSync
+import androidx.compose.material.icons.outlined.Fingerprint
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Restore
+import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material.icons.outlined.Widgets
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.History
@@ -66,7 +73,10 @@ import dev.yernur.moneytracker.data.IconStyle
 import dev.yernur.moneytracker.data.PeriodUnit
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import dev.yernur.moneytracker.data.backup.BackupException
+import dev.yernur.moneytracker.data.backup.BackupInfo
 import dev.yernur.moneytracker.data.importer.MmbackupMapper
+import dev.yernur.moneytracker.data.security.RecentsMode
 import dev.yernur.moneytracker.data.importer.MmbackupReader
 import dev.yernur.moneytracker.data.update.isNewer
 import dev.yernur.moneytracker.data.update.parseVersion
@@ -80,6 +90,9 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
     var showWarnings by remember { mutableStateOf(false) }
     var showHistoryPeriod by remember { mutableStateOf(false) }
     var showIconStyle by remember { mutableStateOf(false) }
+    var pinDialog by remember { mutableStateOf<PinDialog?>(null) }
+    var showAutoLock by remember { mutableStateOf(false) }
+    var showRecents by remember { mutableStateOf(false) }
     val container = dev.yernur.moneytracker.LocalAppContainer.current
     val glass by container.settings.glass.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -100,6 +113,30 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
                     result.warnings.take(5).joinToString("") { "\n• $it" }
             } catch (e: Exception) {
                 "Import failed: ${e.message}"
+            }
+        }
+    }
+
+    val backups = container.backups
+    var staged by remember { mutableStateOf<Pair<java.io.File, BackupInfo>?>(null) }
+    val backupPicker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri: Uri? ->
+        if (uri == null || backups == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            message = try {
+                withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)!!.use { backups.write(it) } }
+                "Backup saved."
+            } catch (e: Exception) {
+                "Backup failed: ${e.message}"
+            }
+        }
+    }
+    val restorePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri == null || backups == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            try {
+                staged = withContext(Dispatchers.IO) { backups.stage(context.contentResolver.openInputStream(uri)!!) }
+            } catch (e: Exception) {
+                message = if (e is BackupException) e.message else "Could not read that file: ${e.message}"
             }
         }
     }
@@ -200,6 +237,54 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
                 )
             },
         )
+        SectionHeader("Privacy")
+        val pin by container.settings.pin.collectAsStateWithLifecycle()
+        val autoLock by container.settings.autoLockSeconds.collectAsStateWithLifecycle()
+        val recents by container.settings.recentsMode.collectAsStateWithLifecycle()
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+            modifier = Modifier.clickable { if (pin == null) pinDialog = PinDialog.Set else pinDialog = PinDialog.CheckThenMenu }.testTag("app-lock"),
+            leadingContent = { Icon(Icons.Outlined.Lock, null) }, headlineContent = { Text("App lock") },
+            supportingContent = { Text(if (pin == null) "Off. Set a PIN to lock the app" else "On: ${pin!!.length}-digit PIN. Tap to change or remove it") },
+        )
+        val biometric by container.settings.biometricUnlock.collectAsStateWithLifecycle()
+        if (pin != null && BiometricGate.available(context)) ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier.clickable { container.settings.setBiometricUnlock(!biometric) }.testTag("biometric-unlock"),
+            leadingContent = { Icon(Icons.Outlined.Fingerprint, null) }, headlineContent = { Text("Unlock with fingerprint or face") },
+            supportingContent = { Text("The PIN always works as a fallback") },
+            trailingContent = { Switch(biometric, { container.settings.setBiometricUnlock(it) }) },
+        )
+        if (pin != null) ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier.clickable { showAutoLock = true }.testTag("auto-lock"),
+            leadingContent = { Icon(Icons.Outlined.Timer, null) }, headlineContent = { Text("Lock after") },
+            supportingContent = { Text(autoLockLabel(autoLock)) },
+        )
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier.clickable { showRecents = true }.testTag("recents-mode"),
+            leadingContent = { Icon(Icons.Outlined.VisibilityOff, null) }, headlineContent = { Text("In the recent apps list") },
+            supportingContent = { Text("${recents.label}. Screenshots inside the app always work") },
+        )
+        SectionHeader("Widgets")
+        val widgetGlass by container.settings.widgetGlass.collectAsStateWithLifecycle()
+        val widgetDot by container.settings.widgetDotNumerals.collectAsStateWithLifecycle()
+        fun refreshWidgets() { scope.launch { dev.yernur.moneytracker.widget.updateAllWidgets(context.applicationContext) } }
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier.clickable { container.settings.setWidgetGlass(!widgetGlass); refreshWidgets() }.testTag("widget-glass"),
+            leadingContent = { Icon(Icons.Outlined.Widgets, null) }, headlineContent = { Text("Glass widgets") },
+            supportingContent = { Text(if (widgetGlass) "Dark translucent cards" else "Solid cards that follow light and dark mode") },
+            trailingContent = { Switch(widgetGlass, { container.settings.setWidgetGlass(it); refreshWidgets() }) },
+        )
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier.clickable { container.settings.setWidgetDotNumerals(!widgetDot); refreshWidgets() }.testTag("widget-dot"),
+            leadingContent = { Icon(Icons.Outlined.Tune, null) }, headlineContent = { Text("Dot-matrix numbers") },
+            supportingContent = { Text("The big widget numbers in the Doto font. Widgets show spending, never account balances") },
+            trailingContent = { Switch(widgetDot, { container.settings.setWidgetDotNumerals(it); refreshWidgets() }) },
+        )
         SectionHeader("Data and sync")
         val sheetUrl by container.settings.spreadsheetUrl.collectAsStateWithLifecycle()
         ListItem(
@@ -213,6 +298,18 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
             modifier = Modifier.clickable { picker.launch(arrayOf("*/*")) }.testTag("import"),
             leadingContent = { Icon(Icons.Outlined.FileUpload, null) }, headlineContent = { Text("Import .mmbackup") },
             supportingContent = { Text("Adds rows the phone does not have; nothing is overwritten or deleted") },
+        )
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+            modifier = Modifier.clickable { backupPicker.launch("moneytracker-${java.time.LocalDate.now()}.db") }.testTag("backup"),
+            leadingContent = { Icon(Icons.Outlined.Save, null) }, headlineContent = { Text("Back up to a file") },
+            supportingContent = { Text("A copy of all data on the phone; keep it somewhere safe. It is not encrypted") },
+        )
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+            modifier = Modifier.clickable { restorePicker.launch(arrayOf("*/*")) }.testTag("restore"),
+            leadingContent = { Icon(Icons.Outlined.Restore, null) }, headlineContent = { Text("Restore from a backup file") },
+            supportingContent = { Text("Replaces everything on the phone with the file's data") },
         )
         SectionHeader("App")
         val availableUpdate by container.settings.availableUpdate.collectAsStateWithLifecycle()
@@ -228,16 +325,85 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
             supportingContent = { Text(if (newer != null) "Version ${newer.removePrefix("v")} is available" else "Version ${container.installedVersion}") },
         )
     }
+    when (pinDialog) {
+        PinDialog.Set -> PinSetupDialog({ pinDialog = null }) { container.lock.setPin(it); pinDialog = null }
+        PinDialog.CheckThenMenu -> PinCheckDialog(container.lock, container.settings.pin.value?.length ?: 4, { pinDialog = null }) { pinDialog = PinDialog.Menu }
+        PinDialog.Menu -> AlertDialog(
+            onDismissRequest = { pinDialog = null }, title = { Text("App lock") },
+            confirmButton = { TextButton({ pinDialog = PinDialog.Set }, modifier = Modifier.testTag("change-pin")) { Text("Change PIN") } },
+            dismissButton = { TextButton({ container.lock.removePin(); pinDialog = null }, modifier = Modifier.testTag("remove-pin")) { Text("Remove PIN") } },
+        )
+        null -> Unit
+    }
+    if (showAutoLock) ChoiceDialog("Lock after", AUTO_LOCK_CHOICES.map { it to autoLockLabel(it) }, container.settings.autoLockSeconds.value, { container.settings.setAutoLockSeconds(it) }) { showAutoLock = false }
+    if (showRecents) ChoiceDialog("In the recent apps list", RecentsMode.entries.map { it to it.label }, container.settings.recentsMode.value, { container.settings.setRecentsMode(it) }) { showRecents = false }
     if (showIconStyle) IconStyleDialog(container.settings, glass) { showIconStyle = false }
     if (showHistoryPeriod) HistoryPeriodDialog(container.settings) { showHistoryPeriod = false }
     if (showReminder) ReminderDialog(container.settings, context.applicationContext) { showReminder = false }
     if (showWarnings) WarningSettingsDialog(container.settings) { showWarnings = false }
+    staged?.let { (file, info) ->
+        AlertDialog(
+            onDismissRequest = { file.delete(); staged = null }, containerColor = glassContainer(AlertDialogDefaults.containerColor),
+            title = { Text("Restore this backup?") },
+            text = {
+                GlassWindowBlur()
+                Text("${info.transactions} transactions and ${info.accounts} accounts. Everything now on the phone is replaced; the app restarts. The current data is kept once as a .bak file next to the database.")
+            },
+            confirmButton = {
+                TextButton({
+                    staged = null
+                    scope.launch {
+                        withContext(Dispatchers.IO) { backups?.restore(file) }
+                        restartApp(context)
+                    }
+                }, modifier = Modifier.testTag("confirm-restore")) { Text("Restore") }
+            },
+            dismissButton = { TextButton({ file.delete(); staged = null }) { Text("Cancel") } },
+        )
+    }
     message?.let {
         AlertDialog(
             onDismissRequest = { message = null }, containerColor = glassContainer(AlertDialogDefaults.containerColor),
             confirmButton = { TextButton({ message = null }) { Text("OK") } }, text = { GlassWindowBlur(); Text(it) },
         )
     }
+}
+
+/** The database was swapped under the running app: start fresh in a new process. */
+private fun restartApp(context: android.content.Context) {
+    val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)!!.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+    context.startActivity(launch)
+    android.os.Process.killProcess(android.os.Process.myPid())
+}
+
+private enum class PinDialog { Set, CheckThenMenu, Menu }
+
+private val AUTO_LOCK_CHOICES = listOf(0, 30, 60, 300)
+
+private fun autoLockLabel(seconds: Int) = when (seconds) {
+    0 -> "Immediately"
+    30 -> "After 30 seconds away"
+    60 -> "After 1 minute away"
+    else -> "After ${seconds / 60} minutes away"
+}
+
+@Composable
+private fun <T> ChoiceDialog(title: String, choices: List<Pair<T, String>>, current: T, onPick: (T) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        containerColor = glassContainer(AlertDialogDefaults.containerColor), onDismissRequest = onDismiss, title = { Text(title) },
+        text = {
+            GlassWindowBlur()
+            Column {
+                choices.forEach { (value, label) ->
+                    Row(Modifier.fillMaxWidth().clickable { onPick(value); onDismiss() }, verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(current == value, { onPick(value); onDismiss() })
+                        Text(label)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onDismiss) { Text("Close") } },
+    )
 }
 
 @Composable

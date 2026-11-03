@@ -12,8 +12,8 @@ android {
         applicationId = "dev.yernur.moneytracker"
         minSdk = 36
         targetSdk = 36
-        versionCode = 6
-        versionName = "0.3.1"
+        versionCode = 7
+        versionName = "0.4.0"
     }
 
     // Release signing comes from the environment (CI secrets, or exported locally); nothing about the key is in git.
@@ -63,6 +63,9 @@ dependencies {
     implementation(libs.play.services.auth) // Authorization API: the access token for Sheets (drive.file scope, no refresh token on the device)
     implementation(libs.backdrop) // liquid glass: backdrop blur, lens refraction (Android 13+; we run on 16)
     implementation(libs.work.runtime)
+    implementation(libs.biometric) // fingerprint / face unlock for the app lock (BiometricPrompt needs a FragmentActivity)
+    implementation(libs.fragment)
+    implementation(libs.glance.appwidget) // home-screen widgets
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.lifecycle.runtime.compose)
     debugImplementation(libs.compose.ui.tooling)

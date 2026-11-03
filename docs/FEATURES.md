@@ -65,7 +65,7 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 |---|---|---|
 | `.mmbackup` one-time import | must | Milestone 3. |
 | Google Sheets sync | must | Milestone 6 built; "Sync now" and a weekly background sync built (milestone 7, partly): see docs/SYNC_DESIGN.md. Apps Script `onEdit` and the conflict log are not built. |
-| Local DB backup / restore | must | Milestone 8. |
+| Local DB backup / restore | must | Milestone 8; plan in "Planned, not built" item 4. |
 | Multi-currency (KZT, USD), stored rates | must | `rates` table has 3 rows; how they should feed totals is unverified. |
 
 ## Milestone 5 as built (verified on the emulator with the real backup)
@@ -160,16 +160,91 @@ Code in `data/wealth/`, schema 2 -> 6 (one migration per step, each tested). All
 - Transfers between accounts of different currencies (owner request, 2026-11-04): "Amount received" is filled in from the sent amount with the bank rates (backup rates for currencies the bank does not publish; through tenge for pairs like EUR to USD). It stays editable: typing keeps your figure, clearing the field gives it back to the calculation, changing an account recalculates. With no known rate nothing is filled and saving asks for the amount.
 - Phone only: goals, bonds, manual assets, income/payments and the net worth history live in the local database only. The Sheets sync and the `.mmbackup` importer do not know these tables, and the local database backup (milestone 8) is not built, so clearing app data or losing the phone loses them, history included. A `Wealth` tab in the sheet is the planned fix.
 - Known gap: an investment logged as an expense category (current practice, question 6 above) counts as spending in the health summary.
+- The file backup (item 4 below) copies the whole database, so it covers these phone-only wealth tables too.
+
+## Planned, not built (owner requests, 2026-11-04)
+
+### 1. PIN lock and hidden recents. BUILT (More -> Privacy): PIN 4-6 digits with back-off, auto-lock delay, recents Off / Blur / Hide. BIOMETRIC UNLOCK built (More -> Privacy, only shown when the phone has an enrolled strong biometric; androidx.biometric 1.1.0 = newest stable, newer ones are alpha; MainActivity is now a FragmentActivity for it; the prompt appears when the lock screen shows, "Use PIN" falls back to the keypad; it skips the wrong-PIN wait; removing the PIN switches it off; convenience gate with no crypto object). **The prompt itself has never been run**, on no device or emulator: only the lock logic is unit-tested. Not built: private warning notifications, "phone screen lock" fallback. Blur and Hide are not yet checked on the Nothing phone
+- **Lock**: 4-6 digit PIN, stored as a salted PBKDF2 hash (never the PIN). Wrong tries back off (30 s, 1 min, 5 min...). Optional biometric unlock
+  (`androidx.biometric`, new dependency). Auto-lock delay in More: immediately / 30 s / 1 min / 5 min after the app leaves the screen.
+  The gate is a full-screen layer above `AppRoot` in `MainActivity`; its "unlocked" state is not saved across process death.
+- **Recents privacy**, setting with three modes: Off / Blur / Hide. Screenshots stay allowed inside the app in every mode, so `FLAG_SECURE` is never set while the app is in front.
+  - *Hide*: `Activity.setRecentsScreenshotEnabled(false)` while the app is paused (API 33; the exact behaviour is **unverified**, the docs fetch did not cover it), or `FLAG_SECURE` set in `onPause` and cleared in `onResume` (this also blanks the thumbnail and the app in screen recordings only while backgrounded).
+  - *Blur*: Android has no "blurred thumbnail" switch. Draw a frosted cover (reuse the `Glass.kt` backdrop, or `Modifier.blur`, API 31) over the whole UI in `onPause`. **Unverified**: the system takes the thumbnail after `onPause`, so the cover may not be drawn in time on every launcher; test on the Nothing 3a and fall back to Hide if it flashes the real content.
+  - `onPause` also fires for permission dialogs and the system file picker, so the cover must not trigger the lock timer, only the cover.
+- **Amounts outside the app**: warning notifications get a private version (no amounts) for the lock screen. Widgets: see item 3 (owner decision: no account totals on the home screen at all).
+- **Forgot PIN**: there is no server. Recovery = clear app data and re-sync from the Sheet (so sync should have run). Alternative: allow the phone's own screen lock as a fallback (`DEVICE_CREDENTIAL`). Owner to choose.
+- Tests: hash/verify/back-off as pure functions; Robolectric UI test that a locked app shows the keypad and never composes the screens.
+
+### 2. Charts: expand a category to its transactions. BUILT (tap a row: its operations in the selected bar's period, tap one to edit; "Open in History" link not built)
+- Today `CategoryAmountRow` ([ChartsScreen.kt](app/src/main/kotlin/dev/yernur/moneytracker/ui/ChartsScreen.kt)) is a flat row; the chart rows come from `TxLite`, which has no comment or uid.
+- Plan: tap a row to expand it in place (chevron, animated) into that category's operations in the **selected bar's period**: date, account, comment, amount. Tap an operation to open the edit screen; a small "Open in History" link carries the category and period.
+- Data: extend `TxLite` (or add a DAO query by `categoryUid` + date range) with uid, account, comment. Expand state keyed by category uid, reset when the bar changes. Works for Expenses and Income tabs; the "Balance correction" row (null category) expands too. Transfers never appear here.
+- Tests: expanded totals equal the row amount to the cent (same invariant as `buckets`).
+
+### 3. Home-screen widgets (Nothing Phone 3a, Nothing OS 5.0 = Android 17). BUILT (Glance 1.2.0)
+Built: Month at a glance 2x2, Today 2x2, Quick add 2x1, Limits 4x2, Month by category (Budget) 4x4, Recent operations 4x4, Month dashboard 4x6; More -> Widgets: glass or solid look, Doto numerals on/off; refreshed after every saved change and every 30 min.
+Doto is drawn into a bitmap (Glance cannot set a custom font); the tenge sign and all small text stay in the system font. Seen working on an Android 16 emulator: only Month at a glance was placed and looked at (Doto digits render, glass card readable over a light and a dark wallpaper). **Not yet looked at**: the other six, the solid look, and everything on the Nothing 3a itself.
+Known gaps: the picker shows the app icon instead of a preview (no preview layout or generated preview yet); on the emulator's launcher the 4x6 dashboard is offered as 1x1 (its grid has no room for 6 rows: the Nothing launcher may differ); tapping an operation row is wired to open its edit screen but was never tried; no "hide when locked" (not needed: no balances are shown).
+
+**What the internet says** (checked 2026-11-04):
+- Nothing publishes **no widget SDK or design guide for third-party apps**. Its developer programme covers Glyph (`GlyphMatrix-Developer-Kit`), which is the back LEDs, not home-screen widgets. A request for a widget design manual sits unanswered on Nothing's community forum.
+- Nothing's OS 5.0 page lists "transparent widgets", wallpaper-aware colours and tinted icons for the refreshed home screen; it does **not** mention frosted glass for widgets. (The frosted glass in news about the 3a is the Community Edition's back panel and the OS translucent menus.)
+- So "Nothing style" widgets are ordinary Android app widgets that we style ourselves. Standard docs: [widget layouts and sizes](https://developer.android.com/develop/ui/views/appwidgets/layouts), [enhance widgets (dynamic colours)](https://developer.android.com/develop/ui/views/appwidgets/enhance), [Jetpack Glance](https://developer.android.com/develop/ui/compose/glance).
+- Nothing's own look, from reviews: monochrome, dot-matrix type (Ndot / Doto-like font), high contrast, big numerals. The Nothing launcher shows the widget background transparent or not as the user chooses.
+
+**Frosted glass: the hard limit.** An app widget is `RemoteViews` drawn by the launcher; the app cannot blur what is behind it. Real backdrop blur is impossible from our side (unverified whether Nothing OS 5.0 blurs widgets itself: test on the phone). We can fake the look: translucent white/black fill (about 12-25% alpha) + 1 dp light edge + big rounded corners (use `system_app_widget_background_radius`) + soft inner highlight drawn as a drawable. That reads as glass on a wallpaper and also matches the in-app "Liquid glass" option.
+
+**Build approach (proposal).** Jetpack Glance (Compose-style, RemoteViews underneath; not interoperable with normal Compose, so widgets get their own small composables and share only the data layer). Alternative: plain `RemoteViews` XML if Glance fights the glass drawables. Responsive via `SizeMode.Responsive` / `targetCellWidth/Height`, `previewLayout`, `@android:id/background` for the launch animation. Data from Room via a small read-only repository; refresh from WorkManager and after each saved transaction (`updateAll`). Style switch in More: Glass / Dot-matrix mono / Material-you colours. Tap opens the matching screen (or add-entry).
+Sizes on a 5x4 grid are roughly 73n-16 by 118m-16 dp (Android docs, Pixel 4; the 3a's grid may differ, measure it).
+
+| Widget | Size | Shows | Tap |
+|---|---|---|---|
+| Quick add | 2x1 (or 1x1) | Expense / Income / Transfer buttons | opens add screen on that kind |
+| Month at a glance | 2x2 | Spent this month, bar vs. projection, limit warning dot | Home |
+| ~~Total balance~~ | | Dropped (owner, 2026-11-04): account totals never appear on the home screen. | |
+| Today | 2x2 | Spent today, last 3 operations | History |
+| Limits | 4x2 | Top 3-4 categories as bars vs limit (+ projection tick) | Charts, forecast tab |
+| Budget + chart | 4x4 | Month category stacked bar, top categories, projection line (the Home/Charts summary) | Charts |
+| ~~Accounts~~ | | Dropped for the same reason (balances). | |
+| Recent operations | 4x4 / 4x6 | Last 8-12 operations, per-row category icon, tap to edit | edit screen |
+| Month dashboard | 4x6 | Totals + chart + limits + recent in one tall card | Home |
+
+- **Wealth widgets: dropped** (owner, 2026-11-04). The wealth branch (`claude/finance-app-features-208bd5`) gets no widgets.
+- **Suggested build order**: shared widget style + Month at a glance (2x2) + Quick add + Today, then Limits and Recent operations (4x4); the 4x6 Month dashboard last.
+- **Owner decisions (2026-11-04)**: likes all of them. Spending amounts may show on the home screen; **account balances and totals never do**, which removed "Total balance" and "Accounts" from the table.
+- **Font (owner decision, 2026-11-04)**: the system font for the whole app and for widget small text; Doto for widget big numerals. Options considered, all free fonts bundled under their licence (never copy Nothing's own Ndot files):
+  | Option | Look | Licence |
+  |---|---|---|
+  | System / Roboto | Neutral, matches the rest of the app | Apache 2.0 (system font, nothing to bundle) |
+  | Geist (Vercel) | Clean modern sans, close to Nothing OS's newer look | SIL OFL 1.1 (Vercel docs) |
+  | Geist Mono | Same family, monospaced digits: amounts line up | SIL OFL 1.1 (third-party listing; check the repo's LICENSE) |
+  | Doto (Google Fonts, Oliver Lalan) | True dot-matrix, variable weight 100-900, rounded-dot axis | SIL OFL 1.1 (Fontsource, Google Fonts mirror) |
+  | Geist Pixel (Vercel) | Pixel variants (square, grid, circle, triangle, line) for display text | OFL inferred from the family, not stated in its repo: verify before bundling |
+  **Decided (owner, 2026-11-04, after a mock-up of both):** Doto for the big numerals only (bundled font file, OFL licence text shipped with the app); system font for everything else, including small amounts, because Doto is a display face and stays at 16 sp or larger. Still to check on the phone: Cyrillic category names are not set in Doto, so only digits and the currency sign matter; verify the tenge sign (₸) exists in Doto, else fall back to the system font for it.
+- Tests: Glance has no Robolectric-friendly renderer, so keep the logic (what each widget shows, formatting, no balances) in plain functions with unit tests, and check the look on the emulator and the phone.
+
+### 4. Local database backup and restore (owner request, 2026-11-04). BUILT: manual backup/restore and the pre-update copy; not built: weekly folder backup, 30-day warning
+Verified in the code today: `allowBackup="false"` ([AndroidManifest.xml](app/src/main/AndroidManifest.xml):17); the sheet push empties every tab and then rewrites it
+(`SheetsSync.reuse` calls `api.clear`), so a dropped connection leaves the sheet partly empty until the next run (already listed under "Known limits" in docs/SYNC_DESIGN.md);
+and the update-failure text in `ApkInstaller.kt:132` tells the owner to uninstall the app, which deletes the database. So the sheet is the only copy outside the phone and it can be the broken one.
+- **More -> Back up to a file**: write a consistent copy of the Room database (checkpoint the WAL first, or `VACUUM INTO` a temp file, so the copy is one file) to a location the owner picks with the system file picker (`ACTION_CREATE_DOCUMENT`: no storage permission, can be Drive, Downloads or a USB drive). File name `moneytracker-YYYY-MM-DD.db`, with the schema version stored inside (Room's `user_version`).
+- **More -> Restore from a file**: pick a file, check it is SQLite and its `user_version` is not newer than the app's, show counts (transactions, accounts, last change) and ask for confirmation, then replace the live database and restart. Older versions run through the normal Room migrations. Keep the previous database as `.bak` until the app has opened the restored one.
+- **Safety nets**: an automatic backup copy before every in-app update (and shown in the update-failure message in place of the "uninstall" advice, which should say "restore from the backup instead"); optional weekly backup to a folder the owner chose (WorkManager, keeps the last 4); a warning in More when the last backup is older than 30 days.
+- **PIN interaction**: a backup file is plain data. Say so on the screen; optional passphrase encryption is a later option, not part of v1.
+- Not in scope: re-enabling Android's own backup (`allowBackup`), which would copy financial data to the owner's Google account outside this app's control.
+- Smaller than more sync work: no new network or Google scope. Suggested order: **this first** (it protects everything else), then PIN, charts drill-down, widgets.
+- Tests: round trip (back up, change data, restore: counts and per-account balances equal), refuse a file that is not SQLite or has a newer `user_version`, restore keeps `.bak` when the restored file fails to open.
 
 ## Other / unverified, decide later
 
 | Feature | Rating | Notes |
 |---|---|---|
-| PIN lock | nice | Settings menu has PIN. Not opened. |
+| PIN lock + hidden recents | must | Owner request 2026-11-04, plan in "Planned, not built" below. |
 | Themes / appearance | nice | Own palette; follow system dark mode. |
 | Photo attachments on transactions | skip | "Photo" row exists in add-transaction; no table seen in backup (`sync_file` has 0 rows). |
 | Transaction search and filters | nice | Search icons seen (tag search, transfers). Operation-list filters not captured. |
-| Home-screen widgets | skip | Not seen. |
+| Home-screen widgets | must | Owner request 2026-11-04 (Nothing Phone 3a, Nothing OS 5.0), plan in "Planned, not built" below. |
 | Settings: Personalization, Advanced customization, Data and storage, Extra | unknown | Not opened. Owner to say if anything there matters. |
 | "Restore purchases", "Turn off ads", share / rate / contact support | skip | Seen in drawer. Non-goal (no ads, no payments). |
 | Navigation drawer with profile header and total balance | nice | Seen. Header shows a name and balance; last-sync timestamp at the bottom (maps to our Sheets sync status). |
