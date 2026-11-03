@@ -8,6 +8,7 @@ import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.db.CashflowItemEntity
 import dev.yernur.moneytracker.data.db.CashflowKind
 import dev.yernur.moneytracker.data.db.CategoryEntity
+import dev.yernur.moneytracker.data.db.ProjectionMode
 import dev.yernur.moneytracker.data.db.TransactionEntity
 import dev.yernur.moneytracker.data.db.TransactionType
 import dev.yernur.moneytracker.data.db.TransferEntity
@@ -89,6 +90,18 @@ class HealthTest {
             ),
         )
         assertEquals(600_000L, wealth.averageMonthlySpending(today))
+    }
+
+    @Test
+    fun aCategorySetToNever_isLeftOutOfSpending() = runBlocking {
+        db.categoryDao().insertAll(listOf(CategoryEntity("invest", "invest", TransactionType.Expense, null, null, 0, null, null, null, false, TS, TS, projectionMode = ProjectionMode.Exclude)))
+        db.transactionDao().insertAll(
+            listOf(
+                tx("a", "2026-10-10", TransactionType.Expense, 600_000), // food
+                tx("b", "2026-10-11", TransactionType.Expense, 9_000_000, category = "invest"), // money moved to the broker
+            ),
+        )
+        assertEquals(600_000L, wealth.averageMonthlySpending(today)) // one earlier month with data: only the food
     }
 
     @Test

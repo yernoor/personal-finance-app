@@ -308,7 +308,7 @@ private fun HealthCard(data: WealthOverview, show: (Long) -> String, onEdit: (Ca
             }
             Text(
                 listOfNotNull(
-                    h.averageSpendingMinor?.let { "Spending averages ${show(it)} a month (transfers between accounts are not counted)" },
+                    h.averageSpendingMinor?.let { "Spending averages ${show(it)} a month (transfers are not counted; categories set to Never in their settings are left out)" },
                     h.obligationsSharePercent?.let { "Payments take ${"%.0f".format(it)}% of income" },
                     h.emergencyMonths?.let { "Savings cover ${"%.1f".format(it)} months" },
                 ).joinToString(". "),

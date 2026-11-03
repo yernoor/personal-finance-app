@@ -6,6 +6,7 @@ import dev.yernur.moneytracker.data.db.BondEntity
 import dev.yernur.moneytracker.data.db.CashflowItemEntity
 import dev.yernur.moneytracker.data.db.CashflowKind
 import dev.yernur.moneytracker.data.db.GoalEntity
+import dev.yernur.moneytracker.data.db.ProjectionMode
 import dev.yernur.moneytracker.data.db.TransactionType
 import dev.yernur.moneytracker.data.monthsAvailable
 import java.time.YearMonth
@@ -112,7 +113,8 @@ class WealthRepository(private val db: AppDatabase, private val fx: FxRepository
 
     /**
      * Average monthly expenses over the last full months (up to 3) in the default currency; null with no earlier month. Operations without
-     * a category (balance corrections) are skipped, they are not spending.
+     * a category (balance corrections) are skipped, they are not spending, and so are categories the owner set to "Never" count in the
+     * overall projection (the way to keep money moved into investments, logged as an expense category, out of "spending").
      */
     suspend fun averageMonthlySpending(today: LocalDate): Long? {
         val month = YearMonth.from(today)
@@ -121,7 +123,9 @@ class WealthRepository(private val db: AppDatabase, private val fx: FxRepository
         if (months == 0) return null
         val from = month.minusMonths(months.toLong()).atDay(1).toString()
         val to = month.minusMonths(1).atEndOfMonth().toString()
-        val total = db.transactionDao().getLite(from, to).filter { it.type == TransactionType.Expense && it.categoryUid != null }.sumOf { it.amount }
+        val never = db.categoryDao().getAll().filter { it.projectionMode == ProjectionMode.Exclude }.map { it.uid }.toSet()
+        val total = db.transactionDao().getLite(from, to)
+            .filter { it.type == TransactionType.Expense && it.categoryUid != null && it.categoryUid !in never }.sumOf { it.amount }
         return total / months
     }
 
