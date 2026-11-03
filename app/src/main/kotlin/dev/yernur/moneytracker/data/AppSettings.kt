@@ -29,6 +29,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         prefs?.getString(PIN_HASH, null)?.let { hash -> StoredPin(hash, prefs.getString(PIN_SALT, "").orEmpty(), prefs.getInt(PIN_LENGTH, 4)) },
     )
     private val _pinFailures = MutableStateFlow((prefs?.getInt(PIN_FAILURES, 0) ?: 0) to (prefs?.getLong(PIN_LOCKED_UNTIL, 0L) ?: 0L))
+    private val _biometricUnlock = MutableStateFlow(prefs?.getBoolean(BIOMETRIC_UNLOCK, false) ?: false)
     private val _autoLockSeconds = MutableStateFlow(prefs?.getInt(AUTO_LOCK_SECONDS, 30) ?: 30)
     private val _recentsMode = MutableStateFlow(
         prefs?.getString(RECENTS_MODE, null)?.let { name -> RecentsMode.entries.firstOrNull { it.name == name } } ?: RecentsMode.Off,
@@ -195,6 +196,14 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         prefs?.edit()?.putInt(PIN_FAILURES, count)?.putLong(PIN_LOCKED_UNTIL, lockedUntil)?.apply()
     }
 
+    /** Offer fingerprint / face on the lock screen; the PIN always still works. */
+    val biometricUnlock: StateFlow<Boolean> = _biometricUnlock
+
+    fun setBiometricUnlock(enabled: Boolean) {
+        _biometricUnlock.value = enabled
+        prefs?.edit()?.putBoolean(BIOMETRIC_UNLOCK, enabled)?.apply()
+    }
+
     /** How long the app may be away before it asks for the PIN again (0 = every time). */
     val autoLockSeconds: StateFlow<Int> = _autoLockSeconds
 
@@ -296,6 +305,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val PIN_LENGTH = "pinLength"
         private const val PIN_FAILURES = "pinFailures"
         private const val PIN_LOCKED_UNTIL = "pinLockedUntil"
+        private const val BIOMETRIC_UNLOCK = "biometricUnlock"
         private const val AUTO_LOCK_SECONDS = "autoLockSeconds"
         private const val RECENTS_MODE = "recentsMode"
         private const val GOOGLE_CONNECTED = "googleConnected"

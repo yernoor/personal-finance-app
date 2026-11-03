@@ -79,4 +79,25 @@ class AppLockTest {
         assertFalse(lock.locked.value)
         assertEquals(null, settings.pin.value)
     }
+
+    @Test
+    fun biometricUnlock_worksOnlyWhenSwitchedOn_andSkipsTheWrongPinWait() {
+        val (lock, settings) = lockWithPin()
+        lock.unlockWithBiometric() // switched off: ignored
+        assertTrue(lock.locked.value)
+
+        settings.setBiometricUnlock(true)
+        repeat(5) { lock.attempt("0000", now = 1_000) } // PIN guessing is now in its 30 s wait
+        lock.unlockWithBiometric()
+        assertFalse(lock.locked.value)
+        assertEquals(0 to 0L, settings.pinFailures.value)
+    }
+
+    @Test
+    fun removingThePin_switchesBiometricOff() {
+        val (lock, settings) = lockWithPin()
+        settings.setBiometricUnlock(true)
+        lock.removePin()
+        assertFalse(settings.biometricUnlock.value)
+    }
 }

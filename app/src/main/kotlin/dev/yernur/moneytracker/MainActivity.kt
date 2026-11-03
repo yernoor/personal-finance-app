@@ -3,7 +3,7 @@ package dev.yernur.moneytracker
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
@@ -25,7 +25,7 @@ import dev.yernur.moneytracker.widget.EXTRA_UID
 import dev.yernur.moneytracker.ui.AppRoot
 import dev.yernur.moneytracker.ui.AppTheme
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -37,10 +37,11 @@ class MainActivity : ComponentActivity() {
                 AppTheme {
                     val locked by container.lock.locked.collectAsStateWithLifecycle()
                     val pin by container.settings.pin.collectAsStateWithLifecycle()
+                    val biometric by container.settings.biometricUnlock.collectAsStateWithLifecycle()
                     Box {
                         // Kept composed under the lock screen, so unlocking returns to the same screen.
                         Box(Modifier.blur(if (covered) 30.dp else 0.dp)) { AppRoot(launch = launch, onLaunched = { launch = null }) }
-                        pin?.takeIf { locked }?.let { LockScreen(container.lock, it.length) }
+                        pin?.takeIf { locked }?.let { LockScreen(container.lock, it.length, biometric) }
                     }
                 }
             }

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.BlurOn
 import androidx.compose.material.icons.outlined.CloudSync
+import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Timer
@@ -226,6 +227,14 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
             modifier = Modifier.clickable { if (pin == null) pinDialog = PinDialog.Set else pinDialog = PinDialog.CheckThenMenu }.testTag("app-lock"),
             leadingContent = { Icon(Icons.Outlined.Lock, null) }, headlineContent = { Text("App lock") },
             supportingContent = { Text(if (pin == null) "Off. Set a PIN to lock the app" else "On: ${pin!!.length}-digit PIN. Tap to change or remove it") },
+        )
+        val biometric by container.settings.biometricUnlock.collectAsStateWithLifecycle()
+        if (pin != null && BiometricGate.available(context)) ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier.clickable { container.settings.setBiometricUnlock(!biometric) }.testTag("biometric-unlock"),
+            leadingContent = { Icon(Icons.Outlined.Fingerprint, null) }, headlineContent = { Text("Unlock with fingerprint or face") },
+            supportingContent = { Text("The PIN always works as a fallback") },
+            trailingContent = { Switch(biometric, { container.settings.setBiometricUnlock(it) }) },
         )
         if (pin != null) ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),

@@ -135,7 +135,7 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 
 ## Planned, not built (owner requests, 2026-11-04)
 
-### 1. PIN lock and hidden recents. BUILT (More -> Privacy): PIN 4-6 digits with back-off, auto-lock delay, recents Off / Blur / Hide. Not built: biometric unlock, private warning notifications, "phone screen lock" fallback. Blur and Hide are not yet checked on the Nothing phone
+### 1. PIN lock and hidden recents. BUILT (More -> Privacy): PIN 4-6 digits with back-off, auto-lock delay, recents Off / Blur / Hide. BIOMETRIC UNLOCK built (More -> Privacy, only shown when the phone has an enrolled strong biometric; androidx.biometric 1.1.0 = newest stable, newer ones are alpha; MainActivity is now a FragmentActivity for it; the prompt appears when the lock screen shows, "Use PIN" falls back to the keypad; it skips the wrong-PIN wait; removing the PIN switches it off; convenience gate with no crypto object). **The prompt itself has never been run**, on no device or emulator: only the lock logic is unit-tested. Not built: private warning notifications, "phone screen lock" fallback. Blur and Hide are not yet checked on the Nothing phone
 - **Lock**: 4-6 digit PIN, stored as a salted PBKDF2 hash (never the PIN). Wrong tries back off (30 s, 1 min, 5 min...). Optional biometric unlock
   (`androidx.biometric`, new dependency). Auto-lock delay in More: immediately / 30 s / 1 min / 5 min after the app leaves the screen.
   The gate is a full-screen layer above `AppRoot` in `MainActivity`; its "unlocked" state is not saved across process death.

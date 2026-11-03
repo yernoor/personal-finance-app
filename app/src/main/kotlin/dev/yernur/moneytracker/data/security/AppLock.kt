@@ -82,6 +82,13 @@ class AppLock(private val settings: AppSettings) {
         return if (wait > 0) UnlockResult.Wait(wait / 1000) else UnlockResult.Wrong
     }
 
+    /** The phone's own biometric check succeeded (it ignores the wrong-PIN wait: that guards PIN guessing, not the owner's finger). */
+    fun unlockWithBiometric() {
+        if (!settings.biometricUnlock.value || settings.pin.value == null) return
+        settings.setPinFailures(0, 0)
+        _locked.value = false
+    }
+
     fun setPin(pin: String) {
         val salt = Pin.newSalt()
         settings.setPin(StoredPin(Pin.hash(pin, salt), salt, pin.length))
@@ -90,6 +97,7 @@ class AppLock(private val settings: AppSettings) {
 
     fun removePin() {
         settings.setPin(null)
+        settings.setBiometricUnlock(false)
         settings.setPinFailures(0, 0)
         _locked.value = false
     }
