@@ -267,8 +267,19 @@ and the update-failure text in `ApkInstaller.kt:132` tells the owner to uninstal
 | Settings: Personalization, Advanced customization, Data and storage, Extra | unknown | Not opened. Owner to say if anything there matters. |
 | "Restore purchases", "Turn off ads", share / rate / contact support | skip | Seen in drawer. Non-goal (no ads, no payments). |
 | Navigation drawer with profile header and total balance | nice | Seen. Header shows a name and balance; last-sync timestamp at the bottom (maps to our Sheets sync status). |
-| Bank notification parsing | skip | Non-goal. |
+| Bank notification parsing | skip | Non-goal. Narrow exception below: Wallet payment capture. |
 | Writing `.mmbackup` | skip | Non-goal. |
+
+## Wallet payment capture (owner request 2026-11-09, go-ahead and non-goal exception given 2026-11-10)
+Owner wants a payment made with a Google Wallet card to become an expense in the app, with a top-of-screen prompt to pick the category. Research and open questions: `docs/HANDOFF_WALLET_CAPTURE.md`.
+- **Exception to the "bank notification parsing" non-goal:** the owner agreed (2026-11-10) to read notifications of the Google Wallet app (`com.google.android.apps.walletnfcrel`, package name unverified on the phone)
+  and, for comparison only, of the bank's own app. This is the only notification source; no other app's content is read, and nothing is sent over the network.
+- **Step 1, BUILT as a separate app, `walletlogger/`** (own applicationId `dev.yernur.moneytracker.walletlogger`, no INTERNET permission, installs beside the main app and never touches its data):
+  a `NotificationListenerService` that stores title, text, big text, post time, id and the group-summary flag for allow-listed packages only (default: the Wallet package). For any other package it
+  records the package name alone (a "seen packages" list so the owner can find the bank app's real package) and never reads the notification. Export writes a text file through the system file picker.
+  Shipped as a GitHub **pre-release** tagged `wallet-logger-v*` (docs/RELEASING.md). Not run on a phone yet: Android 16/17 restricted-settings behaviour for the grant is unverified.
+- **Step 2, not built:** parser + category prompt in the main app, written against the samples the logger collects (card `••last4` to account mapping, dedupe, heads-up notification with category buttons).
+- Rating: **must** (owner request).
 
 ## Open questions for the owner
 1. Is `minSdk = 36` fine, or must the app also install on an older device?
