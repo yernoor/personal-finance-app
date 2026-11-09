@@ -32,7 +32,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _biometricUnlock = MutableStateFlow(prefs?.getBoolean(BIOMETRIC_UNLOCK, false) ?: false)
     private val _autoLockSeconds = MutableStateFlow(prefs?.getInt(AUTO_LOCK_SECONDS, 30) ?: 30)
     private val _recentsMode = MutableStateFlow(
-        prefs?.getString(RECENTS_MODE, null)?.let { name -> RecentsMode.entries.firstOrNull { it.name == name } } ?: RecentsMode.Off,
+        prefs?.getString(RECENTS_MODE, null)?.let { name -> RecentsMode.entries.firstOrNull { it.name == name } ?: RecentsMode.Hide.takeIf { name == "Blur" } } ?: RecentsMode.Off,
     )
     private val _widgetGlass = MutableStateFlow(prefs?.getBoolean(WIDGET_GLASS, true) ?: true)
     private val _widgetDotNumerals = MutableStateFlow(prefs?.getBoolean(WIDGET_DOT_NUMERALS, true) ?: true)

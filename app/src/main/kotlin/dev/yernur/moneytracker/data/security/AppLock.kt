@@ -9,7 +9,8 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 
 /** What the recents (app switcher) thumbnail shows. Screenshots inside the app are never blocked. */
-enum class RecentsMode(val label: String) { Off("Show the app"), Blur("Blur it"), Hide("Hide it") }
+/** No Blur: the system snapshots the window before a frame drawn on focus loss reaches it (checked on the emulator), so only the system switch can hide it. */
+enum class RecentsMode(val label: String) { Off("Show the app"), Hide("Hide it") }
 
 /** The PIN is stored only as a salted PBKDF2 hash. A 4-6 digit PIN still falls to a brute force on a rooted phone: this keeps out someone holding the unlocked-looking phone, not a forensic lab. */
 object Pin {
