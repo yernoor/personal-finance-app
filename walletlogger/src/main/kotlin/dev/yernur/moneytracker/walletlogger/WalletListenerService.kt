@@ -21,8 +21,13 @@ class WalletListenerService : NotificationListenerService() {
         }
     }
 
+    override fun onListenerConnected() {
+        StatusNotification.update(this)
+    }
+
     // The OS can drop the binding (battery managers); ask to be bound again.
     override fun onListenerDisconnected() {
+        StatusNotification.update(this)
         requestRebind(android.content.ComponentName(this, WalletListenerService::class.java))
     }
 }

@@ -3,6 +3,9 @@
 
     <!-- Deliberately no INTERNET permission: what this app stores cannot leave the phone except through the owner's own Export. -->
 
+    <!-- Only for the silent "reading is on" status notification. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:allowBackup="false"
         android:label="Wallet Logger"

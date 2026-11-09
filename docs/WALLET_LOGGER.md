@@ -6,7 +6,10 @@ format can be read before any parser is written. Plan and findings: `docs/HANDOF
 ## What it does and does not do
 - Reads title, text, big text, post time, id and the group-summary flag, **only** for allow-listed packages (default `com.google.android.apps.walletnfcrel`; unverified on the phone).
 - For every other app it stores the **package name and a count only**; the notification is never read (unit-tested: `RecorderTest`). Use the "seen" list to find the bank app's real package, then add it to the allow-list.
-- No INTERNET permission (checked in the built APK with `aapt2 dump permissions`). Data lives in the app's private storage until you tap Export.
+- No INTERNET permission (checked in the built APK with `aapt2 dump permissions`; the only permission is `POST_NOTIFICATIONS`). Data lives in the app's private storage until you tap Export.
+- While reading is possible (notification access granted and the "Reading" switch on) it shows a **silent** ongoing notification, "Wallet Logger is reading" (low-importance channel: no sound, no pop-up). It disappears when access is revoked or reading is paused.
+  Needs the notification permission (`POST_NOTIFICATIONS`, asked on first open; on adb installs `adb shell pm grant dev.yernur.moneytracker.walletlogger android.permission.POST_NOTIFICATIONS`). Not checked on other phones.
+- The "Reading" switch pauses everything: nothing is read, stored or counted while paused.
 - Does not touch the main app or its database.
 
 ## Using it

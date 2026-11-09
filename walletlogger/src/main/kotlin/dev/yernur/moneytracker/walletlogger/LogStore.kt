@@ -15,6 +15,13 @@ class LogStore(context: Context, private val maxEntries: Int = 2000) {
         prefs.edit().putStringSet(KEY_ALLOWED, packages).apply()
     }
 
+    /** The owner's pause switch: when off, nothing is read, stored or even counted. */
+    fun readingEnabled(): Boolean = prefs.getBoolean(KEY_READING, true)
+
+    fun setReadingEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_READING, enabled).apply()
+    }
+
     fun isAllowed(packageName: String): Boolean = packageName in allowedPackages()
 
     /** Package name only, never content: lets the owner find the real package of an app. Counts are per package. */
@@ -53,5 +60,6 @@ class LogStore(context: Context, private val maxEntries: Int = 2000) {
         const val WALLET_PACKAGE = "com.google.android.apps.walletnfcrel"
         private const val KEY_ALLOWED = "allowed"
         private const val KEY_SEEN = "seen"
+        private const val KEY_READING = "reading"
     }
 }

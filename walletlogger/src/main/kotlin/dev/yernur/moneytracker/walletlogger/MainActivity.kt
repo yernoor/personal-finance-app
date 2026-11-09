@@ -1,9 +1,11 @@
 package dev.yernur.moneytracker.walletlogger
 
+import android.Manifest
 import android.app.Activity
 import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.Settings
 import android.view.ViewGroup
@@ -24,10 +26,15 @@ class MainActivity : Activity() {
     private lateinit var allowed: EditText
     private lateinit var seen: TextView
     private lateinit var log: TextView
+    private lateinit var pause: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = LogStore(this)
+        // Needed for the silent status notification (Android 13+). Without it the logger still works, only the notification is missing.
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIFICATIONS)
+        }
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 32, 32, 32)
@@ -41,6 +48,11 @@ class MainActivity : Activity() {
         column.addView(button("Open this app's info (\"Allow restricted settings\" is here if Android hides the switch)") {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName")))
         })
+        pause = button("") {
+            store.setReadingEnabled(!store.readingEnabled())
+            refresh()
+        }
+        column.addView(pause)
         column.addView(TextView(this).apply { text = "\nPackages whose notifications are read (one per line):" })
         column.addView(allowed)
         column.addView(button("Save packages") {
@@ -71,6 +83,8 @@ class MainActivity : Activity() {
     private fun refresh() {
         val manager = getSystemService(NotificationManager::class.java)
         val granted = manager.isNotificationListenerAccessGranted(ComponentName(this, WalletListenerService::class.java))
+        pause.text = if (store.readingEnabled()) "Reading: ON (tap to pause)" else "Reading: PAUSED (tap to resume)"
+        StatusNotification.update(this)
         status.text = if (granted) "Notification access: ON" else "Notification access: OFF"
         seen.text = store.seenPackages().entries.sortedByDescending { it.value }.joinToString("\n") { "${it.key}  x${it.value}" }.ifEmpty { "(none yet)" }
         val format = DateFormat.getDateTimeInstance()
@@ -98,6 +112,11 @@ class MainActivity : Activity() {
         Toast.makeText(this, "Exported", Toast.LENGTH_SHORT).show()
     }
 
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        StatusNotification.update(this)
+    }
+
     private fun button(label: String, onClick: () -> Unit) = Button(this).apply {
         text = label
         setOnClickListener { onClick() }
@@ -105,5 +124,6 @@ class MainActivity : Activity() {
 
     private companion object {
         const val REQUEST_EXPORT = 1
+        const val REQUEST_NOTIFICATIONS = 2
     }
 }
