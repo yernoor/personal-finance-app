@@ -7,7 +7,7 @@
         android:allowBackup="false"
         android:label="Wallet Logger"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Material.Light">
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
         <activity
             android:name=".MainActivity"

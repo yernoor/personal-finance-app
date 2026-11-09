@@ -1,10 +1,13 @@
 package dev.yernur.moneytracker.walletlogger
 
 import android.app.Activity
+import android.app.NotificationManager
+import android.content.ComponentName
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
 import android.view.ViewGroup
+import android.view.WindowInsets
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -27,7 +30,7 @@ class MainActivity : Activity() {
         store = LogStore(this)
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(32, 96, 32, 32)
+            setPadding(32, 32, 32, 32)
         }
         status = TextView(this)
         allowed = EditText(this).apply { setText(store.allowedPackages().joinToString("\n")) }
@@ -35,7 +38,7 @@ class MainActivity : Activity() {
         log = TextView(this).apply { setTextIsSelectable(true) }
         column.addView(status)
         column.addView(button("Open notification access settings") { startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) })
-        column.addView(button("Open this app's info (for \"Allow restricted settings\")") {
+        column.addView(button("Open this app's info (\"Allow restricted settings\" is here if Android hides the switch)") {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName")))
         })
         column.addView(TextView(this).apply { text = "\nPackages whose notifications are read (one per line):" })
@@ -50,7 +53,14 @@ class MainActivity : Activity() {
         column.addView(button("Clear everything") { store.clear(); refresh() })
         column.addView(TextView(this).apply { text = "\nCaptured:" })
         column.addView(log)
-        setContentView(ScrollView(this).apply { addView(column, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT) })
+        // Edge-to-edge is enforced (targetSdk 36): keep the content out from under the status and navigation bars.
+        val scroll = ScrollView(this).apply { addView(column, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT) }
+        scroll.setOnApplyWindowInsetsListener { view, insets ->
+            val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            WindowInsets.CONSUMED
+        }
+        setContentView(scroll)
     }
 
     override fun onResume() {
@@ -59,7 +69,8 @@ class MainActivity : Activity() {
     }
 
     private fun refresh() {
-        val granted = Settings.Secure.getString(contentResolver, "enabled_notification_listeners").orEmpty().contains(packageName)
+        val manager = getSystemService(NotificationManager::class.java)
+        val granted = manager.isNotificationListenerAccessGranted(ComponentName(this, WalletListenerService::class.java))
         status.text = if (granted) "Notification access: ON" else "Notification access: OFF"
         seen.text = store.seenPackages().entries.sortedByDescending { it.value }.joinToString("\n") { "${it.key}  x${it.value}" }.ifEmpty { "(none yet)" }
         val format = DateFormat.getDateTimeInstance()
