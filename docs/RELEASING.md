@@ -17,6 +17,12 @@
 3. The **Release** workflow (`.github/workflows/release.yml`) refuses a tag that differs from `versionName`, runs the tests,
    builds `assembleRelease` signed with your key, and attaches `money-tracker-v0.2.0.apk` to a GitHub release.
 
+## Wallet Logger pre-release (separate app, docs/WALLET_LOGGER.md)
+Raise `versionName` in `walletlogger/build.gradle.kts`, merge, then tag `wallet-logger-v<versionName>` (for example `wallet-logger-v0.1.0`) and push the tag.
+`.github/workflows/walletlogger-release.yml` runs its tests, builds it signed with the same key and secrets as the main app, and publishes a **pre-release**
+(so the main app's "latest release" update check never sees it). Same signing key means the logger can be updated in place later. Never run on GitHub yet; unverified.
+The `ci.yml` build runs `testDebugUnitTest assembleDebug` for every module, so the logger is covered on pull requests too.
+
 ## One-time setup: the signing key (never in git)
 ```bash
 export PATH=/opt/homebrew/opt/openjdk@25/bin:$PATH   # the system `java` is only a stub; keytool ships with the project JDK
