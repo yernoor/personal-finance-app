@@ -87,6 +87,7 @@ Not known: reports/charts, budgets UI, recurring items, widgets, search, filters
 ## Non-goals
 - Writing `.mmbackup` files (the integrity hash algorithm is unknown; importing is enough).
 - Bank notification parsing for Kaspi/Halyk/Freedom/ForteBank (owner judged it brittle; manual entry is the workflow).
+  Narrow exception, owner-approved 2026-11-10: reading Google Wallet payment notifications (docs/FEATURES.md "Wallet payment capture").
 - Multi-user, accounts, or any server component.
 
 ## Commands
