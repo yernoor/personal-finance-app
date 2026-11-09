@@ -113,6 +113,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
         nav.navigate(entryRoute(target.uid, kind))
         onLaunched()
     }
+    CrashPrompt(onReport = { nav.navigate("feedback/crash") })
     val settings = LocalAppContainer.current.settings
     val tabIds by settings.navTabs.collectAsStateWithLifecycle()
     val tabs = tabIds.mapNotNull { id -> NavTab.entries.firstOrNull { it.id == id } }
@@ -248,7 +249,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 MoreScreen(
                     onCategories = { nav.navigate("categories") }, onTags = { nav.navigate("tags") },
                     onNavbar = { nav.navigate("navbar-settings") }, onHomeLayout = { nav.navigate("home-settings") },
-                    onSync = { nav.navigate("sync") }, onUpdates = { nav.navigate("updates") },
+                    onSync = { nav.navigate("sync") }, onUpdates = { nav.navigate("updates") }, onFeedback = { nav.navigate("feedback") },
                     onCompound = { nav.navigate("compound") }, onWealth = { nav.navigate("wealth") },
                 )
             }
@@ -258,6 +259,8 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             composable("compound") { CompoundScreen { nav.popBackStack() } }
             composable("sync") { SyncScreen { nav.popBackStack() } }
             composable("updates") { UpdatesScreen { nav.popBackStack() } }
+            composable("feedback") { FeedbackScreen { nav.popBackStack() } }
+            composable("feedback/crash") { FeedbackScreen(reportLastCrash = true) { nav.popBackStack() } }
             composable("navbar-settings") { NavbarSettingsScreen { nav.popBackStack() } }
             composable("home-settings") { HomeLayoutScreen { nav.popBackStack() } }
             composable("categories") {

@@ -15,6 +15,7 @@ import dev.yernur.moneytracker.data.db.MIGRATION_2_3
 import dev.yernur.moneytracker.data.db.MIGRATION_3_4
 import dev.yernur.moneytracker.data.db.MIGRATION_4_5
 import dev.yernur.moneytracker.data.db.MIGRATION_5_6
+import dev.yernur.moneytracker.data.feedback.CrashLog
 import dev.yernur.moneytracker.data.importer.ImportRepository
 import dev.yernur.moneytracker.data.security.AppLock
 import dev.yernur.moneytracker.data.sheets.UrlConnectionTransport
@@ -48,6 +49,8 @@ class AppContainer(
     val backups: DbBackup? = null,
     /** Redraws the home-screen widgets; a no-op in tests. */
     private val widgetsChanged: suspend () -> Unit = {},
+    /** Null in tests: the last crash, kept so the next launch can offer to report it. */
+    val crashes: CrashLog? = null,
 ) {
     val importer = ImportRepository(db)
     val forecasts = ForecastRepository(db, settings)
@@ -95,6 +98,7 @@ val LocalAppContainer = staticCompositionLocalOf<AppContainer> { error("AppConta
 class MoneyApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        container.crashes?.install()
         dev.yernur.moneytracker.data.sheets.WeeklySyncWorker.schedule(this)
         dev.yernur.moneytracker.data.ReminderWorker.schedule(this, container.settings)
         kotlinx.coroutines.CoroutineScope(Dispatchers.Default).launch { dev.yernur.moneytracker.widget.updateWidgetPreviews(this@MoneyApp) }
@@ -111,6 +115,7 @@ class MoneyApp : Application() {
             fxClient = NbkRatesClient(UrlConnectionTransport()),
             backups = DbBackup(db, getDatabasePath(DB_NAME), java.io.File(filesDir, "backups"), DB_VERSION),
             widgetsChanged = { dev.yernur.moneytracker.widget.updateAllWidgets(this) },
+            crashes = CrashLog(java.io.File(filesDir, "crash/last-crash.txt")),
         )
     }
 

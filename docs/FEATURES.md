@@ -255,6 +255,14 @@ and the update-failure text in `ApkInstaller.kt:132` tells the owner to uninstal
 - Smaller than more sync work: no new network or Google scope. Suggested order: **this first** (it protects everything else), then PIN, charts drill-down, widgets.
 - Tests: round trip (back up, change data, restore: counts and per-account balances equal), refuse a file that is not SQLite or has a newer `user_version`, restore keeps `.bak` when the restored file fails to open.
 
+### 5. Bug reports and feature ideas (owner request, 2026-11-10; friends are testing the public repo). BUILT: feedback screen and crash capture (on for everyone, no switch)
+- More -> App -> "Report a bug or suggest a feature": Bug / Idea, a summary and details. The button opens `https://github.com/yernoor/personal-finance-app/issues/new` pre-filled (title, body, label `bug` / `enhancement`) in the browser; the person presses Submit there. The repo constant is `UpdateChecker.REPO`.
+- The app makes no request and holds no token (the "no network calls" rule stays true). The screen warns that the issue is public and tells the person to leave out amounts and account names. The body gets one line: app version, Android version, phone model. The link is capped at 5,000 characters of body (GitHub rejects very long URLs; limit not checked against GitHub).
+- **Crash capture** (`CrashLog`, installed in `MoneyApp.onCreate`): an uncaught-exception handler saves the last crash to `files/crash/last-crash.txt`, then calls the previous handler, so Android's own crash behaviour is unchanged. On the next launch a dialog offers "Review report" (opens the feedback screen as a Crash issue, trace pre-filled and editable) or "Not now" (deletes the trace). The file is deleted when the issue link is opened. Only the latest crash is kept.
+- Privacy of crash reports: the issue is public, so the saved text has exception class names, `at` frames (30 per exception, 4 causes) and the thread name, **no exception messages** (they can quote typed text or values). Cost: a few bugs will be harder to diagnose without the message; add it by hand if needed.
+- Not covered: native crashes and ANRs (the Java handler never sees them); the handler is unit-tested with a fake previous handler, not by crashing the app on a device.
+- Submitting needs a GitHub account. Labels that do not exist yet are ignored by GitHub for people without write access, so the owner creates `bug`, `enhancement` and `crash` once.
+
 ## Other / unverified, decide later
 
 | Feature | Rating | Notes |
