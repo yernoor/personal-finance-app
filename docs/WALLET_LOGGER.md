@@ -13,7 +13,7 @@ format can be read before any parser is written. Plan and findings: `docs/HANDOF
 - Does not touch the main app or its database.
 
 ## Using it
-1. Install the pre-release APK from GitHub (tag `wallet-logger-v*`), beside the main app.
+1. Build and install over adb, beside the main app: `./gradlew :walletlogger:assembleDebug`, then `adb -s <serial> install -r walletlogger/build/outputs/apk/debug/walletlogger-debug.apk` (not published anywhere).
 2. Play Protect may block a browser install of the APK (seen 2026-11-10 on the Nothing Phone 3a). `adb install` worked, and an adb-installed app showed **no** "Allow restricted settings" entry in App info
    (installer was `com.android.shell`); the notification access switch was available directly. Observed on that one phone; the browser-install path was not completed.
    Wireless adb: `adb pair <ip:pairing-port> <code>`, then `adb connect <ip:connect-port>` (restart the adb server if pairing fails with "protocol fault").

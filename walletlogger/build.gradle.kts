@@ -15,24 +15,6 @@ android {
         versionName = "0.1.0"
     }
 
-    // Same signing setup as :app (environment variables, nothing in git).
-    signingConfigs {
-        System.getenv("RELEASE_KEYSTORE_FILE")?.let { keystore ->
-            create("release") {
-                storeFile = file(keystore)
-                storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
-                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
-            }
-        }
-    }
-
-    buildTypes {
-        release {
-            signingConfig = signingConfigs.findByName("release")
-        }
-    }
-
     testOptions {
         unitTests.isIncludeAndroidResources = true
     }
