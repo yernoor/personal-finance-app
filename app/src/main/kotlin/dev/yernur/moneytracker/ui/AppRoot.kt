@@ -113,6 +113,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
         nav.navigate(entryRoute(target.uid, kind))
         onLaunched()
     }
+    CrashPrompt(onReport = { nav.navigate("feedback/crash") })
     val settings = LocalAppContainer.current.settings
     val tabIds by settings.navTabs.collectAsStateWithLifecycle()
     val tabs = tabIds.mapNotNull { id -> NavTab.entries.firstOrNull { it.id == id } }
@@ -259,6 +260,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             composable("sync") { SyncScreen { nav.popBackStack() } }
             composable("updates") { UpdatesScreen { nav.popBackStack() } }
             composable("feedback") { FeedbackScreen { nav.popBackStack() } }
+            composable("feedback/crash") { FeedbackScreen(reportLastCrash = true) { nav.popBackStack() } }
             composable("navbar-settings") { NavbarSettingsScreen { nav.popBackStack() } }
             composable("home-settings") { HomeLayoutScreen { nav.popBackStack() } }
             composable("categories") {
