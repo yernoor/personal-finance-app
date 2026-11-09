@@ -285,7 +285,7 @@ Owner wants a payment made with a Google Wallet card to become an expense in the
 - **Step 1, BUILT as a separate app, `walletlogger/`** (own applicationId `dev.yernur.moneytracker.walletlogger`, no INTERNET permission, installs beside the main app and never touches its data):
   a `NotificationListenerService` that stores title, text, big text, post time, id and the group-summary flag for allow-listed packages only (default: the Wallet package). For any other package it
   records the package name alone (a "seen packages" list so the owner can find the bank app's real package) and never reads the notification. Export writes a text file through the system file picker.
-  Shipped as a GitHub **pre-release** tagged `wallet-logger-v*` (docs/RELEASING.md). Not run on a phone yet: Android 16/17 restricted-settings behaviour for the grant is unverified.
+  Installed over adb from a local build (no GitHub release: owner dropped that on 2026-11-10). Shows a silent status notification while reading, with a pause switch. Run on the owner's Nothing Phone 3a: an adb install showed no restricted-settings gate (one phone, observed).
 - **Step 2, not built:** parser + category prompt in the main app, written against the samples the logger collects (card `••last4` to account mapping, dedupe, heads-up notification with category buttons).
 - Rating: **must** (owner request).
 

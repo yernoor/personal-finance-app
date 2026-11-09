@@ -88,6 +88,24 @@ class RecorderTest {
         assertTrue(store.entries().isEmpty() && store.seenPackages().isEmpty())
     }
 
+    @Test
+    fun pausedReadingDropsEverythingUnreadAndUncounted() {
+        store.setReadingEnabled(false)
+        recorder.onPosted(LogStore.WALLET_PACKAGE) { error("must not be read while paused") }
+        recorder.onPosted("com.example.bank") { error("must not be read while paused") }
+        assertTrue(store.entries().isEmpty() && store.seenPackages().isEmpty())
+        store.setReadingEnabled(true)
+        recorder.onPosted(LogStore.WALLET_PACKAGE) { sample(LogStore.WALLET_PACKAGE) }
+        assertEquals(1, store.entries().size)
+    }
+
+    @Test
+    fun statusNotificationShowsOnlyWhenAccessGrantedAndReadingOn() {
+        assertTrue(StatusNotification.shouldShow(accessGranted = true, readingEnabled = true))
+        assertFalse(StatusNotification.shouldShow(accessGranted = true, readingEnabled = false))
+        assertFalse(StatusNotification.shouldShow(accessGranted = false, readingEnabled = true))
+    }
+
     private companion object {
         const val OWN = "dev.yernur.moneytracker.walletlogger"
     }
