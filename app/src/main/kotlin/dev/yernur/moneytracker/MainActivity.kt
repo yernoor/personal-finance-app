@@ -7,15 +7,11 @@ import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
-import android.view.WindowManager
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.yernur.moneytracker.data.security.RecentsMode
 import dev.yernur.moneytracker.ui.AppLaunch
@@ -33,6 +29,9 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         val container = (application as MoneyApp).container
         askForNotificationsOnce()
+        // Hide: a standing switch (API 33), not a flag set in onPause: the system takes the snapshot before that reaches the window.
+        // It affects only the recents thumbnail, so screenshots inside the app still work.
+        lifecycleScope.launch { container.settings.recentsMode.collect { setRecentsScreenshotEnabled(it != RecentsMode.Hide) } }
         launch = launchFrom(intent)
         lifecycleScope.launch { container.dailyWealthRefresh() }
         setContent {
@@ -43,7 +42,7 @@ class MainActivity : FragmentActivity() {
                     val biometric by container.settings.biometricUnlock.collectAsStateWithLifecycle()
                     Box {
                         // Kept composed under the lock screen, so unlocking returns to the same screen.
-                        Box(Modifier.blur(if (covered) 30.dp else 0.dp)) { AppRoot(launch = launch, onLaunched = { launch = null }) }
+                        AppRoot(launch = launch, onLaunched = { launch = null })
                         pin?.takeIf { locked }?.let { LockScreen(container.lock, it.length, biometric) }
                     }
                 }
@@ -63,23 +62,6 @@ class MainActivity : FragmentActivity() {
         val kind = intent?.getStringExtra(EXTRA_KIND)
         val uid = intent?.getStringExtra(EXTRA_UID)
         return if (kind == null && uid == null) null else AppLaunch(kind, uid)
-    }
-
-    /** Blur mode: true while the app is not in front, so the thumbnail the system takes for recents shows a blurred app. Unverified that every launcher takes it after this is drawn. */
-    private var covered by mutableStateOf(false)
-
-    override fun onPause() {
-        super.onPause()
-        val mode = (application as MoneyApp).container.settings.recentsMode.value
-        covered = mode == RecentsMode.Blur
-        // Hide: FLAG_SECURE only while the app is not in front, so screenshots still work inside it.
-        if (mode == RecentsMode.Hide) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        covered = false
-        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
     }
 
     override fun onStop() {
