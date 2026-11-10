@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Only so the stub may post its notification. No INTERNET permission. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:allowBackup="false"
+        android:label="Wallet Stub (test only)"
+        android:supportsRtl="true">
+
+        <!-- Driven from adb: see PostReceiver. -->
+        <receiver
+            android:name=".PostReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="dev.yernur.moneytracker.walletstub.POST" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

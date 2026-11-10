@@ -335,6 +335,11 @@ Owner wants a payment made with a Google Wallet card to become an expense in the
   Picking a category saves the expense (account = default, date = local day of the post, comment = merchant) and shows a short "Added" confirmation. Lock-screen version shows only "Wallet payment".
   Not done: per-card account mapping (all payments use the default account), converting foreign-currency payments, auto-dismissing Wallet's own notification, the PIN lock is not asked for these prompts.
   Unverified on a device: the prompts' look and buttons, the "More…" activity, what Android 17 does with the listener of a release-signed build.
+- **Emulator test, `walletstub/`:** a test-only app with Wallet's own package name that posts a Wallet-shaped payment notification, so the main app's listener can be run without a phone (the listener ignores every other package). Never install it beside the real Wallet.
+  Setup: install both debug APKs, `pm grant` POST_NOTIFICATIONS to both, `cmd notification allow_listener dev.yernur.moneytracker/dev.yernur.moneytracker.data.wallet.WalletListenerService`, switch "Google Wallet payments" on in More -> Automation.
+  Post (wrap the whole command in quotes so `adb shell` keeps spaces in values):
+  `adb shell "am broadcast -a dev.yernur.moneytracker.walletstub.POST -n com.google.android.apps.walletnfcrel/dev.yernur.moneytracker.walletstub.PostReceiver --es merchant 'Test Cafe' --es amount 1234.5"`.
+  Extras: `currency`, `card`, `last4`, and `text` (replaces the text line, for formats not seen yet). Checked on the emulator 2026-11-11: the main app answered with its "Which account do you pay with?" prompt.
 - Rating: **must** (owner request).
 
 ## Open questions for the owner
