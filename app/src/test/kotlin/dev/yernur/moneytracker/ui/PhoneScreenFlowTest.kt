@@ -288,12 +288,12 @@ class PhoneScreenFlowTest {
     fun iconStyleIsChosenInMore_withOneSetOfLooksForGlassAndAnotherForNot() {
         tap("more")
         compose.onNodeWithTag("open-icon-style").performScrollTo().performClick()
-        waitForText("Springboard")
+        waitForText("Solid (Springboard)")
         compose.onNodeWithTag("icon-style-LiquidTile").assertDoesNotExist() // glass looks are not offered while glass is off
         tap("icon-style-SoftFill")
         assertEquals(IconStyle.SoftFill, container.settings.iconStyle.value)
         compose.onNodeWithText("Close").performClick()
-        waitForText("Soft fill")
+        waitForText("Tonal (Soft fill)")
 
         compose.onNodeWithTag("glass-toggle").performScrollTo().performClick() // liquid glass on
         eventually { container.settings.glass.value }

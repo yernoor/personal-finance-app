@@ -89,6 +89,16 @@ class AppSettingsTest {
     }
 
     @Test
+    fun everydayIconStyles_areSixAndEachOneIsStored() {
+        assertEquals(listOf("Springboard", "SoftFill", "Raised", "Outline", "Mono", "Sticker"), IconStyle.entries.filter { !it.forGlass }.map { it.name })
+        listOf(IconStyle.Raised, IconStyle.Outline, IconStyle.Mono, IconStyle.Sticker).forEach { style ->
+            prefs.edit().clear().commit()
+            AppSettings(prefs).setIconStyle(style)
+            assertEquals(style, AppSettings(prefs).iconStyle.value)
+        }
+    }
+
+    @Test
     fun liquidGlassIsOffByDefault() {
         prefs.edit().clear().commit()
         assertEquals(false, AppSettings(prefs).glass.value)

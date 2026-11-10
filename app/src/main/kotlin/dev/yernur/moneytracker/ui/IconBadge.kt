@@ -60,6 +60,8 @@ private class Look(
     val glyphTop: Color, val glyphBottom: Color,
     val knock: Color,
     val shadow: Color = Color.Transparent,
+    val edgeWidth: Float = 1f,
+    val bodyFill: Boolean = true, // false: shapes are only stroked (the Outline look)
 )
 
 private fun look(style: IconStyle, slot: Int, hue: Float, dark: Boolean): Look {
@@ -82,6 +84,39 @@ private fun look(style: IconStyle, slot: Int, hue: Float, dark: Boolean): Look {
                 gloss = if (dark) 0.06f else 0.45f,
                 edge = glyph.copy(alpha = if (dark) 0.18f else 0.14f),
                 glyphTop = glyph, glyphBottom = glyph, knock = background,
+            )
+        }
+        IconStyle.Raised -> Look(
+            baseTop = c(AccentPalette.liquidTop(slot, hue, dark)), baseBottom = c(AccentPalette.springBottom(slot, hue, dark)),
+            gloss = if (dark) 0.22f else 0.42f,
+            edge = c(AccentPalette.springShadow(slot, hue, dark), 0.9f),
+            rim = Triple(if (dark) 0.40f else 0.65f, 0.06f, 0.18f),
+            glyphTop = Color.White, glyphBottom = Color.White,
+            knock = c(AccentPalette.springKnock(slot, hue, dark)),
+            shadow = c(AccentPalette.springShadow(slot, hue, dark), 0.9f),
+            edgeWidth = 2.5f,
+        )
+        IconStyle.Outline -> {
+            val glyph = c(AccentPalette.softGlyph(slot, hue, dark))
+            Look(
+                baseTop = Color.Transparent, baseBottom = Color.Transparent,
+                edge = glyph.copy(alpha = 0.55f), edgeWidth = 3f,
+                glyphTop = glyph, glyphBottom = glyph, knock = Color.Transparent, bodyFill = false,
+            )
+        }
+        IconStyle.Mono -> {
+            val neutral = AccentPalette.SLOTS - 1
+            val glyph = c(AccentPalette.softGlyph(slot, hue, dark)).copy(alpha = 0.92f)
+            val background = c(AccentPalette.softBackground(neutral, hue, dark))
+            Look(baseTop = background, baseBottom = background, glyphTop = glyph, glyphBottom = glyph, knock = background)
+        }
+        IconStyle.Sticker -> {
+            val card = if (dark) Color(0xFF2A2C33) else Color.White
+            Look(
+                baseTop = card, baseBottom = card,
+                edge = (if (dark) Color.White else Color.Black).copy(alpha = 0.10f), edgeWidth = 1.5f,
+                glyphTop = c(AccentPalette.springTop(slot, hue, dark)), glyphBottom = c(AccentPalette.springBottom(slot, hue, dark)),
+                knock = card,
             )
         }
         IconStyle.LiquidTile -> Look(
@@ -115,7 +150,7 @@ private fun DrawScope.drawTile(look: Look, glyph: Glyph) {
     if (look.glow.alpha > 0f) {
         drawPath(squircle, Brush.radialGradient(listOf(look.glow, look.glow.copy(alpha = 0f)), Offset(50f, 104f), 62f))
     }
-    drawPath(squircle, look.edge, style = Stroke(1f))
+    drawPath(squircle, look.edge, style = Stroke(look.edgeWidth))
     look.rim?.let { (start, middle, end) ->
         withTransform({
             translate(0.8f, 0.8f)
@@ -147,7 +182,7 @@ private fun DrawScope.drawTile(look: Look, glyph: Glyph) {
             }
         }
         val fill = Brush.verticalGradient(listOf(look.glyphTop, look.glyphBottom), 3f, 21f)
-        drawPath(body, fill)
+        if (look.bodyFill) drawPath(body, fill)
         drawPath(body, fill, style = round(1.2f))
         detail?.let { drawPath(it, fill, style = round(1.9f)) }
         // Lines drawn inside the filled shape are cut out of it again, so the glyph keeps its inner detail
