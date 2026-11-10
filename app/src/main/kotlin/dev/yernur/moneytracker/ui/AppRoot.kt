@@ -51,6 +51,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -143,8 +145,9 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
 
     val glass by settings.glass.collectAsStateWithLifecycle()
     val scheme = MaterialTheme.colorScheme
-    val glow = remember(scheme.surface, scheme.primary, scheme.tertiary) { glowBackground(scheme.surface, scheme.primary, scheme.tertiary) }
-    val backdropDraw = remember(glow) { val draw: ContentDrawScope.() -> Unit = { glow(); drawContent() }; draw }
+    val darkTheme = isDarkSurface()
+    val glow = remember(scheme.surface, scheme.primary, darkTheme) { Glow.of(scheme.surface, scheme.primary, darkTheme) }
+    val backdropDraw = remember(glow) { val draw: ContentDrawScope.() -> Unit = { glow.draw(this, size.width, size.height); drawContent() }; draw }
     val backdrop = rememberLayerBackdrop(onDraw = backdropDraw)
 
     val iconSetting by settings.iconStyle.collectAsStateWithLifecycle()
@@ -152,7 +155,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     val accentHue = remember(scheme.primary) { Oklch.hueOf(scheme.primary.toArgb()) }
 
     CompositionLocalProvider(
-        LocalGlass provides glass, LocalChromeInset provides if (glass && tab != null) GlassBarInset else 0.dp,
+        LocalGlass provides glass, LocalGlow provides (if (glass) glow else null), LocalChromeInset provides if (glass && tab != null) GlassBarInset else 0.dp,
         LocalIconStyle provides if (glass) glassIconSetting else iconSetting, // glass allows only glass-style icons
         LocalAccentHue provides accentHue,
     ) {
@@ -192,8 +195,9 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             }
         },
     ) { padding ->
+      CompositionLocalProvider(LocalGlowTopInset provides with(LocalDensity.current) { padding.calculateTopPadding().toPx() }) {
       Box(
-          Modifier.fillMaxSize().then(if (glass) Modifier.drawBehind { glow() } else Modifier)
+          Modifier.fillMaxSize().then(if (glass) Modifier.drawBehind { glow.draw(this, size.width, size.height) } else Modifier)
               .pointerInput(tab, tabs) { // swipe left/right between tabs; drags a child already used (charts, sliders) never reach here
                   if (tab == null) return@pointerInput
                   var dragged = 0f
@@ -313,15 +317,16 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
         if (glass) {
             val navInset = padding.calculateBottomPadding()
             AnimatedVisibility(
-                tab != null, Modifier.align(Alignment.BottomCenter).padding(bottom = navInset + 8.dp),
+                tab != null, Modifier.align(Alignment.BottomCenter),
                 enter = slideInVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeIn(tween(FADE_MS)),
                 exit = slideOutVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeOut(tween(FADE_MS)),
-            ) { GlassBottomBar(backdrop, tabs, lastTab, onSelect = { nav.navigateTop(it.id) }) }
+            ) { FloatingTabBar(tabs, lastTab, onSelect = { nav.navigateTop(it.id) }, backdrop = backdrop) }
             AnimatedVisibility(
-                tab?.id == "home" || tab?.id == "history", Modifier.align(Alignment.BottomEnd).padding(end = 24.dp, bottom = navInset + 84.dp),
+                tab?.id == "home" || tab?.id == "history", Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = navInset + 88.dp),
                 enter = scaleIn(tween(FADE_MS)) + fadeIn(tween(FADE_MS)), exit = scaleOut(tween(FADE_MS)) + fadeOut(tween(FADE_MS)),
-            ) { GlassAddButton(backdrop, { nav.navigate(entryRoute()) }) }
+            ) { AddButton({ nav.navigate(entryRoute()) }, backdrop = backdrop) }
         }
+      }
       }
     }
     }
@@ -337,6 +342,10 @@ private fun NavHostController.navigateTop(route: String) = navigate(route) {
 private fun NavGraphBuilder.screen(
     route: String, arguments: List<NamedNavArgument> = emptyList(), content: @Composable (NavBackStackEntry) -> Unit,
 ) = plainComposable(route, arguments) { entry ->
-    val glass = LocalGlass.current
-    Box(Modifier.fillMaxSize().then(if (glass) Modifier else Modifier.background(MaterialTheme.colorScheme.background))) { content(entry) }
+    val glow = LocalGlow.current
+    val inset = LocalGlowTopInset.current
+    // Every screen carries its own opaque background: in glass mode the glow (lined up with the one behind the top bar), otherwise the plain color.
+    val background = if (glow != null) Modifier.drawBehind { withTransform({ translate(top = -inset) }) { glow.draw(this, size.width, size.height + inset) } }
+    else Modifier.background(MaterialTheme.colorScheme.background)
+    Box(Modifier.fillMaxSize().then(background)) { content(entry) }
 }
