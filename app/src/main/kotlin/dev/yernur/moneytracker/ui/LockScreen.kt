@@ -33,8 +33,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.fragment.app.FragmentActivity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import dev.yernur.moneytracker.data.security.AppLock
 import dev.yernur.moneytracker.data.security.Pin
 import dev.yernur.moneytracker.data.security.UnlockResult
@@ -81,7 +85,8 @@ fun LockScreen(lock: AppLock, length: Int, biometric: Boolean = false) {
     var message by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(typed) {
         if (typed.length != length) return@LaunchedEffect
-        when (val result = lock.attempt(typed)) {
+        // 100,000 hashing rounds: off the thread that draws the keypad
+        when (val result = withContext(Dispatchers.Default) { lock.attempt(typed) }) {
             UnlockResult.Ok -> Unit
             UnlockResult.Wrong -> message = "Wrong PIN"
             is UnlockResult.Wait -> message = waitText(result.seconds)
@@ -93,14 +98,20 @@ fun LockScreen(lock: AppLock, length: Int, biometric: Boolean = false) {
     fun askBiometric() { if (activity != null) BiometricGate.prompt(activity) { lock.unlockWithBiometric() } }
     // Asks as soon as the lock screen shows; "Use PIN" in the prompt (or cancelling) leaves the keypad.
     LaunchedEffect(canUseBiometric) { if (canUseBiometric) askBiometric() }
-    Surface(Modifier.fillMaxSize().testTag("lock-screen")) {
-        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Text("Enter your PIN", style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(24.dp))
-            PinPad(typed, length, { typed = it; message = null }, message)
-            if (canUseBiometric) {
-                Spacer(Modifier.height(12.dp))
-                TextButton({ askBiometric() }, modifier = Modifier.testTag("use-biometric")) { Text("Use fingerprint or face") }
+    // Its own window: dialogs and sheets left open when the app was left are windows above the app's, and would show over a lock drawn inside it.
+    Dialog(
+        onDismissRequest = {},
+        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false, usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        Surface(Modifier.fillMaxSize().testTag("lock-screen")) {
+            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Text("Enter your PIN", style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(24.dp))
+                PinPad(typed, length, { typed = it; message = null }, message)
+                if (canUseBiometric) {
+                    Spacer(Modifier.height(12.dp))
+                    TextButton({ askBiometric() }, modifier = Modifier.testTag("use-biometric")) { Text("Use fingerprint or face") }
+                }
             }
         }
     }

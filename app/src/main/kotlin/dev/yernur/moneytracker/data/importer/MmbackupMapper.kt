@@ -26,6 +26,9 @@ class ImportResult(
     val accountAmountFromReal: Int,
     /** Transactions with no usable account-currency amount at all (balances will be off). */
     val unresolvedAccountAmount: Int,
+    /** uid -> `modified` of transactions and transfers the backup marks as deleted: a newer deletion applies to a row already on the phone. */
+    val removedTransactions: Map<String, String> = emptyMap(),
+    val removedTransfers: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -82,8 +85,12 @@ object MmbackupMapper {
             tables.live("reminding").mapNotNull { reminder(it, warnings) },
             tables.rows("rates").mapNotNull(::rate),
             warnings, fromReal, unresolved,
+            removedModified(tables, "transaction"), removedModified(tables, "transfer"),
         )
     }
+
+    private fun removedModified(tables: BackupTables, table: String): Map<String, String> =
+        tables.rows(table).filter { it.bool("isRemoved") }.mapNotNull { row -> row.str("uid")?.let { it to row.str("modified").orEmpty() } }.toMap()
 
     private fun BackupTables.live(table: String) = rows(table).filter { !it.bool("isRemoved") }
 

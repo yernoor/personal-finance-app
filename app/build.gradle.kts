@@ -32,6 +32,10 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.findByName("release")
+            // R8: drops the unused part of the extended icon set and other libraries. Library consumer rules cover Room, WorkManager and Glance.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
     }
 

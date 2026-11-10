@@ -17,6 +17,13 @@ class ImportRepository(private val db: AppDatabase) {
         val written = transactions.map { it.uid }.toSet()
         db.transactionDao().insertTagLinks(result.transactionTags.filter { it.transactionUid in written })
         result.transfers.newerThan(db.transferDao().getAll(), { it.uid }, { it.modified }).forEach { db.transferDao().upsert(it) }
+        // A deletion made in the old app after the phone's copy was last touched; the phone's own later edits win.
+        result.removedTransactions.forEach { (uid, modified) ->
+            db.transactionDao().get(uid)?.takeIf { !it.isRemoved && modified > it.modified }?.let { db.transactionDao().upsert(it.copy(isRemoved = true, modified = modified)) }
+        }
+        result.removedTransfers.forEach { (uid, modified) ->
+            db.transferDao().get(uid)?.takeIf { !it.isRemoved && modified > it.modified }?.let { db.transferDao().upsert(it.copy(isRemoved = true, modified = modified)) }
+        }
         db.reminderDao().insertAll(result.reminders)
         db.rateDao().insertAll(result.rates)
     }

@@ -17,6 +17,16 @@ import org.robolectric.RobolectricTestRunner
 class LockScreenTest {
     @get:Rule val compose = createComposeRule()
 
+    /** The PIN check runs on a background thread and resumes on the main looper, which Robolectric only runs when told to. */
+    private fun awaitBackground(condition: () -> Boolean) {
+        val deadline = System.currentTimeMillis() + 5_000
+        while (!condition() && System.currentTimeMillis() < deadline) {
+            org.robolectric.shadows.ShadowLooper.idleMainLooper()
+            compose.waitForIdle()
+            Thread.sleep(20)
+        }
+    }
+
     private fun type(digits: String) = digits.forEach { compose.onNodeWithTag("pin-$it").performClick() }
 
     @Test
@@ -27,12 +37,11 @@ class LockScreenTest {
         compose.setContent { AppTheme { LockScreen(lock, 4) } }
 
         type("1111")
-        compose.waitForIdle()
+        awaitBackground { compose.onAllNodesWithText("Wrong PIN").fetchSemanticsNodes().isNotEmpty() } // the check runs off the main thread
         assertTrue(lock.locked.value)
-        assertTrue(compose.onAllNodesWithText("Wrong PIN").fetchSemanticsNodes().isNotEmpty())
 
         type("1234")
-        compose.waitForIdle()
+        awaitBackground { !lock.locked.value }
         assertFalse(lock.locked.value)
     }
 

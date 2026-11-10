@@ -78,6 +78,35 @@ class SheetsPullTest {
     }
 
     @Test
+    fun aSameCurrencyTransfer_roundTripsUnchanged() = runBlocking {
+        db.accountDao().insertAll(listOf(AccountEntity("sav", "Savings", "KZT", null, null, 6, null, false, true, false, false, "", "")))
+        LedgerRepository(db).saveTransfer(TransferDraft(null, "main", "sav", 10_000, null, "2026-10-26", null))
+        val result = pull(pushedTabs())
+        assertEquals(0, result.added + result.updated)
+        assertEquals(null, db.transferDao().getAll().single { it.toAccountUid == "sav" }.toCurrencyCode)
+    }
+
+    @Test
+    fun twoAccountsWithTheSameName_keepTheirOwnTransactions() = runBlocking {
+        db.accountDao().insertAll(listOf("t1", "t2").map { AccountEntity(it, "Twin", "KZT", null, null, 5, null, false, true, false, false, "", "") })
+        val ledger = LedgerRepository(db)
+        listOf("t1", "t2").forEach { ledger.saveTransaction(TransactionDraft(null, TransactionType.Expense, it, "cafe", 1_000, "2026-10-26", "on $it", emptySet())) }
+        val result = pull(pushedTabs())
+        assertEquals(0, result.added + result.updated)
+        assertEquals(listOf("t1", "t2"), db.transactionDao().getAll().filter { it.comment!!.startsWith("on ") }.sortedBy { it.comment }.map { it.accountUid })
+    }
+
+    @Test
+    fun aHandTypedRowWhosePushFailed_isNotAddedAgainByTheNextPull() = runBlocking {
+        settings.setLastSyncAt("2026-11-02T00:00:00.000Z")
+        val tabs = pushedTabs()
+        tabs.getValue("Transactions") += mutableListOf<Any?>(RowDate.serial("2026-11-01"), "Income", "Dollars", "", "", 50.0, "USD", 25000.0, "gift")
+        assertEquals(1, pull(tabs).added)
+        assertEquals(0, pull(tabs).added) // the sheet still has no UID on that row: the earlier push did not finish
+        assertEquals(1, db.transactionDao().getAll().count { it.comment == "gift" })
+    }
+
+    @Test
     fun editsMadeOnAPc_comeIn_andKeepWhatTheSheetDoesNotShow() = runBlocking {
         val tabs = pushedTabs()
         val tx = tabs.getValue("Transactions")

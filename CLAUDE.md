@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 Personal Android expense tracker: everyday expense tracking, **no ads, no payments**, with Google Sheets sync so the data is also usable from a PC.
-Single user (the repo owner). Private repo. Not for Play Store distribution.
+Single user (the repo owner). Public repo (the in-app updater reads its GitHub releases without a token). Not for Play Store distribution.
 
 @docs/FORMAT.md
 @docs/SYNC_DESIGN.md

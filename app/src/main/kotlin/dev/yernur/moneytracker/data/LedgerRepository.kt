@@ -50,10 +50,12 @@ class LedgerRepository(
         val stamp = now()
         val uid = existing?.uid ?: newUid()
         val sameAmount = existing?.amountInAccountCurrency == draft.amount
+        // The default-currency amount is the rate of the day it was entered: an edit that leaves amount and account alone must not re-price it.
+        val keepDefault = sameAmount && existing?.accountUid == account.uid && existing.amountInDefaultCurrency != null
         db.transactionDao().upsert(
             TransactionEntity(
                 uid = uid, type = draft.type, accountUid = account.uid, categoryUid = draft.categoryUid,
-                amountInDefaultCurrency = Money.convert(draft.amount, account.currencyCode, DEFAULT_CURRENCY, rates),
+                amountInDefaultCurrency = if (keepDefault) existing?.amountInDefaultCurrency else Money.convert(draft.amount, account.currencyCode, DEFAULT_CURRENCY, rates),
                 // A real-currency amount only means something for the amount it was entered with.
                 amountInRealCurrency = existing?.amountInRealCurrency?.takeIf { sameAmount },
                 realCurrencyCode = existing?.realCurrencyCode?.takeIf { sameAmount },

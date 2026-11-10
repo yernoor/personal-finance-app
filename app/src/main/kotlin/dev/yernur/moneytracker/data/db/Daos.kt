@@ -13,8 +13,6 @@ data class AccountSum(val accountUid: String, val total: Long)
 /** Balance of one account in its own currency: transactions plus transfers in, minus transfers out. */
 data class AccountBalance(val uid: String, val balance: Long)
 
-data class TypeTotal(val type: TransactionType, val total: Long)
-
 /** The few columns reports need; a missing default-currency amount counts as 0. */
 data class TxLite(val date: String, val type: TransactionType, val categoryUid: String?, val amount: Long)
 
@@ -139,9 +137,6 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to ORDER BY date DESC, created DESC")
     fun observeBetween(from: String, to: String): Flow<List<TransactionEntity>>
-
-    @Query("SELECT type, SUM(amountInDefaultCurrency) AS total FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to GROUP BY type")
-    fun observeTotals(from: String, to: String): Flow<List<TypeTotal>>
 
     @Query("SELECT date, type, categoryUid, COALESCE(amountInDefaultCurrency, 0) AS amount FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to")
     fun observeLite(from: String, to: String): Flow<List<TxLite>>
