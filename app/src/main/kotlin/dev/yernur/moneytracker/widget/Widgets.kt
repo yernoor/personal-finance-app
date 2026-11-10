@@ -51,17 +51,15 @@ abstract class MoneyWidget(private val cellsWide: Int, private val cellsHigh: In
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val container = (context.applicationContext as MoneyApp).container
         val data = loadWidgetData(container.db, container.forecasts)
-        val glass = container.settings.widgetGlass.value
-        val dot = container.settings.widgetDotNumerals.value
-        provideContent { GlanceTheme { Content(context, data, widgetPalette(context, glass), dot) } }
+        val style = container.settings.widgetStyle.value
+        provideContent { GlanceTheme { Content(context, data, widgetPalette(context, style), style.dotNumerals) } }
     }
 
     /** Android 15+: the picker shows the real widget, drawn with fictional numbers in the look the owner chose. */
     override suspend fun providePreview(context: Context, widgetCategory: Int) {
         val container = (context.applicationContext as MoneyApp).container
-        val glass = container.settings.widgetGlass.value
-        val dot = container.settings.widgetDotNumerals.value
-        provideContent { GlanceTheme { Content(context, sampleWidgetData(), widgetPalette(context, glass), dot) } }
+        val style = container.settings.widgetStyle.value
+        provideContent { GlanceTheme { Content(context, sampleWidgetData(), widgetPalette(context, style), style.dotNumerals) } }
     }
 }
 

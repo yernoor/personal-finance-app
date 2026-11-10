@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.yernur.moneytracker.data.AppSettings
 import dev.yernur.moneytracker.data.AccentPalette
+import dev.yernur.moneytracker.data.WidgetStyle
 import dev.yernur.moneytracker.data.IconStyle
 import dev.yernur.moneytracker.data.PeriodUnit
 import androidx.compose.ui.platform.LocalContext
@@ -92,6 +93,7 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
     var showWarnings by remember { mutableStateOf(false) }
     var showHistoryPeriod by remember { mutableStateOf(false) }
     var showIconStyle by remember { mutableStateOf(false) }
+    var showWidgetStyle by remember { mutableStateOf(false) }
     var pinDialog by remember { mutableStateOf<PinDialog?>(null) }
     var showAutoLock by remember { mutableStateOf(false) }
     var showRecents by remember { mutableStateOf(false) }
@@ -276,8 +278,7 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
             supportingContent = { Text("${recents.label}. Screenshots inside the app always work") },
         )
         SectionHeader("Widgets")
-        val widgetGlass by container.settings.widgetGlass.collectAsStateWithLifecycle()
-        val widgetDot by container.settings.widgetDotNumerals.collectAsStateWithLifecycle()
+        val widgetStyle by container.settings.widgetStyle.collectAsStateWithLifecycle()
         fun refreshWidgets() {
             scope.launch {
                 dev.yernur.moneytracker.widget.updateAllWidgets(context.applicationContext)
@@ -286,17 +287,9 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
         }
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            modifier = Modifier.clickable { container.settings.setWidgetGlass(!widgetGlass); refreshWidgets() }.testTag("widget-glass"),
-            leadingContent = { Icon(Icons.Outlined.Widgets, null) }, headlineContent = { Text("Glass widgets") },
-            supportingContent = { Text(if (widgetGlass) "Translucent cards that follow light and dark mode" else "Opaque cards that follow light and dark mode") },
-            trailingContent = { Switch(widgetGlass, { container.settings.setWidgetGlass(it); refreshWidgets() }) },
-        )
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            modifier = Modifier.clickable { container.settings.setWidgetDotNumerals(!widgetDot); refreshWidgets() }.testTag("widget-dot"),
-            leadingContent = { Icon(Icons.Outlined.Tune, null) }, headlineContent = { Text("Dot-matrix numbers") },
-            supportingContent = { Text("The big widget numbers in the Doto font. Widgets show spending, never account balances") },
-            trailingContent = { Switch(widgetDot, { container.settings.setWidgetDotNumerals(it); refreshWidgets() }) },
+            modifier = Modifier.clickable { showWidgetStyle = true }.testTag("widget-style"),
+            leadingContent = { Icon(Icons.Outlined.Widgets, null) }, headlineContent = { Text("Widget style") },
+            supportingContent = { Text("${widgetStyle.label}: ${widgetStyle.description}. Widgets show spending, never account balances") },
         )
         SectionHeader("Data and sync")
         val sheetUrl by container.settings.spreadsheetUrl.collectAsStateWithLifecycle()
@@ -357,6 +350,12 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
     if (showAutoLock) ChoiceDialog("Lock after", AUTO_LOCK_CHOICES.map { it to autoLockLabel(it) }, container.settings.autoLockSeconds.value, { container.settings.setAutoLockSeconds(it) }) { showAutoLock = false }
     if (showRecents) ChoiceDialog("In the recent apps list", RecentsMode.entries.map { it to it.label }, container.settings.recentsMode.value, { container.settings.setRecentsMode(it) }) { showRecents = false }
     if (showIconStyle) IconStyleDialog(container.settings, glass) { showIconStyle = false }
+    if (showWidgetStyle) WidgetStyleDialog(container.settings, onChosen = {
+        scope.launch {
+            dev.yernur.moneytracker.widget.updateAllWidgets(context.applicationContext)
+            dev.yernur.moneytracker.widget.updateWidgetPreviews(context.applicationContext)
+        }
+    }) { showWidgetStyle = false }
     if (showHistoryPeriod) HistoryPeriodDialog(container.settings) { showHistoryPeriod = false }
     if (showReminder) ReminderDialog(container.settings, context.applicationContext) { showReminder = false }
     if (showWarnings) WarningSettingsDialog(container.settings) { showWarnings = false }
@@ -555,6 +554,32 @@ private fun IconStyleDialog(settings: AppSettings, glass: Boolean, onDismiss: ()
                                 samples.forEach { (name, color) -> IconBadge(name, AccentPalette.KEYS[color], size = 36.dp) }
                             }
                         }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onDismiss) { Text("Close") } },
+    )
+}
+
+/** The three widget looks as radio rows; picking one redraws the placed widgets at once. */
+@Composable
+private fun WidgetStyleDialog(settings: AppSettings, onChosen: () -> Unit, onDismiss: () -> Unit) {
+    val current by settings.widgetStyle.collectAsStateWithLifecycle()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = glassContainer(AlertDialogDefaults.containerColor),
+        title = { Text("Widget style") },
+        text = {
+            GlassWindowBlur()
+            Column {
+                WidgetStyle.entries.forEach { style ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable { settings.setWidgetStyle(style); onChosen() }.testTag("widget-style-${style.name}"),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(current == style, { settings.setWidgetStyle(style); onChosen() })
+                        Column { Text(style.label); Text(style.description, style = MaterialTheme.typography.bodySmall) }
                     }
                 }
             }

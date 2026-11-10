@@ -36,10 +36,13 @@ import androidx.glance.color.ColorProvider as DayNightColor
 import androidx.glance.unit.ColorProvider
 import dev.yernur.moneytracker.MainActivity
 import dev.yernur.moneytracker.R
+import dev.yernur.moneytracker.data.WidgetStyle
 
-/** Colours of one widget look. Both looks follow light/dark mode: glass is translucent, solid is opaque. [accent] is the system accent (Material You). */
-class WidgetPalette(val glass: Boolean, val accent: ColorProvider, val accentArgb: Int) {
-    val background = ImageProvider(if (glass) R.drawable.widget_glass else R.drawable.widget_solid)
+/** Colours of one widget look. All looks follow light/dark mode: Nothing OS and glass are translucent, usual is opaque. [accent] is the system accent (Material You). */
+class WidgetPalette(style: WidgetStyle, val accent: ColorProvider, val accentArgb: Int) {
+    val background = ImageProvider(
+        when (style) { WidgetStyle.NothingOs -> R.drawable.widget_nothing; WidgetStyle.Glass -> R.drawable.widget_glass; WidgetStyle.Usual -> R.drawable.widget_solid },
+    )
     val primary = DayNightColor(Color(0xFF14181C), Color(0xFFF2F4F6))
     val secondary = DayNightColor(Color(0xFF4A525A), Color(0xFFC4CBD2))
     val warning = DayNightColor(Color(0xFFB26A00), Color(0xFFFFB74D))
@@ -48,8 +51,8 @@ class WidgetPalette(val glass: Boolean, val accent: ColorProvider, val accentArg
 
 /** The palette for the current accent; call inside GlanceTheme. */
 @Composable
-fun widgetPalette(context: Context, glass: Boolean) =
-    WidgetPalette(glass, GlanceTheme.colors.primary, GlanceTheme.colors.primary.getColor(context).toArgb())
+fun widgetPalette(context: Context, style: WidgetStyle) =
+    WidgetPalette(style, GlanceTheme.colors.primary, GlanceTheme.colors.primary.getColor(context).toArgb())
 
 /** Opens the app, optionally straight into an add screen (kind) or an existing operation (uid): MainActivity reads the extras. */
 fun openApp(context: Context, kind: String? = null, uid: String? = null) = actionStartActivity(
