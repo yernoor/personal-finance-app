@@ -233,12 +233,32 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
         val walletOn by container.settings.walletCapture.collectAsStateWithLifecycle()
         val walletAccountUid by container.settings.walletAccountUid.collectAsStateWithLifecycle()
         val accounts by remember { container.db.accountDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
+        val walletAccessGranted = {
+            context.getSystemService(android.app.NotificationManager::class.java)
+                .isNotificationListenerAccessGranted(android.content.ComponentName(context, dev.yernur.moneytracker.data.wallet.WalletListenerService::class.java))
+        }
+        var walletAccess by remember { mutableStateOf(walletAccessGranted()) }
+        androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { walletAccess = walletAccessGranted() } // back from Android's settings
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             modifier = Modifier.clickable { if (walletOn) container.settings.setWalletCapture(false) else showWalletConsent = true }.testTag("wallet-capture"),
             leadingContent = { Icon(Icons.Outlined.AccountBalanceWallet, null) }, headlineContent = { Text("Google Wallet payments") },
-            supportingContent = { Text(if (walletOn) "On: each card payment is offered as an expense" else "Off. Offer each Wallet card payment as an expense") },
+            supportingContent = {
+                Text(
+                    when {
+                        !walletOn -> "Off. Offer each Wallet card payment as an expense"
+                        !walletAccess -> "On, but Android notification access is still off (see the next row)"
+                        else -> "On: each card payment is offered as an expense"
+                    },
+                )
+            },
             trailingContent = { Switch(walletOn, { if (it) showWalletConsent = true else container.settings.setWalletCapture(false) }) },
+        )
+        if (walletOn && !walletAccess) ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier.clickable { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.testTag("wallet-access"),
+            leadingContent = { Icon(Icons.Outlined.AccountBalanceWallet, null) }, headlineContent = { Text("Allow notification access") },
+            supportingContent = { Text("Opens Android's screen: switch Money Tracker on") },
         )
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),

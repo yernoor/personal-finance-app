@@ -149,6 +149,18 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         prefs?.edit()?.putBoolean(WALLET_CAPTURE, enabled)?.apply()
     }
 
+    private val walletSeen = ArrayDeque(prefs?.getString(WALLET_SEEN, null)?.split(SEEN_SEPARATOR)?.filter { it.isNotEmpty() }.orEmpty())
+
+    /** True the first time a Wallet payment key is offered, false for a repeat (the last 100 are remembered, also across restarts). */
+    @Synchronized
+    fun firstSeenWalletPayment(key: String): Boolean {
+        if (key in walletSeen) return false
+        walletSeen.addLast(key)
+        while (walletSeen.size > WALLET_SEEN_MAX) walletSeen.removeFirst()
+        prefs?.edit()?.putString(WALLET_SEEN, walletSeen.joinToString(SEEN_SEPARATOR))?.apply()
+        return true
+    }
+
     /** The account Wallet payments go to; null until the owner picks one (the first payment asks). */
     val walletAccountUid: StateFlow<String?> = _walletAccountUid
 
@@ -378,6 +390,9 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val REMINDER_MINUTE = "reminderMinute"
         private const val WALLET_CAPTURE = "walletCapture"
         private const val WALLET_ACCOUNT = "walletAccountUid"
+        private const val WALLET_SEEN = "walletSeen"
+        private const val WALLET_SEEN_MAX = 100
+        private const val SEEN_SEPARATOR = "\u0001"
         private const val AUTO_SYNC = "autoSync"
         private const val LAST_SYNC_AT = "lastSyncAt"
         private const val ICON_STYLE = "iconStyle"

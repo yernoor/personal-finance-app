@@ -324,7 +324,13 @@ Owner wants a payment made with a Google Wallet card to become an expense in the
   Still unseen (so ignored, not guessed): declines, refunds, foreign-currency payments, pending amounts that change. Parser: `data/wallet/WalletParser.kt`, unit-tested with placeholder values.
 - **Settings (BUILT, More -> Automation):** "Google Wallet payments" switch asks for consent first (what is read, that other apps are ignored unread, nothing leaves the phone), then opens Android's notification-access screen;
   "Default account for payments" picks where Wallet payments go. The first payment asks for the account when none is chosen. Off until the owner agrees.
-- **Step 2, in progress:** parser + category prompt in the main app, written against the samples the logger collects (card `••last4` to account mapping, dedupe, heads-up notification with category buttons).
+- **Step 2, BUILT in the main app (unit-tested; never run on the phone yet):** `WalletListenerService` hands a notification to `WalletIntake` only with consent and only for the Wallet package (anything else is not read at all);
+  group summaries and unknown formats are ignored; repeats are dropped by a persisted dedupe key (last 100). `WalletPlan` decides the next step:
+  no default account -> a heads-up "Which account do you pay with?" (first three accounts as buttons, tap for the full list), the answer is saved as the default; the default account's currency differs from the payment's
+  -> "not added, add it by hand" (no conversion: the foreign-currency format is unseen); otherwise -> "<amount> · <merchant>" with the two most used expense categories as buttons plus "More…" (a notification shows three buttons at most).
+  Picking a category saves the expense (account = default, date = local day of the post, comment = merchant) and shows a short "Added" confirmation. Lock-screen version shows only "Wallet payment".
+  Not done: per-card account mapping (all payments use the default account), converting foreign-currency payments, auto-dismissing Wallet's own notification, the PIN lock is not asked for these prompts.
+  Unverified on a device: the prompts' look and buttons, the "More…" activity, what Android 17 does with the listener of a release-signed build.
 - Rating: **must** (owner request).
 
 ## Open questions for the owner

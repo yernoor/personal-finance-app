@@ -63,6 +63,21 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_dashboard_info" />
         </receiver>
         <receiver android:name=".data.update.InstallResultReceiver" android:exported="false" />
+        <!-- Wallet payment capture (More -> Automation): reads Google Wallet's notifications only, with the owner's consent. -->
+        <service
+            android:name=".data.wallet.WalletListenerService"
+            android:exported="true"
+            android:label="Money Tracker"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>
+        </service>
+        <receiver android:name=".data.wallet.WalletActionReceiver" android:exported="false" />
+        <activity
+            android:name=".ui.WalletPromptActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
     </application>
 
 </manifest>
