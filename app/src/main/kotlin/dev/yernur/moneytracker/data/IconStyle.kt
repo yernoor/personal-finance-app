@@ -10,6 +10,6 @@ enum class IconStyle(val label: String, val forGlass: Boolean) {
     Outline("Outline", false),
     Mono("Mono", false),
     Sticker("Sticker", false),
-    LiquidTile("Liquid tile", true),
-    ClearGlass("Clear glass", true),
+    Crystal("Crystal", true),
+    Frost("Frost", true),
 }

@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.yernur.moneytracker.data.AccentPalette
 import dev.yernur.moneytracker.data.IconStyle
+import dev.yernur.moneytracker.data.Oklch
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -66,6 +67,13 @@ private class Look(
 )
 
 /** [hue] is what the slot's formulas get (an exact color's own hue); [accentHue] is the app's accent, which Mono always uses. */
+/** [argb] moved by [dl] in OKLCH lightness, keeping its hue and chroma (so a lighter yellow is still yellow). */
+private fun shift(argb: Int, dl: Float, dh: Float = 0f): Int =
+    Oklch.toArgb((Oklch.lab(argb).l.toFloat() + dl).coerceIn(0f, 1f), Oklch.chromaOf(argb), (Oklch.hueOf(argb) + dh + 360f) % 360f)
+
+/** Only the lightest hues (yellow, lime) take a dark glyph; everything else keeps a white one, which looks cleaner on glass than black on teal or orange. */
+private fun lightTile(argb: Int) = Oklch.lab(argb).l > 0.76
+
 private fun look(style: IconStyle, slot: Int, hue: Float, accentHue: Float, dark: Boolean): Look {
     fun c(argb: Int, alpha: Float = 1f) = Color(argb).copy(alpha = alpha)
     return when (style) {
@@ -111,27 +119,37 @@ private fun look(style: IconStyle, slot: Int, hue: Float, accentHue: Float, dark
                 knock = card,
             )
         }
-        IconStyle.LiquidTile -> Look(
-            baseTop = c(AccentPalette.liquidTop(slot, hue, dark), if (dark) 0.52f else 0.66f),
-            baseBottom = c(AccentPalette.liquidBottom(slot, hue, dark), if (dark) 0.78f else 0.90f),
-            gloss = if (dark) 0.26f else 0.55f,
-            glow = c(AccentPalette.liquidGlow(slot, hue, dark), if (dark) 0.75f else 0.85f),
-            edge = Color.Black.copy(alpha = if (dark) 0.30f else 0.08f),
-            rim = Triple(0.95f, 0.10f, 0.60f),
-            glyphTop = Color.White.copy(alpha = 0.97f), glyphBottom = Color(if (dark) 0xFFEAEAF6 else 0xFFF4F1FF).copy(alpha = 0.97f),
-            knock = c(AccentPalette.liquidKnock(slot, hue, dark), 0.78f),
-            shadow = c(AccentPalette.liquidShadow(slot, hue, dark), 0.55f),
-        )
-        IconStyle.ClearGlass -> Look(
-            baseTop = Color.White.copy(alpha = if (dark) 0.12f else 0.34f), baseBottom = Color.White.copy(alpha = if (dark) 0.03f else 0.10f),
-            gloss = if (dark) 0.16f else 0.45f,
-            glow = c(AccentPalette.clearGlow(slot, hue, dark), if (dark) 0.35f else 0.55f),
-            edge = if (dark) Color.White.copy(alpha = 0.12f) else Color(0xFF1B1B3A).copy(alpha = 0.10f),
-            rim = Triple(0.95f, 0.08f, 0.65f),
-            glyphTop = c(AccentPalette.clearGlyphTop(slot, hue, dark)), glyphBottom = c(AccentPalette.clearGlyphBottom(slot, hue, dark)),
-            knock = c(AccentPalette.clearKnock(slot, hue, dark), 0.55f),
-            shadow = c(AccentPalette.clearShadow(slot, hue, dark), if (dark) 0.55f else 0.30f),
-        )
+        // Glass looks. Both start from the slot's own vivid color (right lightness for its hue), so yellow stays yellow instead of going olive.
+        IconStyle.Crystal -> {
+            // A gem: a translucent tile in the vivid color, lighter at the top, with a bright rim and a highlight; the glyph is white or dark by contrast
+            val main = AccentPalette.main(slot, hue, dark)
+            val glyph = if (lightTile(main)) c(0xFF1B1B1F.toInt()) else Color.White
+            Look(
+                baseTop = c(shift(main, 0.08f), 0.92f), baseBottom = c(shift(main, -0.04f), if (dark) 0.72f else 0.82f),
+                gloss = if (dark) 0.30f else 0.55f,
+                glow = c(shift(main, 0.14f), 0.70f),
+                edge = Color.Black.copy(alpha = if (dark) 0.30f else 0.06f),
+                rim = Triple(0.95f, 0.10f, 0.60f),
+                glyphTop = glyph, glyphBottom = glyph.copy(alpha = 0.96f),
+                knock = c(shift(main, -0.06f), 0.85f),
+                shadow = c(shift(main, -0.28f), 0.45f),
+            )
+        }
+        IconStyle.Frost -> {
+            // Clear glass: an almost colorless tile with a soft bloom of the color from below, and a vivid glyph
+            val main = AccentPalette.main(slot, hue, dark)
+            val warm = if (!dark && lightTile(main)) -18f else 0f // a darkened yellow turns olive; nudged toward orange it stays a clean gold
+            Look(
+                baseTop = Color.White.copy(alpha = if (dark) 0.16f else 0.52f), baseBottom = Color.White.copy(alpha = if (dark) 0.04f else 0.18f),
+                gloss = if (dark) 0.14f else 0.40f,
+                glow = c(main, if (dark) 0.50f else 0.55f),
+                edge = if (dark) Color.White.copy(alpha = 0.12f) else Color(0xFF1B1B3A).copy(alpha = 0.10f),
+                rim = Triple(0.95f, 0.08f, 0.65f),
+                glyphTop = c(shift(main, if (dark) 0.10f else -0.10f, warm)), glyphBottom = c(shift(main, if (dark) 0f else -0.20f, warm)),
+                knock = Color.White.copy(alpha = if (dark) 0.10f else 0.55f),
+                shadow = c(main, 0.30f),
+            )
+        }
     }
 }
 

@@ -289,7 +289,7 @@ class PhoneScreenFlowTest {
         tap("more")
         compose.onNodeWithTag("open-icon-style").performScrollTo().performClick()
         waitForText("Solid")
-        compose.onNodeWithTag("icon-style-LiquidTile").assertDoesNotExist() // glass looks are not offered while glass is off
+        compose.onNodeWithTag("icon-style-Crystal").assertDoesNotExist() // glass looks are not offered while glass is off
         tap("icon-style-Tonal")
         assertEquals(IconStyle.Tonal, container.settings.iconStyle.value)
         compose.onNodeWithText("Close").performClick()
@@ -297,12 +297,12 @@ class PhoneScreenFlowTest {
 
         compose.onNodeWithTag("glass-toggle").performScrollTo().performClick() // liquid glass on
         eventually { container.settings.glass.value }
-        waitForText("Liquid tile (liquid glass)") // the glass default
+        waitForText("Crystal (liquid glass)") // the glass default
         compose.onNodeWithTag("open-icon-style").performScrollTo().performClick()
-        waitForText("Clear glass")
+        waitForText("Frost")
         compose.onNodeWithTag("icon-style-Solid").assertDoesNotExist() // the everyday looks are not offered with glass on
-        tap("icon-style-ClearGlass")
-        assertEquals(IconStyle.ClearGlass, container.settings.glassIconStyle.value)
+        tap("icon-style-Frost")
+        assertEquals(IconStyle.Frost, container.settings.glassIconStyle.value)
         assertEquals(IconStyle.Tonal, container.settings.iconStyle.value) // the everyday choice is kept for when glass is off again
     }
 }

@@ -64,28 +64,36 @@ class AppSettingsTest {
         prefs.edit().clear().commit()
         val settings = AppSettings(prefs)
         assertEquals(IconStyle.Solid, settings.iconStyle.value)
-        assertEquals(IconStyle.LiquidTile, settings.glassIconStyle.value) // the liquid tile is the glass default
+        assertEquals(IconStyle.Crystal, settings.glassIconStyle.value) // Crystal is the glass default
 
         settings.setIconStyle(IconStyle.Tonal)
-        settings.setGlassIconStyle(IconStyle.ClearGlass)
+        settings.setGlassIconStyle(IconStyle.Frost)
         val again = AppSettings(prefs)
         assertEquals(IconStyle.Tonal, again.iconStyle.value)
-        assertEquals(IconStyle.ClearGlass, again.glassIconStyle.value)
+        assertEquals(IconStyle.Frost, again.glassIconStyle.value)
 
-        settings.setIconStyle(IconStyle.LiquidTile) // a glass look is not allowed as the everyday choice, and vice versa
+        settings.setIconStyle(IconStyle.Crystal) // a glass look is not allowed as the everyday choice, and vice versa
         settings.setGlassIconStyle(IconStyle.Tonal)
         assertEquals(IconStyle.Tonal, settings.iconStyle.value)
-        assertEquals(IconStyle.ClearGlass, settings.glassIconStyle.value)
+        assertEquals(IconStyle.Frost, settings.glassIconStyle.value)
 
-        prefs.edit().putString("iconStyle", "ClearGlass").putString("glassIconStyle", "Solid").commit()
+        prefs.edit().putString("iconStyle", "Frost").putString("glassIconStyle", "Solid").commit()
         val repaired = AppSettings(prefs)
         assertEquals(IconStyle.Solid, repaired.iconStyle.value)
-        assertEquals(IconStyle.LiquidTile, repaired.glassIconStyle.value)
+        assertEquals(IconStyle.Crystal, repaired.glassIconStyle.value)
 
         prefs.edit().putString("iconStyle", "Vivid").putString("glassIconStyle", "GlassTile").commit() // removed looks fall back to the defaults
         val migrated = AppSettings(prefs)
         assertEquals(IconStyle.Solid, migrated.iconStyle.value)
-        assertEquals(IconStyle.LiquidTile, migrated.glassIconStyle.value)
+        assertEquals(IconStyle.Crystal, migrated.glassIconStyle.value)
+    }
+
+    @Test
+    fun glassIconStyles_savedUnderTheOldNames_keepTheOwnersChoice() {
+        prefs.edit().clear().putString("glassIconStyle", "ClearGlass").commit()
+        assertEquals(IconStyle.Frost, AppSettings(prefs).glassIconStyle.value)
+        prefs.edit().putString("glassIconStyle", "LiquidTile").commit()
+        assertEquals(IconStyle.Crystal, AppSettings(prefs).glassIconStyle.value)
     }
 
     @Test

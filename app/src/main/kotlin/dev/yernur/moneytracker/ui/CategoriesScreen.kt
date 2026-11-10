@@ -59,7 +59,7 @@ fun CategoriesScreen(onOpen: (uid: String) -> Unit, onNew: (TransactionType) -> 
     }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             val tabs = listOf(TransactionType.Expense, TransactionType.Income)
-            PrimaryTabRow(selectedTabIndex = tabs.indexOf(tab)) {
+            PrimaryTabRow(selectedTabIndex = tabs.indexOf(tab), containerColor = androidx.compose.ui.graphics.Color.Transparent) {
                 tabs.forEach { type ->
                     Tab(tab == type, { tab = type }, text = { Text(if (type == TransactionType.Expense) "Expenses" else "Income") }, modifier = Modifier.testTag("tab-$type"))
                 }
