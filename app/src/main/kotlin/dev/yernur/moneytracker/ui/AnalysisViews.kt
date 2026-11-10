@@ -11,8 +11,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -72,7 +75,7 @@ class AnalysisViewModel(db: AppDatabase, forecasts: ForecastRepository, today: L
 
 /** The Analysis tab of Charts: six months of spending, what stands out, and every category's trend. */
 @Composable
-fun AnalysisView(onOpenCategory: (String) -> Unit) {
+fun AnalysisView(onOpenCategory: (String) -> Unit, onOpenRecurring: () -> Unit = {}) {
     val vm = appViewModel { AnalysisViewModel(it.db, it.forecasts) }
     val state by vm.state.collectAsStateWithLifecycle()
     val (analysis, categories) = state ?: return
@@ -85,6 +88,15 @@ fun AnalysisView(onOpenCategory: (String) -> Unit) {
         Text("Category trends", style = MaterialTheme.typography.titleMedium)
         Text("Change is this month's pace against the 3-month average.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         analysis.categories.forEach { TrendRow(it, categories[it.categoryUid], onOpenCategory) }
+        Card(Modifier.fillMaxWidth().clickable(onClick = onOpenRecurring).testTag("open-recurring")) {
+            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Recurring costs and duplicates", style = MaterialTheme.typography.titleMedium)
+                    Text("Monthly charges, price changes, doubled entries", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Icon(Icons.Outlined.ChevronRight, null)
+            }
+        }
         androidx.compose.foundation.layout.Spacer(Modifier.height(LocalChromeInset.current))
     }
 }

@@ -127,7 +127,7 @@ class ChartsViewModel(db: AppDatabase, forecasts: ForecastRepository, private va
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ChartsScreen(onOpenCategory: (String) -> Unit, onOpenTrend: (String) -> Unit = {}, onOpenTransaction: (String) -> Unit = {}) {
+fun ChartsScreen(onOpenCategory: (String) -> Unit, onOpenTrend: (String) -> Unit = {}, onOpenRecurring: () -> Unit = {}, onOpenTransaction: (String) -> Unit = {}) {
     val vm = appViewModel { ChartsViewModel(it.db, it.forecasts) }
     val data by vm.data.collectAsStateWithLifecycle()
     val forecast by vm.forecast.collectAsStateWithLifecycle()
@@ -168,7 +168,7 @@ fun ChartsScreen(onOpenCategory: (String) -> Unit, onOpenTrend: (String) -> Unit
             }
         }
         if (analysisTab) {
-            AnalysisView(onOpenTrend)
+            AnalysisView(onOpenTrend, onOpenRecurring)
             return@Column
         }
         if (forecastTab) {

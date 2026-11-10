@@ -229,7 +229,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             screen("history") {
                 HistoryScreen { uid, isTransfer -> nav.navigate(entryRoute(uid, if (isTransfer) EntryKind.Transfer else EntryKind.Expense)) }
             }
-            screen("charts") { ChartsScreen(onOpenCategory = { nav.navigate("category/$it?type=Expense") }, onOpenTrend = { nav.navigate("trend/$it") }, onOpenTransaction = { nav.navigate(entryRoute(it)) }) }
+            screen("charts") { ChartsScreen(onOpenCategory = { nav.navigate("category/$it?type=Expense") }, onOpenTrend = { nav.navigate("trend/$it") }, onOpenRecurring = { nav.navigate("recurring") }, onOpenTransaction = { nav.navigate(entryRoute(it)) }) }
             screen("accounts") {
                 AccountsScreen(
                     onOpen = { nav.navigate("account/$it") }, onNew = { nav.navigate("account/new") },
@@ -264,6 +264,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             screen("trend/{uid}", arguments = listOf(navArgument("uid") { type = NavType.StringType })) { entry ->
                 CategoryTrendScreen(entry.arguments?.getString("uid").orEmpty(), onBack = { nav.popBackStack() }, onOpenTransaction = { nav.navigate(entryRoute(it)) })
             }
+            screen("recurring") { RecurringScreen { nav.popBackStack() } }
             screen("afford") { AffordScreen(onBack = { nav.popBackStack() }, onLogExpense = { nav.navigate(entryRoute()) }) }
             screen("sync") { SyncScreen { nav.popBackStack() } }
             screen("updates") { UpdatesScreen { nav.popBackStack() } }
