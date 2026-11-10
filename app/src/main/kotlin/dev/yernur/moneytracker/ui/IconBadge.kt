@@ -62,6 +62,7 @@ private class Look(
     val shadow: Color = Color.Transparent,
     val edgeWidth: Float = 1f,
     val bodyFill: Boolean = true, // false: shapes are only stroked (the Outline look)
+    val lip: Color = Color.Transparent, // the darker edge under a raised tile (the 3D look)
 )
 
 private fun look(style: IconStyle, slot: Int, hue: Float, dark: Boolean): Look {
@@ -95,6 +96,7 @@ private fun look(style: IconStyle, slot: Int, hue: Float, dark: Boolean): Look {
             knock = c(AccentPalette.springKnock(slot, hue, dark)),
             shadow = c(AccentPalette.springShadow(slot, hue, dark), 0.9f),
             edgeWidth = 2.5f,
+            lip = c(AccentPalette.springShadow(slot, hue, dark)),
         )
         IconStyle.Outline -> {
             val glyph = c(AccentPalette.softGlyph(slot, hue, dark))
@@ -106,7 +108,7 @@ private fun look(style: IconStyle, slot: Int, hue: Float, dark: Boolean): Look {
         }
         IconStyle.Mono -> {
             val neutral = AccentPalette.SLOTS - 1
-            val glyph = c(AccentPalette.softGlyph(slot, hue, dark)).copy(alpha = 0.92f)
+            val glyph = c(AccentPalette.softGlyph(0, hue, dark)) // slot 0 is the accent itself: every icon in the one color
             val background = c(AccentPalette.softBackground(neutral, hue, dark))
             Look(baseTop = background, baseBottom = background, glyphTop = glyph, glyphBottom = glyph, knock = background)
         }
@@ -143,7 +145,16 @@ private fun look(style: IconStyle, slot: Int, hue: Float, dark: Boolean): Look {
     }
 }
 
+/** The 3D look sits on a darker lip: the tile is drawn a little smaller, lifted, over a copy of itself pushed down. */
 private fun DrawScope.drawTile(look: Look, glyph: Glyph) {
+    if (look.lip.alpha == 0f) return drawTileBody(look, glyph)
+    withTransform({ scale(0.93f, 0.93f, pivot = Offset(50f, 0f)) }) {
+        withTransform({ translate(0f, 7f) }) { drawPath(squircle, look.lip) }
+        drawTileBody(look, glyph)
+    }
+}
+
+private fun DrawScope.drawTileBody(look: Look, glyph: Glyph) {
     val white = Color.White
     drawPath(squircle, Brush.verticalGradient(listOf(look.baseTop, look.baseBottom), 0f, TILE))
     if (look.gloss > 0f) drawPath(squircle, Brush.verticalGradient(listOf(white.copy(alpha = look.gloss), Color.Transparent), 0f, 58f))
