@@ -254,13 +254,14 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                     onCategories = { nav.navigate("categories") }, onTags = { nav.navigate("tags") },
                     onNavbar = { nav.navigate("navbar-settings") }, onHomeLayout = { nav.navigate("home-settings") },
                     onSync = { nav.navigate("sync") }, onUpdates = { nav.navigate("updates") }, onFeedback = { nav.navigate("feedback") },
-                    onCompound = { nav.navigate("compound") }, onWealth = { nav.navigate("wealth") },
+                    onCompound = { nav.navigate("compound") }, onWealth = { nav.navigate("wealth") }, onAfford = { nav.navigate("afford") },
                 )
             }
             screen("wealth") {
                 WealthScreen(embedded = "wealth" in tabRoutes, onCompound = { nav.navigate("compound") }, onBack = { nav.popBackStack() })
             }
             screen("compound") { CompoundScreen { nav.popBackStack() } }
+            screen("afford") { AffordScreen(onBack = { nav.popBackStack() }, onLogExpense = { nav.navigate(entryRoute()) }) }
             screen("sync") { SyncScreen { nav.popBackStack() } }
             screen("updates") { UpdatesScreen { nav.popBackStack() } }
             screen("feedback") { FeedbackScreen { nav.popBackStack() } }
