@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -159,19 +160,24 @@ private fun BalanceCard(state: HomeState, showAll: Boolean) {
     }
 }
 
+/** The period's title, then income and expenses as two cards side by side. */
 @Composable
 private fun TotalsCard(period: PeriodTotals) {
-    AppCard(Modifier.fillMaxWidth().testTag("home-totals")) {
-        Column(Modifier.padding(16.dp)) {
-            Text(periodTitle(period.unit, period.range), style = MaterialTheme.typography.labelLarge, modifier = Modifier.testTag("home-totals-title"))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Income", style = MaterialTheme.typography.bodyLarge)
-                Text(Money.format(period.income, DEFAULT_CURRENCY), color = Semantic.income)
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Expenses", style = MaterialTheme.typography.bodyLarge)
-                Text(Money.format(period.expense, DEFAULT_CURRENCY), color = Semantic.expense)
-            }
+    Column(Modifier.fillMaxWidth().testTag("home-totals"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(periodTitle(period.unit, period.range), style = MaterialTheme.typography.labelLarge, modifier = Modifier.testTag("home-totals-title"))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TotalCard("Income", "+" + Money.format(period.income, DEFAULT_CURRENCY), Semantic.income, Modifier.weight(1f).testTag("home-income"))
+            TotalCard("Expenses", "\u2212" + Money.format(period.expense, DEFAULT_CURRENCY), MaterialTheme.colorScheme.onSurface, Modifier.weight(1f).testTag("home-expenses"))
+        }
+    }
+}
+
+@Composable
+private fun TotalCard(label: String, amount: String, color: Color, modifier: Modifier) {
+    AppCard(modifier) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(amount, style = MaterialTheme.typography.titleLarge, color = color, maxLines = 1)
         }
     }
 }
