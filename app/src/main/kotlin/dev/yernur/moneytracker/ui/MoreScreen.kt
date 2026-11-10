@@ -288,7 +288,7 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             modifier = Modifier.clickable { container.settings.setWidgetGlass(!widgetGlass); refreshWidgets() }.testTag("widget-glass"),
             leadingContent = { Icon(Icons.Outlined.Widgets, null) }, headlineContent = { Text("Glass widgets") },
-            supportingContent = { Text(if (widgetGlass) "Dark translucent cards" else "Solid cards that follow light and dark mode") },
+            supportingContent = { Text(if (widgetGlass) "Translucent cards that follow light and dark mode" else "Opaque cards that follow light and dark mode") },
             trailingContent = { Switch(widgetGlass, { container.settings.setWidgetGlass(it); refreshWidgets() }) },
         )
         ListItem(

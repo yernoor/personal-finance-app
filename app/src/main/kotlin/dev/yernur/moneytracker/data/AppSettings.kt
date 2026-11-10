@@ -197,7 +197,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         prefs?.edit()?.putString(ICON_STYLE, style.name)?.apply()
     }
 
-    /** Widget look: glass (dark translucent) or a solid card that follows the phone's light/dark mode. */
+    /** Widget look: translucent glass or an opaque card; both follow the phone light/dark mode. */
     val widgetGlass: StateFlow<Boolean> = _widgetGlass
 
     fun setWidgetGlass(enabled: Boolean) {
