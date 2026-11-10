@@ -191,6 +191,9 @@ interface ReminderDao {
 
     @Query("SELECT * FROM reminder WHERE isRemoved = 0 AND kind = :kind ORDER BY startDate")
     fun observeLive(kind: ReminderKind): Flow<List<ReminderEntity>>
+
+    @Query("SELECT * FROM reminder WHERE isRemoved = 0")
+    suspend fun getLive(): List<ReminderEntity>
 }
 
 @Dao

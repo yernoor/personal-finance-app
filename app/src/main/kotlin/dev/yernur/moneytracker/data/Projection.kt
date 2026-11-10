@@ -126,5 +126,5 @@ internal fun monthsAvailable(earliest: LocalDate?, current: YearMonth): Int {
     return minOf(HISTORY_MONTHS.toLong(), ChronoUnit.MONTHS.between(first, current)).toInt()
 }
 
-private fun divideRounded(numerator: Long, denominator: Long): Long =
+internal fun divideRounded(numerator: Long, denominator: Long): Long =
     BigDecimal.valueOf(numerator).divide(BigDecimal.valueOf(denominator), 0, RoundingMode.HALF_UP).toLong()
