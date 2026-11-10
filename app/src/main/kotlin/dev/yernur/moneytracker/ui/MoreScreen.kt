@@ -1,7 +1,9 @@
 package dev.yernur.moneytracker.ui
 
 import android.Manifest
+import android.content.Intent
 import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -18,6 +20,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.BlurOn
@@ -89,6 +92,8 @@ import kotlinx.coroutines.withContext
 @Composable
 fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onFeedback: () -> Unit, onCompound: () -> Unit, onWealth: () -> Unit, onAfford: () -> Unit) {
     var showReminder by remember { mutableStateOf(false) }
+    var showWalletConsent by remember { mutableStateOf(false) }
+    var showWalletAccount by remember { mutableStateOf(false) }
     var showWarnings by remember { mutableStateOf(false) }
     var showHistoryPeriod by remember { mutableStateOf(false) }
     var showIconStyle by remember { mutableStateOf(false) }
@@ -224,6 +229,43 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
             supportingContent = { Text("Floating glass bar and add button, frosted sheets and dialogs") },
             trailingContent = { Switch(glass, { container.settings.setGlass(it) }) },
         )
+        SectionHeader("Automation")
+        val walletOn by container.settings.walletCapture.collectAsStateWithLifecycle()
+        val walletAccountUid by container.settings.walletAccountUid.collectAsStateWithLifecycle()
+        val accounts by remember { container.db.accountDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
+        val walletAccessGranted = {
+            context.getSystemService(android.app.NotificationManager::class.java)
+                .isNotificationListenerAccessGranted(android.content.ComponentName(context, dev.yernur.moneytracker.data.wallet.WalletListenerService::class.java))
+        }
+        var walletAccess by remember { mutableStateOf(walletAccessGranted()) }
+        androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { walletAccess = walletAccessGranted() } // back from Android's settings
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier.clickable { if (walletOn) container.settings.setWalletCapture(false) else showWalletConsent = true }.testTag("wallet-capture"),
+            leadingContent = { Icon(Icons.Outlined.AccountBalanceWallet, null) }, headlineContent = { Text("Google Wallet payments") },
+            supportingContent = {
+                Text(
+                    when {
+                        !walletOn -> "Off. Offer each Wallet card payment as an expense"
+                        !walletAccess -> "On, but Android notification access is still off (see the next row)"
+                        else -> "On: each card payment is offered as an expense"
+                    },
+                )
+            },
+            trailingContent = { Switch(walletOn, { if (it) showWalletConsent = true else container.settings.setWalletCapture(false) }) },
+        )
+        if (walletOn && !walletAccess) ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier.clickable { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.testTag("wallet-access"),
+            leadingContent = { Icon(Icons.Outlined.AccountBalanceWallet, null) }, headlineContent = { Text("Allow notification access") },
+            supportingContent = { Text("Opens Android's screen: switch Money Tracker on") },
+        )
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier.clickable { showWalletAccount = true }.testTag("wallet-account"),
+            leadingContent = { Icon(Icons.Outlined.AccountBalanceWallet, null) }, headlineContent = { Text("Default account for payments") },
+            supportingContent = { Text(accounts.firstOrNull { it.uid == walletAccountUid }?.title ?: "Not chosen: the first payment asks") },
+        )
         SectionHeader("Notifications")
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
@@ -358,6 +400,11 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
     if (showRecents) ChoiceDialog("In the recent apps list", RecentsMode.entries.map { it to it.label }, container.settings.recentsMode.value, { container.settings.setRecentsMode(it) }) { showRecents = false }
     if (showIconStyle) IconStyleDialog(container.settings, glass) { showIconStyle = false }
     if (showHistoryPeriod) HistoryPeriodDialog(container.settings) { showHistoryPeriod = false }
+    if (showWalletConsent) WalletConsentDialog(container.settings, context) { showWalletConsent = false }
+    if (showWalletAccount) {
+        val accounts by remember { container.db.accountDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
+        ChoiceDialog("Default account for payments", accounts.map { it.uid to it.title }, container.settings.walletAccountUid.value.orEmpty(), { container.settings.setWalletAccount(it) }) { showWalletAccount = false }
+    }
     if (showReminder) ReminderDialog(container.settings, context.applicationContext) { showReminder = false }
     if (showWarnings) WarningSettingsDialog(container.settings) { showWarnings = false }
     staged?.let { (file, info) ->
@@ -430,6 +477,37 @@ private fun SectionHeader(title: String) {
     Text(
         title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 4.dp),
+    )
+}
+
+/** The consent step: what is read, what is not, then Android's own notification-access screen (only the owner can grant that). */
+@Composable
+private fun WalletConsentDialog(settings: AppSettings, context: android.content.Context, onDismiss: () -> Unit) {
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    AlertDialog(
+        containerColor = glassContainer(AlertDialogDefaults.containerColor),
+        onDismissRequest = onDismiss,
+        title = { Text("Read Google Wallet payments?") },
+        text = {
+            GlassWindowBlur()
+            Text(
+                "Money Tracker will read notifications from Google Wallet only, to offer each card payment as an expense " +
+                    "(you choose the category). Notifications from every other app are ignored without being read. " +
+                    "Nothing is sent over the network, and you can turn this off here at any time.\n\n" +
+                    "Next, Android asks you to allow notification access for Money Tracker.",
+            )
+        },
+        confirmButton = {
+            TextButton({
+                settings.setWalletCapture(true)
+                if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    permission.launch(Manifest.permission.POST_NOTIFICATIONS) // the payment prompts are notifications
+                }
+                context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                onDismiss()
+            }, Modifier.testTag("wallet-allow")) { Text("Allow") }
+        },
+        dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
     )
 }
 
