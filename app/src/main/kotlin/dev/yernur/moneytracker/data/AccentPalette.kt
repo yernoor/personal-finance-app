@@ -66,7 +66,7 @@ object AccentPalette {
         Oklch.toArgb(lightness, if (neutral(slot)) minOf(chroma, 0.03f) else chroma, hue(slot, baseHue))
     private fun natural(slot: Int, baseHue: Float) = if (neutral(slot)) 0.40f else naturalLightness(hue(slot, baseHue)) + NUDGE[slot % NUDGE.size]
 
-    /** Springboard: a gradient tile, lighter at the top. Lightness is capped so the white glyph stays readable (yellow turns gold). */
+    /** Solid: a gradient tile, lighter at the top. Lightness is capped so the white glyph stays readable (yellow turns gold). */
     private fun springLightness(slot: Int, baseHue: Float, dark: Boolean) = minOf(natural(slot, baseHue), 0.70f) - if (dark) 0.05f else 0f
     fun springTop(slot: Int, baseHue: Float, dark: Boolean) =
         tone(slot, baseHue, if (neutral(slot)) (if (dark) 0.46f else 0.40f) else springLightness(slot, baseHue, dark) + 0.08f, 0.17f)
@@ -75,7 +75,7 @@ object AccentPalette {
     fun springKnock(slot: Int, baseHue: Float, dark: Boolean) = tone(slot, baseHue, if (neutral(slot)) 0.30f else springLightness(slot, baseHue, dark), 0.17f)
     fun springShadow(slot: Int, baseHue: Float, dark: Boolean) = tone(slot, baseHue, maxOf(0.2f, springLightness(slot, baseHue, dark) - 0.28f), 0.13f)
 
-    /** Soft fill: light tile (dark tile in dark mode) with a solid glyph of the same hue. */
+    /** Tonal: light tile (dark tile in dark mode) with a solid glyph of the same hue. */
     fun softBackground(slot: Int, baseHue: Float, dark: Boolean) = tone(slot, baseHue, if (dark) 0.32f else 0.93f, if (dark) 0.06f else 0.045f)
     fun softGlyph(slot: Int, baseHue: Float, dark: Boolean) = tone(slot, baseHue, if (dark) 0.86f else 0.40f, 0.14f)
 

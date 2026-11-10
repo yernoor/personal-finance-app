@@ -5,8 +5,8 @@ package dev.yernur.moneytracker.data
  * With liquid glass on only the glass looks are used (the owner picks between them); with it off, only the others.
  */
 enum class IconStyle(val label: String, val forGlass: Boolean) {
-    Springboard("Solid (Springboard)", false),
-    SoftFill("Tonal (Soft fill)", false),
+    Solid("Solid", false),
+    Tonal("Tonal", false),
     Outline("Outline", false),
     Mono("Mono", false),
     Sticker("Sticker", false),

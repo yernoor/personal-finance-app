@@ -59,7 +59,7 @@ inline fun <reified VM : ViewModel> appViewModel(key: String? = null, crossinlin
 }
 
 /** The look icons have right now: the owner's choice, or Glass whenever liquid glass is on. Provided by the app root. */
-val LocalIconStyle = staticCompositionLocalOf { IconStyle.Springboard }
+val LocalIconStyle = staticCompositionLocalOf { IconStyle.Solid }
 
 /** Hue of the accent, in OKLCH degrees: the category colors are spread around it. Provided by the app root. */
 val LocalAccentHue = staticCompositionLocalOf { 265f }

@@ -63,36 +63,40 @@ class AppSettingsTest {
     fun iconStyles_haveSeparateChoicesForGlassAndNot_andNeverMixThem() {
         prefs.edit().clear().commit()
         val settings = AppSettings(prefs)
-        assertEquals(IconStyle.Springboard, settings.iconStyle.value)
+        assertEquals(IconStyle.Solid, settings.iconStyle.value)
         assertEquals(IconStyle.LiquidTile, settings.glassIconStyle.value) // the liquid tile is the glass default
 
-        settings.setIconStyle(IconStyle.SoftFill)
+        settings.setIconStyle(IconStyle.Tonal)
         settings.setGlassIconStyle(IconStyle.ClearGlass)
         val again = AppSettings(prefs)
-        assertEquals(IconStyle.SoftFill, again.iconStyle.value)
+        assertEquals(IconStyle.Tonal, again.iconStyle.value)
         assertEquals(IconStyle.ClearGlass, again.glassIconStyle.value)
 
         settings.setIconStyle(IconStyle.LiquidTile) // a glass look is not allowed as the everyday choice, and vice versa
-        settings.setGlassIconStyle(IconStyle.SoftFill)
-        assertEquals(IconStyle.SoftFill, settings.iconStyle.value)
+        settings.setGlassIconStyle(IconStyle.Tonal)
+        assertEquals(IconStyle.Tonal, settings.iconStyle.value)
         assertEquals(IconStyle.ClearGlass, settings.glassIconStyle.value)
 
-        prefs.edit().putString("iconStyle", "ClearGlass").putString("glassIconStyle", "Springboard").commit()
+        prefs.edit().putString("iconStyle", "ClearGlass").putString("glassIconStyle", "Solid").commit()
         val repaired = AppSettings(prefs)
-        assertEquals(IconStyle.Springboard, repaired.iconStyle.value)
+        assertEquals(IconStyle.Solid, repaired.iconStyle.value)
         assertEquals(IconStyle.LiquidTile, repaired.glassIconStyle.value)
 
         prefs.edit().putString("iconStyle", "Vivid").putString("glassIconStyle", "GlassTile").commit() // removed looks fall back to the defaults
         val migrated = AppSettings(prefs)
-        assertEquals(IconStyle.Springboard, migrated.iconStyle.value)
+        assertEquals(IconStyle.Solid, migrated.iconStyle.value)
         assertEquals(IconStyle.LiquidTile, migrated.glassIconStyle.value)
     }
 
     @Test
     fun everydayIconStyles_areFiveAndEachOneIsStored_andARemovedOneFallsBack() {
-        assertEquals(listOf("Springboard", "SoftFill", "Outline", "Mono", "Sticker"), IconStyle.entries.filter { !it.forGlass }.map { it.name })
+        assertEquals(listOf("Solid", "Tonal", "Outline", "Mono", "Sticker"), IconStyle.entries.filter { !it.forGlass }.map { it.name })
+        prefs.edit().putString("iconStyle", "SoftFill").commit() // saved under the old name: still the owner's choice
+        assertEquals(IconStyle.Tonal, AppSettings(prefs).iconStyle.value)
+        prefs.edit().putString("iconStyle", "Springboard").commit()
+        assertEquals(IconStyle.Solid, AppSettings(prefs).iconStyle.value)
         prefs.edit().putString("iconStyle", "Raised").commit() // the dropped 3D look
-        assertEquals(IconStyle.Springboard, AppSettings(prefs).iconStyle.value)
+        assertEquals(IconStyle.Solid, AppSettings(prefs).iconStyle.value)
         listOf(IconStyle.Outline, IconStyle.Mono, IconStyle.Sticker).forEach { style ->
             prefs.edit().clear().commit()
             AppSettings(prefs).setIconStyle(style)

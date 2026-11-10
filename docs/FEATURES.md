@@ -121,7 +121,7 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 - History defaults to the **day** period and zooms out to week / month / year.
   First weekday is Monday (backup `firstWeekday = monday`).
 - BUILT: all 99 category/account icons (32 from the backup, 67 added 2026-11-11, the latter not yet checked on screen) are original artwork (no Material or third-party icon paths), drawn on a 24-unit grid. Five
-  owner-selectable everyday styles in More -> Icon style (2026-11-11 redesign): Solid/Springboard (default), Tonal/Soft fill, Outline, Mono, Sticker. A 3D look was built and dropped the same day (owner: ugly). Colors come from the system accent
+  owner-selectable everyday styles in More -> Icon style (2026-11-11 redesign): Solid (default), Tonal, Outline, Mono, Sticker. A 3D look was built and dropped the same day (owner: ugly). Colors come from the system accent
   (OKLCH hue steps around it, lightness chosen per hue so yellow stays yellow, glyph white or near-black by contrast); tests check the
   12 colors stay distinct for every accent hue in light and dark. The backup's 12 stored colors map to the 12 slots.
 - BUILT (experimental, off by default): More -> Liquid glass: floating glass bottom bar and add button (Kyant0 Backdrop 2.0.1: blur,

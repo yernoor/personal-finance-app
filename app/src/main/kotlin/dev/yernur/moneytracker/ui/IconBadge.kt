@@ -67,7 +67,7 @@ private class Look(
 private fun look(style: IconStyle, slot: Int, hue: Float, dark: Boolean): Look {
     fun c(argb: Int, alpha: Float = 1f) = Color(argb).copy(alpha = alpha)
     return when (style) {
-        IconStyle.Springboard -> Look(
+        IconStyle.Solid -> Look(
             baseTop = c(AccentPalette.springTop(slot, hue, dark)), baseBottom = c(AccentPalette.springBottom(slot, hue, dark)),
             gloss = if (dark) 0.14f else 0.30f,
             edge = Color.Black.copy(alpha = if (dark) 0.35f else 0.10f),
@@ -76,7 +76,7 @@ private fun look(style: IconStyle, slot: Int, hue: Float, dark: Boolean): Look {
             knock = c(AccentPalette.springKnock(slot, hue, dark)),
             shadow = c(AccentPalette.springShadow(slot, hue, dark), 0.55f),
         )
-        IconStyle.SoftFill -> {
+        IconStyle.Tonal -> {
             val background = c(AccentPalette.softBackground(slot, hue, dark))
             val glyph = c(AccentPalette.softGlyph(slot, hue, dark))
             Look(
