@@ -18,6 +18,7 @@ class SheetsSync(
     private val now: () -> String = ::nowUtc,
 ) {
     suspend fun pushAll(onProgress: (String) -> Unit = {}): SpreadsheetLink {
+        pullIfPhoneIsEmpty(onProgress)
         onProgress("Reading your data")
         val stamp = now() // taken before reading: a phone edit made during the push counts as not yet synced
         val tabs = SheetRows.build(
@@ -45,6 +46,24 @@ class SheetsSync(
         settings.setPendingSpreadsheet(null)
         settings.setLastSyncAt(stamp)
         return SpreadsheetLink(created.id, created.url)
+    }
+
+    /**
+     * A push empties the sheet first, so an empty phone (new phone, reinstall) must not push over a sheet that already has the data:
+     * it takes the sheet's data in before anything is cleared. A failure here stops the push with the sheet untouched.
+     */
+    private suspend fun pullIfPhoneIsEmpty(onProgress: (String) -> Unit) {
+        val empty = db.transactionDao().getAll().none { !it.isRemoved } && db.transferDao().getAll().none { !it.isRemoved }
+        if (!empty) return
+        val id = settings.pendingSpreadsheetId.value ?: settings.spreadsheetId.value ?: findByName() ?: return
+        val existing = try {
+            api.describe(id)
+        } catch (e: SheetsException) {
+            return // gone or not ours: reuse() will make a new one
+        }
+        onProgress("Phone is empty: reading the sheet first")
+        settings.setSpreadsheet(existing.id, existing.url)
+        SheetsPull(db, api, settings, now).pull(onProgress)
     }
 
     /** The spreadsheet to overwrite, fitted to the data and emptied, or null when a new one has to be made. */

@@ -166,6 +166,23 @@ class SheetsSyncTest {
     }
 
     @Test
+    fun anEmptyPhone_readsTheExistingSheetBeforeAnythingIsCleared() = runBlocking {
+        val ledger = LedgerRepository(db)
+        db.transactionDao().getAll().forEach { ledger.deleteTransaction(it.uid) }
+        db.transferDao().getAll().forEach { ledger.deleteTransfer(it.uid) }
+        val row = """[${SheetRows.dateSerial("2026-09-01")},"Expense","Main","Кафе","",500.0,"KZT",-500.0,"from the sheet","","","u1"]"""
+        val header = SheetLayout.TRANSACTIONS.headers.joinToString(",") { "\"$it\"" }
+        val transport = fakeGoogle(driveHit = "old", describe = {
+            if (it.url.contains("batchGet")) ok("""{"valueRanges":[{"values":[[$header],$row]}]}""") else ok(described(rows = 5000))
+        })
+        sync(transport).pushAll()
+
+        assertEquals(listOf("from the sheet"), db.transactionDao().getAll().filter { !it.isRemoved }.map { it.comment })
+        val order = transport.requests.map { it.url.substringAfterLast("/").substringBefore("?") }
+        assertTrue(order.indexOf("values:batchGet") in 0 until order.indexOf("values:batchClear"))
+    }
+
+    @Test
     fun whenDriveCannotBeSearchedOrTheSheetIsGone_aNewSheetIsMade() = runBlocking {
         val noDrive = fakeGoogle(failOn = { it.url.startsWith(SheetsApi.DRIVE_URL) })
         assertEquals("sid", sync(noDrive).pushAll().id)
