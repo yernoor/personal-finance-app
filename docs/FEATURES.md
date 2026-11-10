@@ -291,7 +291,7 @@ stored its own tab choice keeps it: add Analysis in More -> Navigation bar.
 
 ### Analysis rules
 - Monthly bars: the last 6 months, all expenses; the current month shows the run-rate projection (spent so far / days elapsed x days in month) as a dashed bar. Average line = mean of the full months shown.
-- Category trend: delta = current run-rate vs the mean of the previous (up to) 3 full months, shown only when that mean is not zero. Insights: a category at least 25% above its average (and at least 5,000 above), and a category that fell three months in a row.
+- Category trend: delta = current run-rate vs the mean of the previous (up to) 3 full months, shown only when that mean is not zero, at least 10 days of the month have passed, and something was spent in the category this month (a pace of 0 says nothing). The sparkline draws the unfinished month at its pace. Insights: a category at least 25% above its average (and at least 5,000 above), and a category that fell three months in a row.
 - Weekday pattern: expenses of the last 3 full months by day of week.
 - Recurring: an expense comment (trimmed, case-insensitive) seen in at least 3 consecutive months, amounts within 20% of the median. Price change = latest amount differs from the previous one by 5% or more. "Has a reminder" = a reminder with the same title.
 - Duplicate: same type, account, category, account-currency amount and date, created within 10 minutes of each other. Keep both / delete the second (soft delete through the ledger).

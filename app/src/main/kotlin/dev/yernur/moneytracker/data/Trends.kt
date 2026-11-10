@@ -24,7 +24,7 @@ data class CategoryTrend(
     val monthly: List<Long>,
     val runRate: Long,
     val average: Long?,
-    /** Run-rate against the average; null before [MIN_RUN_RATE_DAYS] days of the month or without an average. */
+    /** Run-rate against the average; null before [MIN_RUN_RATE_DAYS] days of the month, with nothing spent yet this month, or without an average. */
     val deltaPercent: Int?,
     val limit: Long?,
 )
@@ -60,7 +60,8 @@ fun analysis(rows: List<TxLite>, forecast: Forecast, today: LocalDate): Analysis
         val f = forecastBy[uid]
         val average3 = f?.average
         val runRate = f?.runRate ?: 0L
-        val delta = if (average3 == null || average3 <= 0 || forecast.daysElapsed < MIN_RUN_RATE_DAYS) null
+        // Nothing spent yet this month: a pace of 0 says nothing, so no change is shown.
+        val delta = if (average3 == null || average3 <= 0 || forecast.daysElapsed < MIN_RUN_RATE_DAYS || (months.last().expenseByCategory[uid] ?: 0L) == 0L) null
         else divideRounded((runRate - average3) * 100, average3).toInt()
         CategoryTrend(uid, months.map { it.expenseByCategory[uid] ?: 0L }, runRate, average3, delta, f?.limit)
     }.sortedByDescending { it.runRate }

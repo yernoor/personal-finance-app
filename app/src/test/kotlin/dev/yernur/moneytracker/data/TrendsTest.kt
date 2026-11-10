@@ -61,6 +61,14 @@ class TrendsTest {
     }
 
     @Test
+    fun delta_isNotShownForACategoryWithNothingSpentYetThisMonth() {
+        val quiet = rows + listOf(expense("2026-07-05", "d", 50_000), expense("2026-08-05", "d", 50_000), expense("2026-09-05", "d", 50_000))
+        val byUid = analysis(quiet, forecast(quiet, emptyList(), today, longAgo, 100), today).categories.associateBy { it.categoryUid }
+        assertNull(byUid.getValue("d").deltaPercent) // would be -100%
+        assertEquals(0L, byUid.getValue("d").monthly.last())
+    }
+
+    @Test
     fun insights_flagTheBigRise_andThreeDropsInARow() {
         val result = analysis(rows, forecastOn(today), today)
         assertEquals(listOf(Insight(InsightKind.Rise, "b", 107), Insight(InsightKind.Fall, "a", 0)), result.insights)

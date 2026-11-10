@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -214,7 +215,8 @@ private fun TrendRow(trend: CategoryTrend, category: CategoryEntity?, onOpen: (S
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Sparkline(trend.monthly, color)
+        // The unfinished month is drawn at its pace, so the line does not plunge at the end.
+        Sparkline(trend.monthly.dropLast(1) + trend.runRate, color)
         DeltaText(trend.deltaPercent)
     }
 }
@@ -241,5 +243,5 @@ private fun DeltaText(percent: Int?) {
         percent <= -10 -> "▼ ${-percent}%" to Semantic.income
         else -> (if (percent >= 0) "+$percent%" else "−${-percent}%") to MaterialTheme.colorScheme.onSurfaceVariant
     }
-    Text(text, Modifier.padding(start = 4.dp), color = color, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.End)
+    Text(text, Modifier.width(64.dp), color = color, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.End)
 }
