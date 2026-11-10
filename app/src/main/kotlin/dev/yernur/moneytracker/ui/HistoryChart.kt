@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
+
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -130,7 +130,7 @@ fun HistoryChart(
     val summary = (if (income) "Income " else "Expenses ") + total + slices.joinToString("") { ", ${it.title} ${it.percent}%" }
     val drawn = drawInProgress(income)
     val expanded = expandedDp(LocalConfiguration.current.screenHeightDp)
-    Card(modifier.fillMaxWidth().testTag("history-chart")) {
+    AppCard(modifier.fillMaxWidth().testTag("history-chart")) {
         Column(Modifier.padding(12.dp)) {
             if (slices.isEmpty()) {
                 Text("Nothing to chart in this period", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 8.dp))

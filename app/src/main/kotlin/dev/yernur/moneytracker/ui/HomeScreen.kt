@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
+
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -140,7 +141,7 @@ fun HomeScreen() {
 
 @Composable
 private fun WarningsCard(warnings: List<HomeWarning>) {
-    Card(Modifier.fillMaxWidth().testTag("home-warnings"), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+    AppCard(Modifier.fillMaxWidth().testTag("home-warnings"), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Spending warnings", style = MaterialTheme.typography.labelLarge)
             warnings.take(4).forEach { Text("${it.title}: ${it.text}", style = MaterialTheme.typography.bodyMedium) }
@@ -150,35 +151,40 @@ private fun WarningsCard(warnings: List<HomeWarning>) {
 
 @Composable
 private fun BalanceCard(state: HomeState, showAll: Boolean) {
-    Card(Modifier.fillMaxWidth().testTag("home-balance")) {
+    AppCard(Modifier.fillMaxWidth().testTag("home-balance")) {
         Column(Modifier.padding(16.dp)) {
             Text("Balance", style = MaterialTheme.typography.labelLarge)
-            Text(Money.format(state.counted, DEFAULT_CURRENCY), style = MaterialTheme.typography.displaySmall)
-            if (showAll) Text("All accounts: ${Money.format(state.all, DEFAULT_CURRENCY)}", style = MaterialTheme.typography.bodyMedium)
+            RollingMoney(state.counted, { Money.format(it, DEFAULT_CURRENCY) }, style = MaterialTheme.typography.displaySmall)
+            if (showAll) RollingMoney(state.all, { "All accounts: ${Money.format(it, DEFAULT_CURRENCY)}" }, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+/** The period's title, then income and expenses as two cards side by side. */
+@Composable
+private fun TotalsCard(period: PeriodTotals) {
+    Column(Modifier.fillMaxWidth().testTag("home-totals"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(periodTitle(period.unit, period.range), style = MaterialTheme.typography.labelLarge, modifier = Modifier.testTag("home-totals-title"))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TotalCard("Income", "+" + Money.format(period.income, DEFAULT_CURRENCY), Semantic.income, Modifier.weight(1f).testTag("home-income"))
+            TotalCard("Expenses", "\u2212" + Money.format(period.expense, DEFAULT_CURRENCY), MaterialTheme.colorScheme.onSurface, Modifier.weight(1f).testTag("home-expenses"))
         }
     }
 }
 
 @Composable
-private fun TotalsCard(period: PeriodTotals) {
-    Card(Modifier.fillMaxWidth().testTag("home-totals")) {
-        Column(Modifier.padding(16.dp)) {
-            Text(periodTitle(period.unit, period.range), style = MaterialTheme.typography.labelLarge, modifier = Modifier.testTag("home-totals-title"))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Income", style = MaterialTheme.typography.bodyLarge)
-                Text(Money.format(period.income, DEFAULT_CURRENCY), color = Semantic.income)
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Expenses", style = MaterialTheme.typography.bodyLarge)
-                Text(Money.format(period.expense, DEFAULT_CURRENCY), color = Semantic.expense)
-            }
+private fun TotalCard(label: String, amount: String, color: Color, modifier: Modifier) {
+    AppCard(modifier) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(amount, style = MaterialTheme.typography.titleLarge, color = color, maxLines = 1)
         }
     }
 }
 
 @Composable
 private fun TopCategoriesCard(period: PeriodTotals) {
-    Card(Modifier.fillMaxWidth().testTag("home-top-categories")) {
+    AppCard(Modifier.fillMaxWidth().testTag("home-top-categories")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Top spending · ${periodTitle(period.unit, period.range)}", style = MaterialTheme.typography.labelLarge)
             if (period.top.isEmpty()) Text("Nothing spent yet", style = MaterialTheme.typography.bodyMedium)
@@ -195,7 +201,7 @@ private fun TopCategoriesCard(period: PeriodTotals) {
 
 @Composable
 private fun RecentCard(recent: List<RecentEntry>) {
-    Card(Modifier.fillMaxWidth().testTag("home-recent")) {
+    AppCard(Modifier.fillMaxWidth().testTag("home-recent")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Latest entries", style = MaterialTheme.typography.labelLarge)
             if (recent.isEmpty()) Text("No entries yet", style = MaterialTheme.typography.bodyMedium)

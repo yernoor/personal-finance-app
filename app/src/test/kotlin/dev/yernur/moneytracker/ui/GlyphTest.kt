@@ -23,6 +23,14 @@ class GlyphTest {
     }
 
     @Test
+    fun theSetHasNinetyNineCategoryIcons_withTheNewOnesAddedAfterTheBackupOnes() {
+        assertEquals(99, AppIcons.names.size)
+        assertEquals("mustache", AppIcons.names[31])
+        assertEquals("tenge", AppIcons.names[32])
+        assertTrue(AppIcons.names.containsAll(listOf("coins", "salary", "fuel", "pharmacy", "calendar")))
+    }
+
+    @Test
     fun theSetCoversEveryNameTheBackupUses_andUnknownNamesFallBackToTheQuestionMark() {
         val backupNames = listOf(
             "prepaid", "purse", "present", "transport", "bank", "cafe", "other", "products", "return", "drinks", "girl", "family", "home",

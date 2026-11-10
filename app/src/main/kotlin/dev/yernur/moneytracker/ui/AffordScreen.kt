@@ -13,7 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -78,7 +78,7 @@ fun AffordScreen(onBack: () -> Unit, onLogExpense: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text("Can I afford this?") },
                 navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -142,7 +142,7 @@ private fun VerdictCard(r: AffordResult, categoryTitle: String?) {
         Verdict.Tight -> Triple(scheme.tertiaryContainer, scheme.onTertiaryContainer, "TIGHT")
         Verdict.No -> Triple(scheme.errorContainer, scheme.onErrorContainer, "NO")
     }
-    Card(Modifier.fillMaxWidth().testTag("afford-verdict"), colors = CardDefaults.cardColors(containerColor = container, contentColor = content)) {
+    AppCard(Modifier.fillMaxWidth().testTag("afford-verdict"), colors = CardDefaults.cardColors(containerColor = container, contentColor = content)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.testTag("afford-verdict-label"))
             Text(r.headline(categoryTitle), style = MaterialTheme.typography.titleLarge)
@@ -153,7 +153,7 @@ private fun VerdictCard(r: AffordResult, categoryTitle: String?) {
 
 @Composable
 private fun BreakdownCard(r: AffordResult, accountTitle: String) {
-    Card(Modifier.fillMaxWidth().testTag("afford-breakdown")) {
+    AppCard(Modifier.fillMaxWidth().testTag("afford-breakdown")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Free money until payday", style = MaterialTheme.typography.titleMedium)
             Line("Balance on $accountTitle", money(r.balance))
@@ -182,7 +182,7 @@ private fun Line(label: String, value: String, strong: Boolean = false) {
 
 @Composable
 private fun LimitCard(limit: dev.yernur.moneytracker.data.LimitImpact, title: String) {
-    Card(Modifier.fillMaxWidth().testTag("afford-limit")) {
+    AppCard(Modifier.fillMaxWidth().testTag("afford-limit")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Limit: $title", style = MaterialTheme.typography.titleMedium)
             Line("Spent so far", money(limit.spent))
@@ -198,7 +198,7 @@ private fun LimitCard(limit: dev.yernur.moneytracker.data.LimitImpact, title: St
 
 @Composable
 private fun GoalCard(title: String, days: Int) {
-    Card(Modifier.fillMaxWidth().testTag("afford-goal")) {
+    AppCard(Modifier.fillMaxWidth().testTag("afford-goal")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Goal: $title", style = MaterialTheme.typography.titleMedium)
             Text("Reaching it takes about $days days longer at your recent saving pace.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

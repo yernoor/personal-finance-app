@@ -10,6 +10,24 @@ class AccentPaletteTest {
     private fun hexOf(argb: Int) = "%06X".format(argb and 0xFFFFFF)
 
     @Test
+    fun anExactColor_keepsItsOwnHue_andAGrayUsesTheNeutralSlot() {
+        val accent = 200f
+        AccentPalette.KEYS.forEachIndexed { i, key -> // the 12 stored colors still follow the accent
+            val p = AccentPalette.pick(key, accent)
+            assertEquals(i, p.slot); assertEquals(accent, p.baseHue, 0f)
+        }
+        val orange = 0xFFFF8A00.toInt()
+        assertTrue(AccentPalette.isCustom(orange))
+        val p = AccentPalette.pick(orange, accent)
+        assertEquals(0, p.slot)
+        assertEquals(Oklch.hueOf(orange).toDouble(), p.baseHue.toDouble(), 0.01)
+        // slot 0 with that hue is that hue at the style's lightness: the main color has the typed hue
+        assertEquals(Oklch.hueOf(orange).toDouble(), Oklch.hueOf(AccentPalette.main(p.slot, p.baseHue, false)).toDouble(), 3.0)
+        assertEquals(AccentPalette.SLOTS - 1, AccentPalette.pick(0xFF808080.toInt(), accent).slot)
+        assertEquals(false, AccentPalette.isCustom(null))
+    }
+
+    @Test
     fun oklch_matchesKnownReferenceColors() {
         // Reference values from Ottosson's OKLab article: pure red, green and blue
         assertEquals(29.23, Oklch.hueOf(0xFFFF0000.toInt()).toDouble(), 0.1)

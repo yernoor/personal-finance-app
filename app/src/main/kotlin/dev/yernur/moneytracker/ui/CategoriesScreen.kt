@@ -54,16 +54,15 @@ fun CategoriesScreen(onOpen: (uid: String) -> Unit, onNew: (TransactionType) -> 
     val vm = appViewModel { CategoriesViewModel(it.db) }
     val categories by vm.categories.collectAsStateWithLifecycle(emptyList())
     var tab by remember { mutableStateOf(TransactionType.Expense) }
-    Scaffold(topBar = {
-        if (!embedded) TopAppBar(title = { Text("Categories") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
+    Scaffold(contentWindowInsets = embeddedInsets(embedded), topBar = {
+        if (!embedded) AppTopBar(title = { Text("Categories") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
     }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             val tabs = listOf(TransactionType.Expense, TransactionType.Income)
-            PrimaryTabRow(selectedTabIndex = tabs.indexOf(tab)) {
-                tabs.forEach { type ->
-                    Tab(tab == type, { tab = type }, text = { Text(if (type == TransactionType.Expense) "Expenses" else "Income") }, modifier = Modifier.testTag("tab-$type"))
-                }
-            }
+            SlidingSegmented(
+                listOf("Expenses", "Income"), tabs.indexOf(tab), tabs.map { "tab-$it" }, { tab = tabs[it] },
+                Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
             FlowRow(
                 Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + LocalChromeInset.current),
                 horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -129,7 +128,7 @@ fun CategoryEditScreen(uid: String?, type: TransactionType, onBack: () -> Unit) 
     val vm = appViewModel(key = "category-$uid-$type") { CategoryEditViewModel(it.db, it.ledger, uid, type) }
     var confirmDelete by remember { mutableStateOf(false) }
     Scaffold(topBar = {
-        TopAppBar(
+        AppTopBar(
             title = { Text(if (uid == null) "New category" else "Edit category") },
             navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
             actions = { if (uid != null) IconButton({ confirmDelete = true }) { Icon(Icons.Outlined.Delete, "Delete") } },
@@ -158,11 +157,10 @@ fun CategoryEditScreen(uid: String?, type: TransactionType, onBack: () -> Unit) 
             Text("Icon", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AppIcons.names.forEach { name ->
-                    IconButton({ vm.icon = name }) { PickableIcon(name, vm.color, vm.icon == name) }
+                    PickableIcon(name, vm.color, vm.icon == name) { vm.icon = name }
                 }
             }
-            Text("Color", style = MaterialTheme.typography.labelLarge)
-            ColorPicker(vm.color) { vm.color = it }
+            ColorSection(vm.color) { vm.color = it }
             Button({ vm.save(onBack) }, enabled = vm.title.isNotBlank(), modifier = Modifier.fillMaxWidth().testTag("save")) { Text("Save") }
         }
     }

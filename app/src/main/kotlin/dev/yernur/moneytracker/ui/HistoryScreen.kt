@@ -22,9 +22,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -246,14 +243,10 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
 
     Column(Modifier.fillMaxSize()) {
         val units = PeriodUnit.entries
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-            units.forEachIndexed { index, u ->
-                SegmentedButton(
-                    unit == u, { vm.zoom(u) }, SegmentedButtonDefaults.itemShape(index, units.size),
-                    modifier = Modifier.testTag("period-${u.name}"),
-                ) { Text(u.name) }
-            }
-        }
+        SlidingSegmented(
+            units.map { it.name }, units.indexOf(unit), units.map { "period-${it.name}" }, { vm.zoom(units[it]) },
+            Modifier.padding(horizontal = 16.dp),
+        )
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton({ vm.shift(-1) }, modifier = Modifier.testTag("prev-period")) { Icon(Icons.Outlined.ChevronLeft, "Previous") }
             Text(
@@ -263,14 +256,10 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
             IconButton({ vm.shift(1) }, enabled = range.to < LocalDate.now(), modifier = Modifier.testTag("next-period")) { Icon(Icons.Outlined.ChevronRight, "Next") }
         }
         // Same header as Charts: period slicer, period row, then what to show underneath.
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
-            listOf(false to "Expenses", true to "Income").forEachIndexed { index, (income, label) ->
-                SegmentedButton(
-                    chartIncome == income, { chartIncome = income }, SegmentedButtonDefaults.itemShape(index, 2),
-                    modifier = Modifier.testTag(if (income) "chart-income" else "chart-expenses"),
-                ) { Text(label) }
-            }
-        }
+        SlidingSegmented(
+            listOf("Expenses", "Income"), if (chartIncome) 1 else 0, listOf("chart-expenses", "chart-income"), { chartIncome = it == 1 },
+            Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("+${Money.format(state.income, DEFAULT_CURRENCY)}")
             Text("-${Money.format(state.expense, DEFAULT_CURRENCY)}")

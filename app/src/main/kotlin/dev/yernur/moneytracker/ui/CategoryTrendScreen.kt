@@ -11,7 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material3.Card
+
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -80,7 +80,7 @@ fun CategoryTrendScreen(uid: String, onBack: () -> Unit, onOpenTransaction: (Str
     val category = state?.first
     Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(category?.title ?: "Category") },
                 navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -92,7 +92,7 @@ fun CategoryTrendScreen(uid: String, onBack: () -> Unit, onOpenTransaction: (Str
         Column(Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).testTag("category-trend"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 val over = detail.limit != null && detail.runRate > detail.limit
-                Card(
+                AppCard(
                     Modifier.weight(1f).testTag("trend-projected"),
                     colors = CardDefaults.cardColors(containerColor = if (over) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant),
                 ) {
@@ -102,14 +102,14 @@ fun CategoryTrendScreen(uid: String, onBack: () -> Unit, onOpenTransaction: (Str
                         detail.limit?.let { Text("limit ${money(it)}", style = MaterialTheme.typography.bodySmall) }
                     }
                 }
-                Card(Modifier.weight(1f).testTag("trend-average")) {
+                AppCard(Modifier.weight(1f).testTag("trend-average")) {
                     Column(Modifier.padding(14.dp)) {
                         Text("3-month average", style = MaterialTheme.typography.labelMedium)
                         Text(detail.average?.let(::money) ?: "–", style = MaterialTheme.typography.titleLarge)
                     }
                 }
             }
-            Card(Modifier.fillMaxWidth()) {
+            AppCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Monthly spending", style = MaterialTheme.typography.titleMedium)
                     TrendLine(detail, color)
@@ -119,7 +119,7 @@ fun CategoryTrendScreen(uid: String, onBack: () -> Unit, onOpenTransaction: (Str
                     )
                 }
             }
-            Card(Modifier.fillMaxWidth().testTag("trend-weekdays")) {
+            AppCard(Modifier.fillMaxWidth().testTag("trend-weekdays")) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("When it happens", style = MaterialTheme.typography.titleMedium)
                     Text(

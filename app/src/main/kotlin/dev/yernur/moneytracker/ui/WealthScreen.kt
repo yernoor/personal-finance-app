@@ -17,13 +17,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -67,7 +68,6 @@ import dev.yernur.moneytracker.data.wealth.fromDefault
 import dev.yernur.moneytracker.data.wealth.netWorthChange
 import dev.yernur.moneytracker.data.wealth.projectNetWorth
 import dev.yernur.moneytracker.data.wealth.sparklinePoints
-import dev.yernur.moneytracker.data.wealth.updatedLabel
 import java.math.BigDecimal
 import java.time.LocalDate
 
@@ -79,6 +79,19 @@ private sealed interface Editing {
 }
 
 private const val NET_WORTH_CHOICE = "Net worth"
+
+/**
+ * The currency switch for the Wealth heading: the app's top bar shows it next to the title when Wealth is a tab, and the screen's own
+ * bar when it is opened from More. Both use the same setting, so they stay in step. Without a rate for the chosen currency it shows tenge.
+ */
+@Composable
+fun WealthCurrencyAction(modifier: Modifier = Modifier) {
+    val container = LocalAppContainer.current
+    val rates by container.fx.rates.collectAsStateWithLifecycle(emptyMap())
+    val currency by container.settings.wealthCurrency.collectAsStateWithLifecycle()
+    val choices = remember(rates) { currencyChoices(rates) }
+    CurrencySwitch(if (currency in choices) currency else "KZT", choices, { container.settings.setWealthCurrency(it) }, modifier)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,9 +108,11 @@ fun WealthScreen(embedded: Boolean = false, onCompound: () -> Unit, onBack: () -
         container.snapshotNetWorth()
     }
     Scaffold(
+        contentWindowInsets = embeddedInsets(embedded),
         topBar = {
-            if (!embedded) TopAppBar(
+            if (!embedded) AppTopBar(
                 title = { Text("Wealth") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
+                actions = { WealthCurrencyAction(Modifier.padding(end = 8.dp)) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
@@ -116,15 +131,6 @@ fun WealthScreen(embedded: Boolean = false, onCompound: () -> Unit, onBack: () -
             Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = LocalChromeInset.current + 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                val updatedAt by container.settings.ratesUpdatedAt.collectAsStateWithLifecycle()
-                Text(
-                    if (data.rates.isEmpty()) "No exchange rates yet"
-                    else "National Bank rates" + (updatedAt?.let { ", updated ${updatedLabel(it)}" } ?: ""),
-                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                CurrencySwitch(shown, choices, { container.settings.setWealthCurrency(it) })
-            }
             NetWorthCard(data, ::show)
             Breakdown(data, ::show, onAsset = { editing = Editing.Asset(it) })
             GoalsCard(data, ::show, onEdit = { editing = Editing.Goal(it) })
@@ -146,7 +152,7 @@ fun WealthScreen(embedded: Boolean = false, onCompound: () -> Unit, onBack: () -
 
 @Composable
 private fun SectionCard(title: String, onAdd: (() -> Unit)?, addTag: String, content: @Composable () -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), shape = MaterialTheme.shapes.large) {
+    AppCard {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
@@ -162,22 +168,22 @@ private fun NetWorthCard(data: WealthOverview, show: (Long) -> String) {
     val today = LocalDate.now()
     val total = data.netWorth.totalMinor
     val change = netWorthChange(data.snapshots.map { LocalDate.parse(it.date) to it.totalMinor }, today, total)
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer), shape = MaterialTheme.shapes.extraLarge) {
+    AppCard(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary), shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.fillMaxWidth().padding(20.dp)) {
-            Text("Net worth", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
-            Text(show(total), fontSize = 34.sp, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.testTag("net-worth"))
+            Text("Net worth", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimary)
+            RollingMoney(total, show, Modifier.testTag("net-worth"), LocalTextStyle.current.copy(fontSize = 34.sp, color = MaterialTheme.colorScheme.onPrimary))
             Text(
                 change?.let { (diff, since) -> "${if (diff >= 0) "+" else ""}${show(diff)} since $since" } ?: "History starts today: one point is saved each day you open the app",
-                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer,
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimary,
             )
             if (data.netWorth.missingCurrencies.isNotEmpty()) {
                 Text(
                     "No rate yet for ${data.netWorth.missingCurrencies.joinToString()}: left out of the totals",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.padding(top = 4.dp).testTag("missing-rates"),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.padding(top = 4.dp).testTag("missing-rates"),
                 )
             }
             sparklinePoints(data.snapshots.map { LocalDate.parse(it.date) to it.totalMinor })?.let {
-                Sparkline(it, MaterialTheme.colorScheme.primary, Modifier.fillMaxWidth().height(56.dp).padding(top = 12.dp))
+                Sparkline(it, MaterialTheme.colorScheme.onPrimary, Modifier.fillMaxWidth().height(56.dp).padding(top = 12.dp))
             }
         }
     }
@@ -200,12 +206,12 @@ private fun Breakdown(data: WealthOverview, show: (Long) -> String, onAsset: (Ma
     val n = data.netWorth
     SectionCard("Where it is", { onAsset(null) }, "add-asset") {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Tile("Accounts", show(n.accountsMinor), Modifier.weight(1f))
-            Tile("Bonds", show(n.investmentsMinor), Modifier.weight(1f))
+            AmountTile("Accounts", n.accountsMinor, show, Modifier.weight(1f))
+            AmountTile("Bonds", n.investmentsMinor, show, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Tile("Other assets", show(n.assetsMinor), Modifier.weight(1f))
-            Tile("Loans", if (n.liabilitiesMinor == 0L) show(0) else "-" + show(n.liabilitiesMinor), Modifier.weight(1f))
+            AmountTile("Other assets", n.assetsMinor, show, Modifier.weight(1f))
+            AmountTile("Loans", n.liabilitiesMinor, { if (it == 0L) show(0) else "-" + show(it) }, Modifier.weight(1f))
         }
         data.manualAssets.forEach { item ->
             Row(Modifier.fillMaxWidth().clickable { onAsset(item) }.padding(vertical = 6.dp).testTag("asset-${item.title}"), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -216,6 +222,14 @@ private fun Breakdown(data: WealthOverview, show: (Long) -> String, onAsset: (Ma
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun AmountTile(label: String, value: Long, format: (Long) -> String, modifier: Modifier) {
+    Column(modifier.clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(horizontal = 14.dp, vertical = 10.dp)) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        RollingMoney(value, format, style = MaterialTheme.typography.titleMedium, maxLines = 1)
     }
 }
 

@@ -29,6 +29,24 @@ object AccentPalette {
         else -> key.hashCode().absoluteValue % SLOTS // a color from a newer backup: still a stable slot
     }
 
+    /** What to draw a stored color key with: the slot whose formulas apply and the hue to feed them. */
+    class Pick(val slot: Int, val baseHue: Float)
+
+    private const val GRAY_CHROMA = 0.03f
+
+    /** A key outside the 12 is an exact color the owner typed or picked (or came from a newer backup). */
+    fun isCustom(key: Int?): Boolean = key != null && key !in KEYS
+
+    /**
+     * Slot 0 sits on the base hue, so an exact color is slot 0 with its own hue: every style then picks its lightness for that hue,
+     * and the glyph still reads. A near-gray one has no hue worth keeping and uses the neutral slot.
+     */
+    fun pick(key: Int?, accentHue: Float): Pick = when {
+        !isCustom(key) -> Pick(slotOf(key), accentHue)
+        Oklch.chromaOf(key!!) < GRAY_CHROMA -> Pick(SLOTS - 1, accentHue)
+        else -> Pick(0, Oklch.hueOf(key))
+    }
+
     /** Lightness at which a hue looks vivid rather than muddy, interpolated between these (hue, lightness) anchors. */
     private val NATURAL = listOf(0f to 0.62f, 30f to 0.65f, 60f to 0.74f, 90f to 0.84f, 120f to 0.80f, 150f to 0.72f, 180f to 0.68f,
         210f to 0.65f, 240f to 0.58f, 270f to 0.54f, 300f to 0.56f, 330f to 0.60f, 360f to 0.62f)
@@ -66,7 +84,7 @@ object AccentPalette {
         Oklch.toArgb(lightness, if (neutral(slot)) minOf(chroma, 0.03f) else chroma, hue(slot, baseHue))
     private fun natural(slot: Int, baseHue: Float) = if (neutral(slot)) 0.40f else naturalLightness(hue(slot, baseHue)) + NUDGE[slot % NUDGE.size]
 
-    /** Springboard: a gradient tile, lighter at the top. Lightness is capped so the white glyph stays readable (yellow turns gold). */
+    /** Solid: a gradient tile, lighter at the top. Lightness is capped so the white glyph stays readable (yellow turns gold). */
     private fun springLightness(slot: Int, baseHue: Float, dark: Boolean) = minOf(natural(slot, baseHue), 0.70f) - if (dark) 0.05f else 0f
     fun springTop(slot: Int, baseHue: Float, dark: Boolean) =
         tone(slot, baseHue, if (neutral(slot)) (if (dark) 0.46f else 0.40f) else springLightness(slot, baseHue, dark) + 0.08f, 0.17f)
@@ -75,28 +93,9 @@ object AccentPalette {
     fun springKnock(slot: Int, baseHue: Float, dark: Boolean) = tone(slot, baseHue, if (neutral(slot)) 0.30f else springLightness(slot, baseHue, dark), 0.17f)
     fun springShadow(slot: Int, baseHue: Float, dark: Boolean) = tone(slot, baseHue, maxOf(0.2f, springLightness(slot, baseHue, dark) - 0.28f), 0.13f)
 
-    /** Soft fill: light tile (dark tile in dark mode) with a solid glyph of the same hue. */
+    /** Tonal: light tile (dark tile in dark mode) with a solid glyph of the same hue. */
     fun softBackground(slot: Int, baseHue: Float, dark: Boolean) = tone(slot, baseHue, if (dark) 0.32f else 0.93f, if (dark) 0.06f else 0.045f)
     fun softGlyph(slot: Int, baseHue: Float, dark: Boolean) = tone(slot, baseHue, if (dark) 0.86f else 0.40f, 0.14f)
-
-    /** Liquid tile: translucent tinted glass with a white glyph. */
-    private fun liquidLightness(slot: Int, baseHue: Float, dark: Boolean) = minOf(natural(slot, baseHue), 0.66f) - if (dark) 0.07f else 0f
-    fun liquidTop(slot: Int, baseHue: Float, dark: Boolean) =
-        tone(slot, baseHue, if (neutral(slot)) 0.55f else liquidLightness(slot, baseHue, dark) + 0.08f, 0.16f)
-    fun liquidBottom(slot: Int, baseHue: Float, dark: Boolean) =
-        tone(slot, baseHue, if (neutral(slot)) 0.32f else liquidLightness(slot, baseHue, dark) - 0.04f, 0.18f)
-    fun liquidGlow(slot: Int, baseHue: Float, dark: Boolean) =
-        tone(slot, baseHue, if (neutral(slot)) 0.70f else minOf(liquidLightness(slot, baseHue, dark) + 0.22f, 0.90f), 0.15f)
-    fun liquidKnock(slot: Int, baseHue: Float, dark: Boolean) = tone(slot, baseHue, maxOf(0.25f, liquidLightness(slot, baseHue, dark) - 0.12f), 0.17f)
-    fun liquidShadow(slot: Int, baseHue: Float, dark: Boolean) = tone(slot, baseHue, maxOf(0.2f, liquidLightness(slot, baseHue, dark) - 0.30f), 0.14f)
-
-    /** Clear glass: almost transparent tile; the glyph carries the color as a top-to-bottom gradient. */
-    private fun clearLightness(slot: Int, baseHue: Float, dark: Boolean) = if (dark) 0.82f else minOf(natural(slot, baseHue) - 0.02f, 0.58f)
-    fun clearGlyphTop(slot: Int, baseHue: Float, dark: Boolean) = tone(slot, baseHue, clearLightness(slot, baseHue, dark) + 0.08f, 0.19f)
-    fun clearGlyphBottom(slot: Int, baseHue: Float, dark: Boolean) = tone(slot, baseHue, clearLightness(slot, baseHue, dark) - 0.07f, 0.20f)
-    fun clearGlow(slot: Int, baseHue: Float, dark: Boolean) = tone(slot, baseHue, if (dark) 0.70f else 0.82f, 0.14f)
-    fun clearKnock(slot: Int, baseHue: Float, dark: Boolean) = tone(slot, baseHue, if (dark) 0.35f else 0.30f, 0.15f)
-    fun clearShadow(slot: Int, baseHue: Float, dark: Boolean) = tone(slot, baseHue, if (dark) 0.55f else 0.50f, 0.18f)
 
     private fun hue(slot: Int, baseHue: Float) = if (slot == SLOTS - 1) baseHue else (baseHue + slot * 360f / HUE_SLOTS) % 360f
 }

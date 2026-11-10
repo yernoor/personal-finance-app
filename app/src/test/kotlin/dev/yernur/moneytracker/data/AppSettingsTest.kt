@@ -63,29 +63,53 @@ class AppSettingsTest {
     fun iconStyles_haveSeparateChoicesForGlassAndNot_andNeverMixThem() {
         prefs.edit().clear().commit()
         val settings = AppSettings(prefs)
-        assertEquals(IconStyle.Springboard, settings.iconStyle.value)
-        assertEquals(IconStyle.LiquidTile, settings.glassIconStyle.value) // the liquid tile is the glass default
+        assertEquals(IconStyle.Solid, settings.iconStyle.value)
+        assertEquals(IconStyle.Crystal, settings.glassIconStyle.value) // Crystal is the glass default
 
-        settings.setIconStyle(IconStyle.SoftFill)
-        settings.setGlassIconStyle(IconStyle.ClearGlass)
+        settings.setIconStyle(IconStyle.Tonal)
+        settings.setGlassIconStyle(IconStyle.Frost)
         val again = AppSettings(prefs)
-        assertEquals(IconStyle.SoftFill, again.iconStyle.value)
-        assertEquals(IconStyle.ClearGlass, again.glassIconStyle.value)
+        assertEquals(IconStyle.Tonal, again.iconStyle.value)
+        assertEquals(IconStyle.Frost, again.glassIconStyle.value)
 
-        settings.setIconStyle(IconStyle.LiquidTile) // a glass look is not allowed as the everyday choice, and vice versa
-        settings.setGlassIconStyle(IconStyle.SoftFill)
-        assertEquals(IconStyle.SoftFill, settings.iconStyle.value)
-        assertEquals(IconStyle.ClearGlass, settings.glassIconStyle.value)
+        settings.setIconStyle(IconStyle.Crystal) // a glass look is not allowed as the everyday choice, and vice versa
+        settings.setGlassIconStyle(IconStyle.Tonal)
+        assertEquals(IconStyle.Tonal, settings.iconStyle.value)
+        assertEquals(IconStyle.Frost, settings.glassIconStyle.value)
 
-        prefs.edit().putString("iconStyle", "ClearGlass").putString("glassIconStyle", "Springboard").commit()
+        prefs.edit().putString("iconStyle", "Frost").putString("glassIconStyle", "Solid").commit()
         val repaired = AppSettings(prefs)
-        assertEquals(IconStyle.Springboard, repaired.iconStyle.value)
-        assertEquals(IconStyle.LiquidTile, repaired.glassIconStyle.value)
+        assertEquals(IconStyle.Solid, repaired.iconStyle.value)
+        assertEquals(IconStyle.Crystal, repaired.glassIconStyle.value)
 
         prefs.edit().putString("iconStyle", "Vivid").putString("glassIconStyle", "GlassTile").commit() // removed looks fall back to the defaults
         val migrated = AppSettings(prefs)
-        assertEquals(IconStyle.Springboard, migrated.iconStyle.value)
-        assertEquals(IconStyle.LiquidTile, migrated.glassIconStyle.value)
+        assertEquals(IconStyle.Solid, migrated.iconStyle.value)
+        assertEquals(IconStyle.Crystal, migrated.glassIconStyle.value)
+    }
+
+    @Test
+    fun glassIconStyles_savedUnderTheOldNames_keepTheOwnersChoice() {
+        prefs.edit().clear().putString("glassIconStyle", "ClearGlass").commit()
+        assertEquals(IconStyle.Frost, AppSettings(prefs).glassIconStyle.value)
+        prefs.edit().putString("glassIconStyle", "LiquidTile").commit()
+        assertEquals(IconStyle.Crystal, AppSettings(prefs).glassIconStyle.value)
+    }
+
+    @Test
+    fun everydayIconStyles_areFiveAndEachOneIsStored_andARemovedOneFallsBack() {
+        assertEquals(listOf("Solid", "Tonal", "Outline", "Mono", "Sticker"), IconStyle.entries.filter { !it.forGlass }.map { it.name })
+        prefs.edit().putString("iconStyle", "SoftFill").commit() // saved under the old name: still the owner's choice
+        assertEquals(IconStyle.Tonal, AppSettings(prefs).iconStyle.value)
+        prefs.edit().putString("iconStyle", "Springboard").commit()
+        assertEquals(IconStyle.Solid, AppSettings(prefs).iconStyle.value)
+        prefs.edit().putString("iconStyle", "Raised").commit() // the dropped 3D look
+        assertEquals(IconStyle.Solid, AppSettings(prefs).iconStyle.value)
+        listOf(IconStyle.Outline, IconStyle.Mono, IconStyle.Sticker).forEach { style ->
+            prefs.edit().clear().commit()
+            AppSettings(prefs).setIconStyle(style)
+            assertEquals(style, AppSettings(prefs).iconStyle.value)
+        }
     }
 
     @Test

@@ -29,9 +29,6 @@ import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -133,14 +130,10 @@ fun ChartsScreen(onOpenTransaction: (String) -> Unit = {}) {
         // Same header as History: the period slicer on top, then what to show underneath.
         run {
             val units = listOf(PeriodUnit.Day, PeriodUnit.Week, PeriodUnit.Month, PeriodUnit.Year)
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                units.forEachIndexed { index, u ->
-                    SegmentedButton(
-                        unit == u, { vm.zoom(u) }, SegmentedButtonDefaults.itemShape(index, units.size),
-                        modifier = Modifier.testTag("zoom-${u.name}"),
-                    ) { Text(u.name) }
-                }
-            }
+            SlidingSegmented(
+                units.map { it.name }, units.indexOf(unit), units.map { "zoom-${it.name}" }, { vm.zoom(units[it]) },
+                Modifier.padding(horizontal = 16.dp),
+            )
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton({ vm.turnPage(1) }, modifier = Modifier.testTag("chart-older")) { Icon(Icons.Outlined.ChevronLeft, "Older") }
                 Text(
@@ -151,14 +144,10 @@ fun ChartsScreen(onOpenTransaction: (String) -> Unit = {}) {
             }
         }
         val tabs = ChartTab.entries
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
-            tabs.forEachIndexed { index, tab ->
-                SegmentedButton(
-                    vm.tab == tab, { vm.tab = tab }, SegmentedButtonDefaults.itemShape(index, tabs.size),
-                    modifier = Modifier.testTag("chart-tab-${tab.name}"),
-                ) { Text(tab.label, maxLines = 1, style = MaterialTheme.typography.labelMedium) }
-            }
-        }
+        SlidingSegmented(
+            tabs.map { it.label }, tabs.indexOf(vm.tab), tabs.map { "chart-tab-${it.name}" }, { vm.tab = tabs[it] },
+            Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
         Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             data?.let { chart -> ChartBody(chart, vm.tab, vm.selected, onSelect = { vm.selected = it }, onOpenTransaction) }
             Spacer(Modifier.height(LocalChromeInset.current))

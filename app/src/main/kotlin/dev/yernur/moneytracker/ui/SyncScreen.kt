@@ -21,7 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -191,7 +191,7 @@ fun SyncScreen(onBack: () -> Unit) {
     LaunchedEffect(state) { if (state is SyncState.NeedsConsent) consentLauncher.launch(state.request) }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("Google Sheets") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
+        AppTopBar(title = { Text("Google Sheets") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
     }) { padding ->
         Column(Modifier.padding(padding).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(
@@ -216,7 +216,7 @@ fun SyncScreen(onBack: () -> Unit) {
                     ) { Text("Create or refresh the sheet") }
                 }
             } else {
-                Card(Modifier.fillMaxWidth().testTag("sync-connected")) {
+                AppCard(Modifier.fillMaxWidth().testTag("sync-connected")) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Connected", style = MaterialTheme.typography.titleMedium)
                         Text(spreadsheetUrl.orEmpty(), style = MaterialTheme.typography.bodySmall)

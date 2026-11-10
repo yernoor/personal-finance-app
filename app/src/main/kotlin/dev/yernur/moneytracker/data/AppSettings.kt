@@ -23,8 +23,8 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _homeTotalsPeriod = MutableStateFlow(
         prefs?.getString(HOME_PERIOD, null)?.let { name -> PeriodUnit.entries.firstOrNull { it.name == name } } ?: PeriodUnit.Month,
     )
-    private val _iconStyle = MutableStateFlow(storedIconStyle(prefs, ICON_STYLE, glass = false, IconStyle.Springboard))
-    private val _glassIconStyle = MutableStateFlow(storedIconStyle(prefs, GLASS_ICON_STYLE, glass = true, IconStyle.LiquidTile))
+    private val _iconStyle = MutableStateFlow(storedIconStyle(prefs, ICON_STYLE, glass = false, IconStyle.Solid))
+    private val _glassIconStyle = MutableStateFlow(storedIconStyle(prefs, GLASS_ICON_STYLE, glass = true, IconStyle.Crystal))
     private val _pin = MutableStateFlow(
         prefs?.getString(PIN_HASH, null)?.let { hash -> StoredPin(hash, prefs.getString(PIN_SALT, "").orEmpty(), prefs.getInt(PIN_LENGTH, 4)) },
     )
@@ -395,8 +395,11 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
 }
 
 /** A stored style, accepted only if it belongs to the right set (glass looks for glass, the others otherwise). */
-private fun storedIconStyle(prefs: SharedPreferences?, key: String, glass: Boolean, default: IconStyle): IconStyle =
-    IconStyle.entries.firstOrNull { it.name == prefs?.getString(key, null) && it.forGlass == glass } ?: default
+private fun storedIconStyle(prefs: SharedPreferences?, key: String, glass: Boolean, default: IconStyle): IconStyle {
+    val renamed = mapOf("Springboard" to "Solid", "SoftFill" to "Tonal", "LiquidTile" to "Crystal", "ClearGlass" to "Frost") // the names before the 2026-11-11 redesign
+    val stored = prefs?.getString(key, null).let { renamed[it] ?: it }
+    return IconStyle.entries.firstOrNull { it.name == stored && it.forGlass == glass } ?: default
+}
 
 /** The stored widget style; without one, the old glass and dot-matrix switches (both defaulted on) decide. */
 private fun storedWidgetStyle(prefs: SharedPreferences?): WidgetStyle {

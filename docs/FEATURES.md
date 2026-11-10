@@ -120,8 +120,9 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
   the totals can cover a day, week, month or year; default month).
 - History defaults to the **day** period and zooms out to week / month / year.
   First weekday is Monday (backup `firstWeekday = monday`).
-- BUILT: all 32 category/account icons are original artwork (no Material or third-party icon paths), drawn on a 24-unit grid. Three
-  owner-selectable styles in More -> Icon style: vivid discs (default), tonal tiles, duotone. Colors come from the system accent
+- BUILT: all 99 category/account icons (32 from the backup, 67 added 2026-11-11, the latter not yet checked on screen) are original artwork (no Material or third-party icon paths), drawn on a 24-unit grid. Five
+  owner-selectable everyday styles in More -> Icon style (2026-11-11 redesign): Solid (default), Tonal, Outline, Mono, Sticker. A 3D look was built and dropped the same day (owner: ugly).
+  Custom colors (2026-11-11): the color picker has a `#` swatch that opens a color wheel (drag around the ring to pick a hue). The picker is hidden while the Mono style is on, since Mono draws every icon in the accent. A color outside the 12 stored ones is drawn with its exact hue, at the lightness each style needs (so the swatch can look a little lighter or darker than the typed hex); near-grays use the neutral slot. Colors come from the system accent
   (OKLCH hue steps around it, lightness chosen per hue so yellow stays yellow, glyph white or near-black by contrast); tests check the
   12 colors stay distinct for every accent hue in light and dark. The backup's 12 stored colors map to the 12 slots.
 - BUILT (experimental, off by default): More -> Liquid glass: floating glass bottom bar and add button (Kyant0 Backdrop 2.0.1: blur,
@@ -243,6 +244,7 @@ Sizes on a 5x4 grid are roughly 73n-16 by 118m-16 dp (Android docs, Pixel 4; the
   | Doto (Google Fonts, Oliver Lalan) | True dot-matrix, variable weight 100-900, rounded-dot axis | SIL OFL 1.1 (Fontsource, Google Fonts mirror) |
   | Geist Pixel (Vercel) | Pixel variants (square, grid, circle, triangle, line) for display text | OFL inferred from the family, not stated in its repo: verify before bundling |
   **Decided (owner, 2026-11-04, after a mock-up of both):** Doto for the big numerals only (bundled font file, OFL licence text shipped with the app); system font for everything else, including small amounts, because Doto is a display face and stays at 16 sp or larger. Still to check on the phone: Cyrillic category names are not set in Doto, so only digits and the currency sign matter; verify the tenge sign (₸) exists in Doto, else fall back to the system font for it.
+  **Superseded for the app UI (owner, 2026-11-10):** the app now uses Inter for text and Inter Tight for big numbers and headings (bundled variable fonts in `res/font`, OFL text in `assets/fonts/inter-OFL.txt`; both checked to contain the tenge sign and Russian and Kazakh Cyrillic), with tabular figures. Widgets keep Doto for big numerals.
 - Tests: Glance has no Robolectric-friendly renderer, so keep the logic (what each widget shows, formatting, no balances) in plain functions with unit tests, and check the look on the emulator and the phone.
 
 ### 4. Local database backup and restore (owner request, 2026-11-04). BUILT: manual backup/restore and the pre-update copy; not built: weekly folder backup, 30-day warning
@@ -362,3 +364,16 @@ Owner wants a payment made with a Google Wallet card to become an expense in the
   Deposit 2 2.31M (230507718), Freedom USD $13.56 (1356). So `account_balance` is what the owner saw on the phone.
 - The replay gap was a data-format quirk, not missing operations: 60 USD rows keep their amount in the real-currency
   field. With that rule every account reconciles to the cent (docs/FORMAT.md 4b). No opening-balance adjustment needed.
+
+## UI redesign (2026-11-11), from the design canvas the owner approved
+BUILT and unit-tested; looked at on the emulator, not yet on the phone.
+- **Type**: Inter, with Inter Tight for headings and big numbers, tabular figures (see the font note above).
+- **Cards** (`AppCard`): white surface, hairline border, 22 dp corners; cards with their own colors (warnings, results) keep them. **Titles**: large, left-aligned.
+- **Bottom bar** (`FloatingTabBar`): a floating pill; the chosen tab shows icon and label, the others only their icon, one highlight slides between them. Fits 2 to 5 tabs; checked with the owner's five (Home, History, Analysis, Accounts, Wealth) in the mock-up. The add button is a round accent button above the bar's right end, still only on Home and History.
+- **Selectors** (`SlidingSegmented`): a track with a thumb that slides to the chosen segment (History, Charts, Entry, Analysis, Compound).
+- **Motion**: rows and cards shrink a few dp while pressed and spring back (`PressScaleIndication`, app-wide for plain clickables; Material's own buttons, chips and FAB keep their built-in state layer). Tabs slide the way you move along the bar; the add screen grows out of the add button.
+- **History says "Today"** for the current day (also in Charts' day view).
+- **Also built**: Home shows income and expenses as two cards; Wealth and Compound interest have an accent hero card (Compound: result on top, the two selectors side by side); bars grow up from the axis on Charts and Compound interest (the History ring already swept in); the Home balance rolls to its new value (not from zero when the app opens).
+- **Wealth heading (owner, 2026-11-11)**: the "National Bank rates, updated ..." line is gone and the currency switch sits in the heading bar next to the title (in the app's top bar when Wealth is a tab, in the screen's own bar when opened from More), so it no longer shrinks on a narrow phone.
+- **Glass mode redesign (2026-11-11)**: the glow behind the app is now an iridescent wash of neighbouring hues, or, with a grey accent (Nothing OS's monochrome theme), a restrained sheen instead of grey smudges; cards are frosted (translucent with a bright hairline); every screen draws its own opaque copy of the glow (Scaffolds and top bars are see-through), so a back-swipe no longer shows the screen below through the one leaving; the glass bar and add button reuse the new pill. Glass icon styles are now **Crystal** (a vivid translucent gem tile, dark glyph only on yellow and lime) and **Frost** (clear glass with a colored bloom and a vivid glyph); the saved names LiquidTile and ClearGlass are migrated. Verified on the emulator, light and dark, and the old behaviour was seen on the phone (v0.5.0); the new build has not been on the phone, because its release signing key is not on this machine.
+- **Not done from the canvas**: glass mode (deliberately left for later); the + button still shows only on Home and History.
