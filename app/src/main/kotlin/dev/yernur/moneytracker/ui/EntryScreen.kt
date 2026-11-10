@@ -255,7 +255,7 @@ class EntryViewModel(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
-    val vm = appViewModel(key = "entry-$uid-$kind") { EntryViewModel(it.db, it.ledger, uid, kind, it::afterLedgerChange, { it.fx.allRates.first() }, { it.settings.ratesUpdatedAt.value }) }
+    val vm = appViewModel(key = "entry-$uid-$kind") { EntryViewModel(it.db, it.ledger, uid, kind, it::afterLedgerChange, { it.fx.allRates.first() }, { it.settings.ratesUpdatedAt.value }, { it.newEntryDate() }) }
     val options by vm.options.collectAsStateWithLifecycle()
     val balances by vm.balances.collectAsStateWithLifecycle()
     var confirmDelete by remember { mutableStateOf(false) }

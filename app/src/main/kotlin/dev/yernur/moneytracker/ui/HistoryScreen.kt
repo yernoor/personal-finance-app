@@ -142,7 +142,12 @@ data class HistoryState(
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class HistoryViewModel(db: AppDatabase, settings: AppSettings, private val today: () -> LocalDate = LocalDate::now) : ViewModel() {
+class HistoryViewModel(
+    db: AppDatabase, settings: AppSettings,
+    /** Told the shown period, so the entry form can default to it. */
+    private val onRange: (DateRange) -> Unit = {},
+    private val today: () -> LocalDate = LocalDate::now,
+) : ViewModel() {
     /** Day, week, month or year; starts as the configured default and can be zoomed from the screen. */
     val unit = MutableStateFlow(settings.historyPeriod.value)
     /** Any date inside the shown period. */
@@ -153,6 +158,7 @@ class HistoryViewModel(db: AppDatabase, settings: AppSettings, private val today
     val grouped = MutableStateFlow(true)
 
     init {
+        viewModelScope.launch { range.collect(onRange) }
         // Changing the default in More applies the next time History is looked at, not only after a restart.
         viewModelScope.launch {
             settings.historyPeriod.drop(1).collect {
@@ -226,7 +232,7 @@ class HistoryViewModel(db: AppDatabase, settings: AppSettings, private val today
 
 @Composable
 fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
-    val vm = appViewModel { HistoryViewModel(it.db, it.settings) }
+    val vm = appViewModel { HistoryViewModel(it.db, it.settings, { r -> it.historyRange.value = r }) }
     val state by vm.state.collectAsStateWithLifecycle()
     val unit by vm.unit.collectAsStateWithLifecycle()
     val range by vm.range.collectAsStateWithLifecycle(DateRange(LocalDate.now(), LocalDate.now()))
