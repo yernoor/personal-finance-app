@@ -33,6 +33,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.fragment.app.FragmentActivity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -83,7 +85,8 @@ fun LockScreen(lock: AppLock, length: Int, biometric: Boolean = false) {
     var message by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(typed) {
         if (typed.length != length) return@LaunchedEffect
-        when (val result = lock.attempt(typed)) {
+        // 100,000 hashing rounds: off the thread that draws the keypad
+        when (val result = withContext(Dispatchers.Default) { lock.attempt(typed) }) {
             UnlockResult.Ok -> Unit
             UnlockResult.Wrong -> message = "Wrong PIN"
             is UnlockResult.Wait -> message = waitText(result.seconds)
