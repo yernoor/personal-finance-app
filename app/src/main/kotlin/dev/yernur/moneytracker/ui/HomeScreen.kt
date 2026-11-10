@@ -15,6 +15,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -177,7 +180,13 @@ private fun TotalCard(label: String, amount: String, color: Color, modifier: Mod
     AppCard(modifier) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(amount, style = MaterialTheme.typography.titleLarge, color = color, maxLines = 1)
+            // Never wrap (a break after the sign left only "-" visible); shrink the text until the amount fits the card instead.
+            var scale by remember { mutableFloatStateOf(1f) }
+            val base = MaterialTheme.typography.titleLarge
+            Text(
+                amount, style = base.copy(fontSize = base.fontSize * scale), color = color, maxLines = 1, softWrap = false,
+                onTextLayout = { if (it.hasVisualOverflow && scale > 0.5f) scale *= 0.9f },
+            )
         }
     }
 }
