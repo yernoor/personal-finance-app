@@ -263,6 +263,35 @@ and the update-failure text in `ApkInstaller.kt:132` tells the owner to uninstal
 - Not covered: native crashes and ANRs (the Java handler never sees them); the handler is unit-tested with a fake previous handler, not by crashing the app on a device.
 - Submitting needs a GitHub account. Labels that do not exist yet are ignored by GitHub for people without write access, so the owner creates `bug`, `enhancement` and `crash` once.
 
+## Affordability and spending analysis (owner request 2026-11-10, all rated **must**; mock-ups on the Design canvas, sample data)
+Idea taken from Anthropic's consumer "Personal Finance" launch (2026-11-05), but everything is computed on the phone from the Room data: no Plaid, no
+LLM, no new network call.
+
+| Feature | Rating | Notes |
+|---|---|---|
+| "Can I afford this?" check | must | Item, price, category, purchase date, paying-from account. Verdict Yes / Tight / No with the numbers behind it. |
+| Spending analysis (in Charts) | must | Monthly totals with a projected current month, per-category trend vs the 3-month average, insights. |
+| Category trend screen | must | 12-month line with the limit and the 3-month average, weekday pattern, largest operations this month. |
+| Recurring costs, price changes, possible duplicates | must | Detected from the ledger's own history; nothing changes unless the owner confirms. |
+
+### Affordability rules (all amounts in default-currency minor units)
+- `balance` = the chosen account's balance converted to the default currency.
+- Horizon = the next due date of an enabled **Income** reminder, else the end of this month. The backup has no payday field: assumption, owner to confirm.
+- `expected` = daily run-rate of the overall projection (`runRateIncluded / daysInMonth`) x days to the horizon; the 3-month-average variant is shown beside it. Both reuse `Forecast` (one-off categories excluded, as in the projection design).
+- `scheduled` = amounts of enabled expense reminders / regular payments that fall in (today, horizon]. Only `Day` and `Month` periods are understood (custom periods unverified, skipped).
+  Known overlap: a scheduled payment that is also logged as an expense in the run-rate is counted twice; the "free" figure errs on the cautious side.
+- `free` = `balance - expected - scheduled`; `afterPurchase` = `free - price`.
+- Verdict: **No** when `afterPurchase < 0`; **Tight** when the price takes more than 50% of `free` or the category's run-rate plus the price exceeds its limit; otherwise **Yes**. The 50% is my number, not the owner's.
+- Limit impact: category run-rate + price against `limitAmount`. Goal impact: delay in days = price / (average monthly saving / 30), saving = mean (income - expenses) of the last 3 full months; shown only when that is positive.
+- Not financial advice: the screen says so.
+
+### Analysis rules
+- Monthly bars: the last 6 months, all expenses; the current month shows the run-rate projection (spent so far / days elapsed x days in month) as a dashed bar. Average line = mean of the full months shown.
+- Category trend: delta = current run-rate vs the mean of the previous (up to) 3 full months, shown only when that mean is not zero. Insights: a category at least 25% above its average (and at least 5,000 above), and a category that fell three months in a row.
+- Weekday pattern: expenses of the last 3 full months by day of week.
+- Recurring: an expense comment (trimmed, case-insensitive) seen in at least 3 consecutive months, amounts within 20% of the median. Price change = latest amount differs from the previous one by 5% or more. "Has a reminder" = a reminder with the same title.
+- Duplicate: same type, account, category, account-currency amount and date, created within 10 minutes of each other. Keep both / delete the second (soft delete through the ledger).
+
 ## Other / unverified, decide later
 
 | Feature | Rating | Notes |
