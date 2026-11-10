@@ -2,7 +2,10 @@ package dev.yernur.moneytracker.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.Transition
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -99,6 +102,9 @@ private const val ACCOUNT = "account/{uid}"
 
 /** Where a widget tap should land: an add screen of this kind ("expense", "income", "transfer"), or the operation with this uid. Null kind and uid: just open the app. */
 data class AppLaunch(val kind: String?, val uid: String?)
+
+/** The enter/exit transition of the screen being composed (null outside the nav host), so a screen can wait for its arrival to finish. */
+val LocalArrival = staticCompositionLocalOf<Transition<EnterExitState>?> { null }
 
 private fun entryRoute(uid: String? = null, kind: EntryKind = EntryKind.Expense) = "entry?uid=${uid.orEmpty()}&kind=$kind"
 
@@ -349,5 +355,5 @@ private fun NavGraphBuilder.screen(
     // Every screen carries its own opaque background: in glass mode the glow (lined up with the one behind the top bar), otherwise the plain color.
     val background = if (glow != null) Modifier.drawBehind { withTransform({ translate(top = -inset) }) { glow.draw(this, size.width, size.height + inset) } }
     else Modifier.background(MaterialTheme.colorScheme.background)
-    Box(Modifier.fillMaxSize().then(background)) { content(entry) }
+    CompositionLocalProvider(LocalArrival provides transition) { Box(Modifier.fillMaxSize().then(background)) { content(entry) } }
 }
