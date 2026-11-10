@@ -162,22 +162,22 @@ private fun NetWorthCard(data: WealthOverview, show: (Long) -> String) {
     val today = LocalDate.now()
     val total = data.netWorth.totalMinor
     val change = netWorthChange(data.snapshots.map { LocalDate.parse(it.date) to it.totalMinor }, today, total)
-    AppCard(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer), shape = MaterialTheme.shapes.extraLarge) {
+    AppCard(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary), shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.fillMaxWidth().padding(20.dp)) {
-            Text("Net worth", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
-            Text(show(total), fontSize = 34.sp, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.testTag("net-worth"))
+            Text("Net worth", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimary)
+            Text(show(total), fontSize = 34.sp, color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.testTag("net-worth"))
             Text(
                 change?.let { (diff, since) -> "${if (diff >= 0) "+" else ""}${show(diff)} since $since" } ?: "History starts today: one point is saved each day you open the app",
-                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer,
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimary,
             )
             if (data.netWorth.missingCurrencies.isNotEmpty()) {
                 Text(
                     "No rate yet for ${data.netWorth.missingCurrencies.joinToString()}: left out of the totals",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.padding(top = 4.dp).testTag("missing-rates"),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.padding(top = 4.dp).testTag("missing-rates"),
                 )
             }
             sparklinePoints(data.snapshots.map { LocalDate.parse(it.date) to it.totalMinor })?.let {
-                Sparkline(it, MaterialTheme.colorScheme.primary, Modifier.fillMaxWidth().height(56.dp).padding(top = 12.dp))
+                Sparkline(it, MaterialTheme.colorScheme.onPrimary, Modifier.fillMaxWidth().height(56.dp).padding(top = 12.dp))
             }
         }
     }

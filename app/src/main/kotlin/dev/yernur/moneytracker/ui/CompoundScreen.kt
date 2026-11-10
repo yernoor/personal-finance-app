@@ -125,6 +125,9 @@ fun CompoundScreen(onBack: () -> Unit) {
         },
     ) { padding ->
         Column(Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            val valid = input != null && rows.isNotEmpty()
+            if (valid) ResultHero(rows, formCurrency) else
+                Text("Enter the amounts, a rate and 1 to $MAX_YEARS years.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("compound-empty"))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 NumberField("Start balance ($formCurrency)", start, { start = it }, Modifier.weight(1f), "compound-start")
                 NumberField("Each month ($formCurrency)", monthly, { monthly = it }, Modifier.weight(1f), "compound-monthly")
@@ -133,14 +136,15 @@ fun CompoundScreen(onBack: () -> Unit) {
                 NumberField("Yearly rate (%)", rate, { rate = it }, Modifier.weight(1f), "compound-rate")
                 NumberField("Years", years, { years = it }, Modifier.weight(1f), "compound-years", decimal = false)
             }
-            Choice("Interest is added to the balance", listOf("Monthly", "Yearly"), capitalization.ordinal, "compound-capitalization") {
-                capitalization = Capitalization.entries[it]
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Choice("Interest is added", listOf("Monthly", "Yearly"), capitalization.ordinal, "compound-capitalization", Modifier.weight(1f)) {
+                    capitalization = Capitalization.entries[it]
+                }
+                Choice("Contribution is paid", listOf("Start", "End"), timing.ordinal, "compound-timing", Modifier.weight(1f)) {
+                    timing = ContributionTiming.entries[it]
+                }
             }
-            Choice("Contribution is paid", listOf("Start of month", "End of month"), timing.ordinal, "compound-timing") {
-                timing = ContributionTiming.entries[it]
-            }
-            if (input != null && rows.isNotEmpty()) Result(rows, formCurrency) else
-                Text("Enter the amounts, a rate and 1 to $MAX_YEARS years.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("compound-empty"))
+            if (valid) YearByYear(rows)
         }
     }
 }
@@ -155,30 +159,35 @@ private fun NumberField(label: String, value: String, onChange: (String) -> Unit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Choice(label: String, options: List<String>, selected: Int, tag: String, onPick: (Int) -> Unit) {
-    Column {
+private fun Choice(label: String, options: List<String>, selected: Int, tag: String, modifier: Modifier = Modifier, onPick: (Int) -> Unit) {
+    Column(modifier) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         SlidingSegmented(options, selected, options.indices.map { "$tag-$it" }, onPick, Modifier.padding(top = 4.dp))
     }
 }
 
+/** The result as an accent card at the top of the page. */
 @Composable
-private fun Result(rows: List<CompoundYear>, currency: String) {
+private fun ResultHero(rows: List<CompoundYear>, currency: String) {
     val last = rows.last()
-    AppCard(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer), shape = MaterialTheme.shapes.extraLarge) {
+    AppCard(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary), shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.fillMaxWidth().padding(20.dp)) {
-            Text("Balance after ${rows.size} years", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            Text("Balance after ${rows.size} years", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimary)
             Text(
-                Money.formatRounded(last.balance, currency), fontSize = 32.sp, color = MaterialTheme.colorScheme.onPrimaryContainer,
+                Money.formatRounded(last.balance, currency), fontSize = 32.sp, color = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.padding(top = 2.dp).testTag("compound-balance"),
             )
             Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("You put in ${Money.formatRounded(last.contributed, currency)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.testTag("compound-contributed"))
-                Text("Interest ${Money.formatRounded(last.interest, currency)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.testTag("compound-interest"))
+                Text("You put in ${Money.formatRounded(last.contributed, currency)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.testTag("compound-contributed"))
+                Text("Interest ${Money.formatRounded(last.interest, currency)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.testTag("compound-interest"))
             }
         }
     }
-    AppCard(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), shape = MaterialTheme.shapes.large) {
+}
+
+@Composable
+private fun YearByYear(rows: List<CompoundYear>) {
+    AppCard {
         Column(Modifier.fillMaxWidth().padding(16.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Year by year", style = MaterialTheme.typography.titleSmall)
