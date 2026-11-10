@@ -162,7 +162,10 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 TopAppBar(
                     title = { Text(lastTab.label, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold) },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = if (glass) Color.Transparent else Color.Unspecified),
-                    actions = { IconButton({ nav.navigate("more") }, modifier = Modifier.testTag("more")) { Icon(Icons.Outlined.MoreVert, "More") } },
+                    actions = {
+                        if (lastTab.id == "wealth") WealthCurrencyAction() // next to the heading, like Compound interest
+                        IconButton({ nav.navigate("more") }, modifier = Modifier.testTag("more")) { Icon(Icons.Outlined.MoreVert, "More") }
+                    },
                 )
             }
             if (route == "more") TopAppBar(

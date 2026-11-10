@@ -67,7 +67,6 @@ import dev.yernur.moneytracker.data.wealth.fromDefault
 import dev.yernur.moneytracker.data.wealth.netWorthChange
 import dev.yernur.moneytracker.data.wealth.projectNetWorth
 import dev.yernur.moneytracker.data.wealth.sparklinePoints
-import dev.yernur.moneytracker.data.wealth.updatedLabel
 import java.math.BigDecimal
 import java.time.LocalDate
 
@@ -79,6 +78,19 @@ private sealed interface Editing {
 }
 
 private const val NET_WORTH_CHOICE = "Net worth"
+
+/**
+ * The currency switch for the Wealth heading: the app's top bar shows it next to the title when Wealth is a tab, and the screen's own
+ * bar when it is opened from More. Both use the same setting, so they stay in step. Without a rate for the chosen currency it shows tenge.
+ */
+@Composable
+fun WealthCurrencyAction(modifier: Modifier = Modifier) {
+    val container = LocalAppContainer.current
+    val rates by container.fx.rates.collectAsStateWithLifecycle(emptyMap())
+    val currency by container.settings.wealthCurrency.collectAsStateWithLifecycle()
+    val choices = remember(rates) { currencyChoices(rates) }
+    CurrencySwitch(if (currency in choices) currency else "KZT", choices, { container.settings.setWealthCurrency(it) }, modifier)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,6 +110,7 @@ fun WealthScreen(embedded: Boolean = false, onCompound: () -> Unit, onBack: () -
         topBar = {
             if (!embedded) TopAppBar(
                 title = { Text("Wealth") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
+                actions = { WealthCurrencyAction(Modifier.padding(end = 8.dp)) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
@@ -116,15 +129,6 @@ fun WealthScreen(embedded: Boolean = false, onCompound: () -> Unit, onBack: () -
             Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = LocalChromeInset.current + 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                val updatedAt by container.settings.ratesUpdatedAt.collectAsStateWithLifecycle()
-                Text(
-                    if (data.rates.isEmpty()) "No exchange rates yet"
-                    else "National Bank rates" + (updatedAt?.let { ", updated ${updatedLabel(it)}" } ?: ""),
-                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                CurrencySwitch(shown, choices, { container.settings.setWealthCurrency(it) })
-            }
             NetWorthCard(data, ::show)
             Breakdown(data, ::show, onAsset = { editing = Editing.Asset(it) })
             GoalsCard(data, ::show, onEdit = { editing = Editing.Goal(it) })
