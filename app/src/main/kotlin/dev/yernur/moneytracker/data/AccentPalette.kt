@@ -29,6 +29,24 @@ object AccentPalette {
         else -> key.hashCode().absoluteValue % SLOTS // a color from a newer backup: still a stable slot
     }
 
+    /** What to draw a stored color key with: the slot whose formulas apply and the hue to feed them. */
+    class Pick(val slot: Int, val baseHue: Float)
+
+    private const val GRAY_CHROMA = 0.03f
+
+    /** A key outside the 12 is an exact color the owner typed or picked (or came from a newer backup). */
+    fun isCustom(key: Int?): Boolean = key != null && key !in KEYS
+
+    /**
+     * Slot 0 sits on the base hue, so an exact color is slot 0 with its own hue: every style then picks its lightness for that hue,
+     * and the glyph still reads. A near-gray one has no hue worth keeping and uses the neutral slot.
+     */
+    fun pick(key: Int?, accentHue: Float): Pick = when {
+        !isCustom(key) -> Pick(slotOf(key), accentHue)
+        Oklch.chromaOf(key!!) < GRAY_CHROMA -> Pick(SLOTS - 1, accentHue)
+        else -> Pick(0, Oklch.hueOf(key))
+    }
+
     /** Lightness at which a hue looks vivid rather than muddy, interpolated between these (hue, lightness) anchors. */
     private val NATURAL = listOf(0f to 0.62f, 30f to 0.65f, 60f to 0.74f, 90f to 0.84f, 120f to 0.80f, 150f to 0.72f, 180f to 0.68f,
         210f to 0.65f, 240f to 0.58f, 270f to 0.54f, 300f to 0.56f, 330f to 0.60f, 360f to 0.62f)

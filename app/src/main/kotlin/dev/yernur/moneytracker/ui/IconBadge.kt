@@ -64,7 +64,8 @@ private class Look(
     val bodyFill: Boolean = true, // false: shapes are only stroked (the Outline look)
 )
 
-private fun look(style: IconStyle, slot: Int, hue: Float, dark: Boolean): Look {
+/** [hue] is what the slot's formulas get (an exact color's own hue); [accentHue] is the app's accent, which Mono always uses. */
+private fun look(style: IconStyle, slot: Int, hue: Float, accentHue: Float, dark: Boolean): Look {
     fun c(argb: Int, alpha: Float = 1f) = Color(argb).copy(alpha = alpha)
     return when (style) {
         IconStyle.Solid -> Look(
@@ -96,8 +97,8 @@ private fun look(style: IconStyle, slot: Int, hue: Float, dark: Boolean): Look {
         }
         IconStyle.Mono -> {
             val neutral = AccentPalette.SLOTS - 1
-            val glyph = c(AccentPalette.softGlyph(0, hue, dark)) // slot 0 is the accent itself: every icon in the one color
-            val background = c(AccentPalette.softBackground(neutral, hue, dark))
+            val glyph = c(AccentPalette.softGlyph(0, accentHue, dark)) // slot 0 is the accent itself: every icon in the one color
+            val background = c(AccentPalette.softBackground(neutral, accentHue, dark))
             Look(baseTop = background, baseBottom = background, glyphTop = glyph, glyphBottom = glyph, knock = background)
         }
         IconStyle.Sticker -> {
@@ -189,9 +190,9 @@ fun IconBadge(iconName: String?, colorKey: Int?, size: Dp = 40.dp, modifier: Mod
     val style = LocalIconStyle.current
     val hue = LocalAccentHue.current
     val dark = isDarkSurface()
-    val slot = AccentPalette.slotOf(colorKey)
+    val pick = AccentPalette.pick(colorKey, hue)
     val glyph = AppIcons.glyph(iconName)
-    val look = look(style, slot, hue, dark)
+    val look = look(style, pick.slot, pick.baseHue, hue, dark)
     Canvas(modifier.size(size)) {
         withTransform({ scale(this@Canvas.size.minDimension / TILE, this@Canvas.size.minDimension / TILE, pivot = Offset.Zero) }) {
             drawTile(look, glyph)

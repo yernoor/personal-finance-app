@@ -22,8 +22,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Slider
+import dev.yernur.moneytracker.data.Oklch
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AlertDialogDefaults
@@ -72,7 +76,7 @@ fun isDarkSurface() = MaterialTheme.colorScheme.surface.luminance() < 0.5f
 fun themedColor(colorKey: Int?): Color {
     val hue = LocalAccentHue.current
     val dark = isDarkSurface()
-    return remember(colorKey, hue, dark) { Color(AccentPalette.main(AccentPalette.slotOf(colorKey), hue, dark)) }
+    return remember(colorKey, hue, dark) { AccentPalette.pick(colorKey, hue).let { Color(AccentPalette.main(it.slot, it.baseHue, dark)) } }
 }
 
 @Composable
@@ -105,6 +109,8 @@ fun cacheDir() = LocalContext.current.cacheDir
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ColorPicker(selected: Int?, onPick: (Int) -> Unit) {
+    var customOpen by remember { mutableStateOf(false) }
+    val rainbow = Brush.sweepGradient(listOf(Color(0xFFE53935), Color(0xFFFDD835), Color(0xFF43A047), Color(0xFF00ACC1), Color(0xFF1E88E5), Color(0xFFD81B60), Color(0xFFE53935)))
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -116,7 +122,49 @@ fun ColorPicker(selected: Int?, onPick: (Int) -> Unit) {
                     .clickable { onPick(argb) },
             )
         }
+        // Any other color, typed as hex: shown as its own swatch while it is the selected one
+        val custom = AccentPalette.isCustom(selected)
+        Box(
+            Modifier.size(36.dp).clip(CircleShape).then(if (custom) Modifier.background(themedColor(selected)) else Modifier.background(rainbow))
+                .then(if (custom) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier)
+                .clickable { customOpen = true }.testTag("color-custom"),
+            contentAlignment = Alignment.Center,
+        ) { Text("#", color = Color.White, style = MaterialTheme.typography.labelLarge) }
     }
+    if (customOpen) CustomColorDialog(selected, onPick) { customOpen = false }
+}
+
+private fun parseHex(text: String): Int? =
+    text.trim().removePrefix("#").takeIf { it.length == 6 }?.toIntOrNull(16)?.let { 0xFF000000.toInt() or it }
+
+/** An exact color: a hex field and a hue slider that edit the same value. The icon styles then draw with that hue. */
+@Composable
+private fun CustomColorDialog(selected: Int?, onPick: (Int) -> Unit, onDismiss: () -> Unit) {
+    var text by remember { mutableStateOf("%06X".format((if (AccentPalette.isCustom(selected)) selected!! else 0xFF3E7BFA.toInt()) and 0xFFFFFF)) }
+    val parsed = parseHex(text)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = glassContainer(AlertDialogDefaults.containerColor),
+        title = { Text("Custom color") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.size(48.dp).clip(CircleShape).background(parsed?.let { Color(it) } ?: Color.Transparent).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
+                    OutlinedTextField(
+                        text, { text = it.trim().removePrefix("#").take(6).uppercase() }, label = { Text("Hex") }, prefix = { Text("#") },
+                        singleLine = true, isError = parsed == null, modifier = Modifier.testTag("custom-hex"),
+                    )
+                }
+                Text("Hue", style = MaterialTheme.typography.labelLarge)
+                Slider(
+                    value = parsed?.let { Oklch.hueOf(it) } ?: 0f, onValueChange = { text = "%06X".format(Oklch.toArgb(0.65f, 0.15f, it) and 0xFFFFFF) },
+                    valueRange = 0f..360f, modifier = Modifier.testTag("custom-hue"),
+                )
+            }
+        },
+        confirmButton = { TextButton({ parsed?.let { onPick(it); onDismiss() } }, enabled = parsed != null, modifier = Modifier.testTag("custom-use")) { Text("Use") } },
+        dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
+    )
 }
 
 /** An icon in a picker: the selected one is ringed, the others are dimmed. */
