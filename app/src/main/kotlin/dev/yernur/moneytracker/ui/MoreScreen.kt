@@ -91,7 +91,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onFeedback: () -> Unit, onCompound: () -> Unit, onWealth: () -> Unit, onAfford: () -> Unit) {
+fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onFeedback: () -> Unit, onCompound: () -> Unit, onWealth: () -> Unit, onAfford: () -> Unit, onOpenTab: (NavTab) -> Unit) {
     var showReminder by remember { mutableStateOf(false) }
     var showWalletConsent by remember { mutableStateOf(false) }
     var showWalletAccount by remember { mutableStateOf(false) }
@@ -104,6 +104,7 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
     var showRecents by remember { mutableStateOf(false) }
     val container = dev.yernur.moneytracker.LocalAppContainer.current
     val glass by container.settings.glass.collectAsStateWithLifecycle()
+    val navbar by container.settings.navTabs.collectAsStateWithLifecycle() // a screen already in the navbar is not listed here again
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var message by remember { mutableStateOf<String?>(null) }
@@ -156,8 +157,20 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
         container.snapshotNetWorth()
     }
     Column(Modifier.verticalScroll(rememberScrollState())) {
+        val hidden = NavTab.entries.filter { it.id !in navbar }
+        val tools = hidden.filter { it.id !in setOf("wealth", "categories", "tags") } // those three have their own rows below
+        if (tools.isNotEmpty()) {
+            SectionHeader("Screens")
+            tools.forEach { tab ->
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+                    modifier = Modifier.clickable { onOpenTab(tab) }.testTag("open-${tab.id}"),
+                    leadingContent = { Icon(tab.icon, null) }, headlineContent = { Text(tab.label) },
+                )
+            }
+        }
         SectionHeader("Wealth")
-        ListItem(
+        if ("wealth" !in navbar) ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
             modifier = Modifier.clickable(onClick = onWealth).testTag("open-wealth"),
             leadingContent = { Icon(Icons.AutoMirrored.Outlined.TrendingUp, null) }, headlineContent = { Text("Wealth") },
@@ -175,13 +188,13 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
             leadingContent = { Icon(Icons.Outlined.ShoppingCart, null) }, headlineContent = { Text("Can I afford this?") },
             supportingContent = { Text("Check a purchase against your balance, limits and goals") },
         )
-        SectionHeader("Manage")
-        ListItem(
+        if ("categories" !in navbar || "tags" !in navbar) SectionHeader("Manage")
+        if ("categories" !in navbar) ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
             modifier = Modifier.clickable(onClick = onCategories).testTag("open-categories"),
             leadingContent = { Icon(Icons.Outlined.Category, null) }, headlineContent = { Text("Categories") },
         )
-        ListItem(
+        if ("tags" !in navbar) ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
             modifier = Modifier.clickable(onClick = onTags).testTag("open-tags"),
             leadingContent = { Icon(Icons.AutoMirrored.Outlined.Label, null) }, headlineContent = { Text("Tags") },

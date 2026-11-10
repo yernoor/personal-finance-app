@@ -102,6 +102,9 @@ enum class NavTab(val id: String, val label: String, val icon: ImageVector) {
     Wealth("wealth", "Wealth", Icons.AutoMirrored.Outlined.TrendingUp),
 }
 
+/** Screens that carry their own top bar when they are not in the navbar. */
+private val OWN_BAR_SCREENS = setOf("wealth", "categories", "tags")
+
 private const val ENTRY = "entry?uid={uid}&kind={kind}"
 private const val CATEGORY = "category/{uid}?type={type}"
 private const val ACCOUNT = "account/{uid}"
@@ -122,10 +125,10 @@ data class Insets(val left: Dp, val top: Dp, val right: Dp, val bottom: Dp) {
  * What each screen keeps clear: the app's own bars for the tab screens and More, otherwise just the system bars. Every screen applies its
  * own, fixed, so a screen sliding away keeps its layout while the bars fade, instead of being resized by the bars' animation (that was the jump).
  */
-class ChromeInsets(val tabRoutes: Set<String>, val glass: Boolean, val tab: Insets, val system: Insets) {
+class ChromeInsets(val tabRoutes: Set<String>, val barRoutes: Set<String>, val glass: Boolean, val tab: Insets, val system: Insets) {
     fun padding(route: String?) = when {
         route in tabRoutes -> tab.padding(glass)
-        route == "more" -> tab.copy(bottom = system.bottom).padding(glass) // More has the top bar but no tab bar
+        route in barRoutes -> tab.copy(bottom = system.bottom).padding(glass) // More and screens hidden from the navbar have the top bar but no tab bar
         else -> PaddingValues() // these screens are Scaffolds with their own app bar, which already keep clear of the system bars
     }
 }
@@ -160,6 +163,9 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     val tabs = tabIds.mapNotNull { id -> NavTab.entries.firstOrNull { it.id == id } }
     val tabRoutes = tabs.map { it.id }.toSet()
     val startRoute = remember { tabs.first().id }
+    // A screen hidden from the navbar is still reachable from More. Most draw no top bar of their own, so the app bar (with a back arrow) is shown for them.
+    val hiddenScreens = NavTab.entries.filter { it.id !in tabRoutes && it.id !in OWN_BAR_SCREENS }
+    val barRoutes = remember(hiddenScreens) { hiddenScreens.map { it.id }.toSet() + "more" }
 
     val current by nav.currentBackStackEntryAsState()
     val route = current?.destination?.route
@@ -203,8 +209,9 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                     },
                 )
             }
-            if (route == "more") AppTopBar(
-                title = { Text("More") },
+            val barTitle = if (route == "more") "More" else hiddenScreens.firstOrNull { it.id == route }?.label
+            if (barTitle != null) AppTopBar(
+                title = { Text(barTitle) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = if (glass) Color.Transparent else Color.Unspecified),
                 navigationIcon = { IconButton({ nav.popBackStack() }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
             )
@@ -233,7 +240,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
       if (tab != null) SideEffect { tabInsets = tabInsets.max(now) } // the largest seen: the fully shown bars, not a frame of their animation
       val systemBars = ScaffoldDefaults.contentWindowInsets.asPaddingValues()
       val system = Insets(systemBars.calculateLeftPadding(ltr), systemBars.calculateTopPadding(), systemBars.calculateRightPadding(ltr), systemBars.calculateBottomPadding())
-      val chrome = remember(tabRoutes, glass, tabInsets, system) { ChromeInsets(tabRoutes, glass, tabInsets, system) }
+      val chrome = remember(tabRoutes, barRoutes, glass, tabInsets, system) { ChromeInsets(tabRoutes, barRoutes, glass, tabInsets, system) }
       CompositionLocalProvider(LocalChrome provides chrome) {
       Box(
           Modifier.fillMaxSize().then(if (glass) Modifier.drawBehind { glow.draw(this, size.width, size.height) } else Modifier)
@@ -314,7 +321,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                     onCategories = { nav.navigate("categories") }, onTags = { nav.navigate("tags") },
                     onNavbar = { nav.navigate("navbar-settings") }, onHomeLayout = { nav.navigate("home-settings") },
                     onSync = { nav.navigate("sync") }, onUpdates = { nav.navigate("updates") }, onFeedback = { nav.navigate("feedback") },
-                    onCompound = { nav.navigate("compound") }, onWealth = { nav.navigate("wealth") }, onAfford = { nav.navigate("afford") },
+                    onCompound = { nav.navigate("compound") }, onWealth = { nav.navigate("wealth") }, onAfford = { nav.navigate("afford") }, onOpenTab = { nav.navigate(it.id) },
                 )
             }
             screen("wealth") {
