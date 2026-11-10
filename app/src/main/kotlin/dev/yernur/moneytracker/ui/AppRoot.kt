@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -83,6 +84,7 @@ enum class NavTab(val id: String, val label: String, val icon: ImageVector) {
     History("history", "History", Icons.Outlined.History),
     Charts("charts", "Charts", Icons.Outlined.BarChart),
     Accounts("accounts", "Accounts", Icons.Outlined.AccountBalanceWallet),
+    Analysis("analysis", "Analysis", Icons.Outlined.Insights),
     Categories("categories", "Categories", Icons.Outlined.Category),
     Tags("tags", "Tags", Icons.AutoMirrored.Outlined.Label),
     Wealth("wealth", "Wealth", Icons.AutoMirrored.Outlined.TrendingUp),
@@ -229,7 +231,10 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             screen("history") {
                 HistoryScreen { uid, isTransfer -> nav.navigate(entryRoute(uid, if (isTransfer) EntryKind.Transfer else EntryKind.Expense)) }
             }
-            screen("charts") { ChartsScreen(onOpenCategory = { nav.navigate("category/$it?type=Expense") }, onOpenTransaction = { nav.navigate(entryRoute(it)) }) }
+            screen("charts") { ChartsScreen(onOpenTransaction = { nav.navigate(entryRoute(it)) }) }
+            screen("analysis") {
+                AnalysisScreen(onOpenCategory = { nav.navigate("category/$it?type=Expense") }, onOpenTrend = { nav.navigate("trend/$it") }, onOpenRecurring = { nav.navigate("recurring") })
+            }
             screen("accounts") {
                 AccountsScreen(
                     onOpen = { nav.navigate("account/$it") }, onNew = { nav.navigate("account/new") },
@@ -254,13 +259,18 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                     onCategories = { nav.navigate("categories") }, onTags = { nav.navigate("tags") },
                     onNavbar = { nav.navigate("navbar-settings") }, onHomeLayout = { nav.navigate("home-settings") },
                     onSync = { nav.navigate("sync") }, onUpdates = { nav.navigate("updates") }, onFeedback = { nav.navigate("feedback") },
-                    onCompound = { nav.navigate("compound") }, onWealth = { nav.navigate("wealth") },
+                    onCompound = { nav.navigate("compound") }, onWealth = { nav.navigate("wealth") }, onAfford = { nav.navigate("afford") },
                 )
             }
             screen("wealth") {
                 WealthScreen(embedded = "wealth" in tabRoutes, onCompound = { nav.navigate("compound") }, onBack = { nav.popBackStack() })
             }
             screen("compound") { CompoundScreen { nav.popBackStack() } }
+            screen("trend/{uid}", arguments = listOf(navArgument("uid") { type = NavType.StringType })) { entry ->
+                CategoryTrendScreen(entry.arguments?.getString("uid").orEmpty(), onBack = { nav.popBackStack() }, onOpenTransaction = { nav.navigate(entryRoute(it)) })
+            }
+            screen("recurring") { RecurringScreen { nav.popBackStack() } }
+            screen("afford") { AffordScreen(onBack = { nav.popBackStack() }, onLogExpense = { nav.navigate(entryRoute()) }) }
             screen("sync") { SyncScreen { nav.popBackStack() } }
             screen("updates") { UpdatesScreen { nav.popBackStack() } }
             screen("feedback") { FeedbackScreen { nav.popBackStack() } }

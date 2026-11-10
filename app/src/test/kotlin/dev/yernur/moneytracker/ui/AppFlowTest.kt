@@ -172,7 +172,7 @@ class AppFlowTest {
     @Test
     fun createCategoryWithLimit_viaMoreScreen() {
         tap("more")
-        tap("open-categories")
+        tapInForm("open-categories") // the More list is longer than the small test screen
         tap("new-category")
         compose.onNodeWithTag("category-title").performTextInput("Спорт")
         compose.onNodeWithTag("category-limit").performTextInput("50 000")
@@ -187,7 +187,7 @@ class AppFlowTest {
     @Test
     fun createTag_thenRename_viaTagsScreen() {
         tap("more")
-        tap("open-tags")
+        tapInForm("open-tags")
         tap("new-tag")
         compose.onNodeWithTag("dialog-input").performTextInput("долг")
         compose.onNodeWithText("OK").performClick()

@@ -71,7 +71,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
-enum class ChartTab(val label: String) { General("General"), Expenses("Expenses"), Income("Income"), Forecast("Forecast") }
+enum class ChartTab(val label: String) { General("General"), Expenses("Expenses"), Income("Income") }
 
 data class ChartData(
     val unit: PeriodUnit, val buckets: List<Bucket>, val categories: Map<String?, CategoryEntity>,
@@ -87,7 +87,7 @@ private fun barCount(unit: PeriodUnit) = when (unit) {
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class ChartsViewModel(db: AppDatabase, forecasts: ForecastRepository, private val today: LocalDate = LocalDate.now()) : ViewModel() {
+class ChartsViewModel(db: AppDatabase, private val today: LocalDate = LocalDate.now()) : ViewModel() {
     var tab by mutableStateOf(ChartTab.General)
     var selected by mutableIntStateOf(-1) // -1 = the newest bar
     val unit = MutableStateFlow(PeriodUnit.Month)
@@ -108,10 +108,6 @@ class ChartsViewModel(db: AppDatabase, forecasts: ForecastRepository, private va
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    val forecast: StateFlow<Forecast?> = forecasts.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-    val categories: StateFlow<Map<String?, CategoryEntity>> = db.categoryDao().observeAll()
-        .map { list -> list.associateBy<CategoryEntity, String?> { it.uid } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     fun zoom(to: PeriodUnit) {
         selected = -1
@@ -127,18 +123,15 @@ class ChartsViewModel(db: AppDatabase, forecasts: ForecastRepository, private va
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ChartsScreen(onOpenCategory: (String) -> Unit, onOpenTransaction: (String) -> Unit = {}) {
-    val vm = appViewModel { ChartsViewModel(it.db, it.forecasts) }
+fun ChartsScreen(onOpenTransaction: (String) -> Unit = {}) {
+    val vm = appViewModel { ChartsViewModel(it.db) }
     val data by vm.data.collectAsStateWithLifecycle()
-    val forecast by vm.forecast.collectAsStateWithLifecycle()
-    val categories by vm.categories.collectAsStateWithLifecycle()
     val unit by vm.unit.collectAsStateWithLifecycle()
     val page by vm.page.collectAsStateWithLifecycle()
 
-    val forecastTab = vm.tab == ChartTab.Forecast
     Column(Modifier.fillMaxSize()) {
-        // Same header as History: the period slicer on top, then what to show underneath. A forecast is always this month, so no slicer.
-        if (!forecastTab) {
+        // Same header as History: the period slicer on top, then what to show underneath.
+        run {
             val units = listOf(PeriodUnit.Day, PeriodUnit.Week, PeriodUnit.Month, PeriodUnit.Year)
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                 units.forEachIndexed { index, u ->
@@ -165,10 +158,6 @@ fun ChartsScreen(onOpenCategory: (String) -> Unit, onOpenTransaction: (String) -
                     modifier = Modifier.testTag("chart-tab-${tab.name}"),
                 ) { Text(tab.label, maxLines = 1, style = MaterialTheme.typography.labelMedium) }
             }
-        }
-        if (forecastTab) {
-            forecast?.let { ForecastView(it, categories, onOpenCategory) }
-            return@Column
         }
         Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             data?.let { chart -> ChartBody(chart, vm.tab, vm.selected, onSelect = { vm.selected = it }, onOpenTransaction) }

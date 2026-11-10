@@ -38,6 +38,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _widgetDotNumerals = MutableStateFlow(prefs?.getBoolean(WIDGET_DOT_NUMERALS, true) ?: true)
     private val _spreadsheetId = MutableStateFlow(prefs?.getString(SPREADSHEET_ID, null))
     private val _spreadsheetUrl = MutableStateFlow(prefs?.getString(SPREADSHEET_URL, null))
+    private val _keptDuplicates = MutableStateFlow(prefs?.getString(KEPT_DUPLICATES, null)?.split(',')?.filter { it.isNotEmpty() }?.toSet().orEmpty())
     private val _showAllAccounts = MutableStateFlow(prefs?.getBoolean(SHOW_ALL_ACCOUNTS, false) ?: false)
     private val _reminderEnabled = MutableStateFlow(prefs?.getBoolean(REMINDER_ENABLED, true) ?: true)
     private val _reminderMinute = MutableStateFlow(prefs?.getInt(REMINDER_MINUTE, 20 * 60) ?: (20 * 60))
@@ -114,6 +115,14 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
 
     /** Show the "All accounts" figure under the balance on Home. Hidden by default. */
     val showAllAccounts: StateFlow<Boolean> = _showAllAccounts
+
+    /** Uids of the second operation of a possible duplicate pair that the owner chose to keep ("Keep both"), so the pair is not offered again. */
+    val keptDuplicates: StateFlow<Set<String>> = _keptDuplicates
+
+    fun keepDuplicate(uid: String) {
+        _keptDuplicates.value = _keptDuplicates.value + uid
+        prefs?.edit()?.putString(KEPT_DUPLICATES, _keptDuplicates.value.joinToString(","))?.apply()
+    }
 
     fun setShowAllAccounts(on: Boolean) {
         _showAllAccounts.value = on
@@ -312,8 +321,8 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
 
     companion object {
         const val DEFAULT_THRESHOLD = 100
-        val NAV_POOL = listOf("home", "history", "charts", "accounts", "categories", "tags", "wealth")
-        val NAV_DEFAULT = NAV_POOL.take(4)
+        val NAV_POOL = listOf("home", "history", "charts", "accounts", "analysis", "categories", "tags", "wealth")
+        val NAV_DEFAULT = NAV_POOL.take(5)
         const val NAV_MIN = 2
         const val NAV_MAX = 5
         val HOME_POOL = listOf("warnings", "balance", "totals", "top-categories", "recent")
@@ -346,6 +355,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val SPREADSHEET_URL = "spreadsheetUrl"
         private const val DEVICE_ID = "deviceId"
         private const val SHOW_ALL_ACCOUNTS = "showAllAccounts"
+        private const val KEPT_DUPLICATES = "keptDuplicates"
         private const val REMINDER_ENABLED = "reminderEnabled"
         private const val REMINDER_MINUTE = "reminderMinute"
         private const val AUTO_SYNC = "autoSync"

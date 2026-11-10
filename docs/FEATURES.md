@@ -70,7 +70,7 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 
 ## Milestone 5 as built (verified on the emulator with the real backup)
 - Charts: General (income / expenses / profit-loss bars), Expenses and Income stacked by category, zoom By year / month / week / day,
-  tap a bar for its totals and category shares. Forecast tab: overall run-rate and 3-month average, per-category cards with limit bars,
+  tap a bar for its totals and category shares. Forecast (since 2026-11-10 inside the Analysis tab, Forecast segment): overall run-rate and 3-month average, per-category cards with limit bars,
   warned categories first.
 - Warnings: Home card plus notifications (channel "Spending warnings"; one per month, category and level, escalating
   3-month average -> on track -> over the limit). Per-category threshold and "in overall projection" (Automatic / Always / Never) on the
@@ -262,6 +262,39 @@ and the update-failure text in `ApkInstaller.kt:132` tells the owner to uninstal
 - Privacy of crash reports: the issue is public, so the saved text has exception class names, `at` frames (30 per exception, 4 causes) and the thread name, **no exception messages** (they can quote typed text or values). Cost: a few bugs will be harder to diagnose without the message; add it by hand if needed.
 - Not covered: native crashes and ANRs (the Java handler never sees them); the handler is unit-tested with a fake previous handler, not by crashing the app on a device.
 - Submitting needs a GitHub account. Labels that do not exist yet are ignored by GitHub for people without write access, so the owner creates `bug`, `enhancement` and `crash` once.
+
+## Affordability and spending analysis (owner request 2026-11-10, all rated **must**; mock-ups on the Design canvas, sample data)
+Idea taken from Anthropic's consumer "Personal Finance" launch (2026-11-05), but everything is computed on the phone from the Room data: no Plaid, no
+LLM, no new network call.
+
+| Feature | Rating | Notes |
+|---|---|---|
+| "Can I afford this?" check | **BUILT** (More -> Can I afford this?) | Price (default currency), category, paying-from account. Verdict Yes / Tight / No with the numbers behind it. Not built: item name, purchase date other than today (the mock-up had them), prefilling the add screen from "Log as expense" (it opens an empty one). Never run on a device; unit and Robolectric tests only. |
+| Spending analysis | **BUILT** (own bottom-bar tab "Analysis", Trends segment; the Forecast segment holds the former Charts > Forecast) | Six monthly bars with a projected current month and an average line, "worth a look" insights, per-category sparkline and change vs the 3-month average. Taps open the category trend. Not run on a device. |
+| Category trend screen | **BUILT** (tap a category in Analysis) | 12-month line (current month drawn as the run-rate segment) with limit and 3-month average, Friday-to-Sunday share and weekday bars, three largest operations this month. Not built: the mock-up's "Open all in History" button (History has no category filter). |
+| Recurring costs, price changes, possible duplicates | **BUILT** (Analysis -> Recurring costs and duplicates) | Detected from the ledger's own history; nothing changes unless the owner confirms. "Keep both" is remembered per second operation in settings; "Delete the second" is a soft delete. Not built: the mock-up's "Add reminder" button (the app has no reminder editor yet) and the "share of monthly spending" figure. Duplicate time of day is not shown (`created` is UTC). |
+
+Navigation (owner request 2026-11-10): Analysis is its own bottom-bar tab, not a segment of Charts; Charts keeps only General / Expenses / Income, and its old Forecast
+tab moved into Analysis as a Trends / Forecast switch. The default bar is now Home, History, Charts, Accounts, Analysis (5 is the maximum). A phone that already
+stored its own tab choice keeps it: add Analysis in More -> Navigation bar.
+
+### Affordability rules (all amounts in default-currency minor units)
+- `balance` = the chosen account's balance converted to the default currency.
+- Horizon = the next due date of an enabled **Income** reminder, else the end of this month. The backup has no payday field: assumption, owner to confirm.
+- `expected` = daily run-rate of the overall projection (`runRateIncluded / daysInMonth`) x days to the horizon; the 3-month-average variant is shown beside it. Both reuse `Forecast` (one-off categories excluded, as in the projection design).
+- `scheduled` = amounts of enabled expense reminders / regular payments that fall in (today, horizon]. Only `Day` and `Month` periods are understood (custom periods unverified, skipped).
+  Known overlap: a scheduled payment that is also logged as an expense in the run-rate is counted twice; the "free" figure errs on the cautious side.
+- `free` = `balance - expected - scheduled`; `afterPurchase` = `free - price`.
+- Verdict: **No** when `afterPurchase < 0`; **Tight** when the price takes more than 50% of `free` or the category's run-rate plus the price exceeds its limit; otherwise **Yes**. The 50% is my number, not the owner's.
+- Limit impact: category run-rate + price against `limitAmount`. Goal impact: delay in days = price / (average monthly saving / 30), saving = mean (income - expenses) of the last 3 full months; shown only when that is positive.
+- Not financial advice: the screen says so.
+
+### Analysis rules
+- Monthly bars: the last 6 months, all expenses; the current month shows the run-rate projection (spent so far / days elapsed x days in month) as a dashed bar. Average line = mean of the full months shown.
+- Category trend: delta = current run-rate vs the mean of the previous (up to) 3 full months, shown only when that mean is not zero, at least 10 days of the month have passed, and something was spent in the category this month (a pace of 0 says nothing). The sparkline draws the unfinished month at its pace. Insights: a category at least 25% above its average (and at least 5,000 above), and a category that fell three months in a row.
+- Weekday pattern: expenses of the last 3 full months by day of week.
+- Recurring: an expense comment (trimmed, case-insensitive) seen in at least 3 consecutive months, amounts within 20% of the median. Price change = latest amount differs from the previous one by 5% or more. "Has a reminder" = a reminder with the same title.
+- Duplicate: same type, account, category, account-currency amount and date, created within 10 minutes of each other. Keep both / delete the second (soft delete through the ledger).
 
 ## Other / unverified, decide later
 

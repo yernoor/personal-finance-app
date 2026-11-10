@@ -3,6 +3,7 @@ package dev.yernur.moneytracker
 import android.app.Application
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.room.Room
+import dev.yernur.moneytracker.data.AffordRepository
 import dev.yernur.moneytracker.data.AppSettings
 import dev.yernur.moneytracker.data.ForecastRepository
 import dev.yernur.moneytracker.data.LedgerRepository
@@ -64,6 +65,7 @@ class AppContainer(
     val fx = FxRepository(db, settings, fxClient)
     val ledger = LedgerRepository(db, allRates = { fx.allRates.first() })
     val wealth = WealthRepository(db, fx)
+    val afford = AffordRepository(db, fx, forecasts, wealth)
     private val notifier = notifierFor(db, settings, forecasts)
 
     /** Asks GitHub for a newer release, but at most once a day; a failure is silent (the Updates screen shows errors when asked by hand). */
