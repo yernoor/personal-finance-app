@@ -1,5 +1,8 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -218,14 +221,17 @@ private fun Legend(color: Color, text: String) {
 private fun YearBars(rows: List<CompoundYear>, modifier: Modifier) {
     val own = MaterialTheme.colorScheme.outline
     val interest = MaterialTheme.colorScheme.primary
+    val grow = remember { Animatable(0f) } // grows up when the page opens; edits after that redraw directly, so typing is not animated
+    LaunchedEffect(Unit) { grow.animateTo(1f, tween(700, easing = FastOutSlowInEasing)) }
     Canvas(modifier) {
         val top = rows.maxOf { maxOf(it.balance, 1L) }.toFloat()
         val gap = 6.dp.toPx()
         val width = (size.width - gap * (rows.size - 1)) / rows.size
         rows.forEachIndexed { i, row ->
             val x = i * (width + gap)
-            val total = (row.balance.coerceAtLeast(0) / top) * size.height
-            val paid = (row.contributed.coerceIn(0, row.balance.coerceAtLeast(0)) / top) * size.height
+            val progress = staggered(grow.value, i, rows.size)
+            val total = (row.balance.coerceAtLeast(0) / top) * size.height * progress
+            val paid = (row.contributed.coerceIn(0, row.balance.coerceAtLeast(0)) / top) * size.height * progress
             val round = CornerRadius(3.dp.toPx())
             drawRoundRect(interest, Offset(x, size.height - total), Size(width, total), round)
             drawRect(own, Offset(x, size.height - paid), Size(width, paid))

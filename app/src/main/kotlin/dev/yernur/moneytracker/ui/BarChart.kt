@@ -1,6 +1,11 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +26,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.gestures.detectTapGestures
 
+private const val GROW_MS = 600
+
+/** How far group [index] of [count] has grown when the whole animation is at [overall] (0..1): later groups start a little later, all end together. */
+internal fun staggered(overall: Float, index: Int, count: Int): Float {
+    if (count <= 1) return overall
+    val step = 0.4f / count
+    return ((overall - index * step) / (1f - (count - 1) * step)).coerceIn(0f, 1f)
+}
+
 data class BarSegment(val value: Long, val color: Color)
 
 /** A bar is a stack of segments; a group is a cluster of bars drawn side by side (one group per time bucket). */
@@ -32,6 +46,12 @@ fun BarChart(groups: List<BarGroup>, labels: List<String>, selected: Int, onSele
     val highlight = MaterialTheme.colorScheme.secondaryContainer
     val axis = MaterialTheme.colorScheme.outlineVariant
     val tallest = groups.maxOfOrNull { group -> group.maxOfOrNull { bar -> bar.sumOf { it.value } } ?: 0L }?.coerceAtLeast(1L) ?: 1L
+    // The bars grow up from the axis, one group after the other, whenever the data changes (a new period, another tab)
+    val grow = remember { Animatable(0f) }
+    LaunchedEffect(groups) {
+        grow.snapTo(0f)
+        grow.animateTo(1f, tween(GROW_MS, easing = FastOutSlowInEasing))
+    }
 
     Column(modifier) {
         Canvas(
@@ -41,6 +61,7 @@ fun BarChart(groups: List<BarGroup>, labels: List<String>, selected: Int, onSele
         ) {
             val slot = size.width / groups.size
             groups.forEachIndexed { index, group ->
+                val progress = staggered(grow.value, index, groups.size)
                 val left = index * slot
                 if (index == selected) drawRoundRect(highlight, Offset(left, 0f), Size(slot, size.height), CornerRadius(8.dp.toPx()))
                 val barWidth = slot * 0.8f / group.size.coerceAtLeast(1)
@@ -48,7 +69,7 @@ fun BarChart(groups: List<BarGroup>, labels: List<String>, selected: Int, onSele
                     var bottom = size.height
                     val x = left + slot * 0.1f + barIndex * barWidth
                     bar.forEach { segment ->
-                        val height = size.height * (segment.value.toFloat() / tallest)
+                        val height = size.height * (segment.value.toFloat() / tallest) * progress
                         if (height > 0f) drawRect(segment.color, Offset(x, bottom - height), Size(barWidth, height))
                         bottom -= height
                     }
