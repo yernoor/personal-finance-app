@@ -24,6 +24,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -170,7 +171,7 @@ private fun NetWorthCard(data: WealthOverview, show: (Long) -> String) {
     AppCard(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary), shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.fillMaxWidth().padding(20.dp)) {
             Text("Net worth", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimary)
-            Text(show(total), fontSize = 34.sp, color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.testTag("net-worth"))
+            RollingMoney(total, show, Modifier.testTag("net-worth"), LocalTextStyle.current.copy(fontSize = 34.sp, color = MaterialTheme.colorScheme.onPrimary))
             Text(
                 change?.let { (diff, since) -> "${if (diff >= 0) "+" else ""}${show(diff)} since $since" } ?: "History starts today: one point is saved each day you open the app",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimary,
@@ -205,12 +206,12 @@ private fun Breakdown(data: WealthOverview, show: (Long) -> String, onAsset: (Ma
     val n = data.netWorth
     SectionCard("Where it is", { onAsset(null) }, "add-asset") {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Tile("Accounts", show(n.accountsMinor), Modifier.weight(1f))
-            Tile("Bonds", show(n.investmentsMinor), Modifier.weight(1f))
+            AmountTile("Accounts", n.accountsMinor, show, Modifier.weight(1f))
+            AmountTile("Bonds", n.investmentsMinor, show, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Tile("Other assets", show(n.assetsMinor), Modifier.weight(1f))
-            Tile("Loans", if (n.liabilitiesMinor == 0L) show(0) else "-" + show(n.liabilitiesMinor), Modifier.weight(1f))
+            AmountTile("Other assets", n.assetsMinor, show, Modifier.weight(1f))
+            AmountTile("Loans", n.liabilitiesMinor, { if (it == 0L) show(0) else "-" + show(it) }, Modifier.weight(1f))
         }
         data.manualAssets.forEach { item ->
             Row(Modifier.fillMaxWidth().clickable { onAsset(item) }.padding(vertical = 6.dp).testTag("asset-${item.title}"), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -221,6 +222,14 @@ private fun Breakdown(data: WealthOverview, show: (Long) -> String, onAsset: (Ma
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun AmountTile(label: String, value: Long, format: (Long) -> String, modifier: Modifier) {
+    Column(modifier.clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(horizontal = 14.dp, vertical = 10.dp)) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        RollingMoney(value, format, style = MaterialTheme.typography.titleMedium, maxLines = 1)
     }
 }
 

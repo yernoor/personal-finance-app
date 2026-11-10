@@ -24,6 +24,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -176,9 +177,9 @@ private fun ResultHero(rows: List<CompoundYear>, currency: String) {
     AppCard(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary), shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.fillMaxWidth().padding(20.dp)) {
             Text("Balance after ${rows.size} years", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimary)
-            Text(
-                Money.formatRounded(last.balance, currency), fontSize = 32.sp, color = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.padding(top = 2.dp).testTag("compound-balance"),
+            RollingMoney(
+                last.balance, { Money.formatRounded(it, currency) }, Modifier.padding(top = 2.dp).testTag("compound-balance"),
+                LocalTextStyle.current.copy(fontSize = 32.sp, color = MaterialTheme.colorScheme.onPrimary),
             )
             Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text("You put in ${Money.formatRounded(last.contributed, currency)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.testTag("compound-contributed"))

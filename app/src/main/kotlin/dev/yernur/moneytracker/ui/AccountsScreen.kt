@@ -84,8 +84,8 @@ fun AccountsScreen(onOpen: (String) -> Unit, onNew: () -> Unit, onNewTransfer: (
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Total", style = MaterialTheme.typography.labelLarge)
-            Text(Money.format(state.counted, DEFAULT_CURRENCY), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.testTag("total"))
-            Text("All accounts: ${Money.format(state.all, DEFAULT_CURRENCY)}", style = MaterialTheme.typography.bodyMedium)
+            RollingMoney(state.counted, { Money.format(it, DEFAULT_CURRENCY) }, Modifier.testTag("total"), MaterialTheme.typography.headlineMedium)
+            RollingMoney(state.all, { "All accounts: ${Money.format(it, DEFAULT_CURRENCY)}" }, style = MaterialTheme.typography.bodyMedium)
             Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilledTonalButton(onNewTransfer) {
                     Icon(Icons.Outlined.SwapHoriz, null)
@@ -107,7 +107,7 @@ fun AccountsScreen(onOpen: (String) -> Unit, onNew: () -> Unit, onNewTransfer: (
                     trailingContent = {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (row.account.ignoreInBalance) Icon(Icons.Outlined.VisibilityOff, "Hidden from total")
-                            Text(Money.format(row.balance, row.account.currencyCode))
+                            RollingMoney(row.balance, { Money.format(it, row.account.currencyCode) })
                         }
                     },
                 )

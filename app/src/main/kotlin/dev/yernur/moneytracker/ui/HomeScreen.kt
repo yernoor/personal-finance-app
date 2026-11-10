@@ -154,8 +154,8 @@ private fun BalanceCard(state: HomeState, showAll: Boolean) {
     AppCard(Modifier.fillMaxWidth().testTag("home-balance")) {
         Column(Modifier.padding(16.dp)) {
             Text("Balance", style = MaterialTheme.typography.labelLarge)
-            RollingMoney(state.counted, { Money.format(it, DEFAULT_CURRENCY) }, MaterialTheme.typography.displaySmall)
-            if (showAll) Text("All accounts: ${Money.format(state.all, DEFAULT_CURRENCY)}", style = MaterialTheme.typography.bodyMedium)
+            RollingMoney(state.counted, { Money.format(it, DEFAULT_CURRENCY) }, style = MaterialTheme.typography.displaySmall)
+            if (showAll) RollingMoney(state.all, { "All accounts: ${Money.format(it, DEFAULT_CURRENCY)}" }, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

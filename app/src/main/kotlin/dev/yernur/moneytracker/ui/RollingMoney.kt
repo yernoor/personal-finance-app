@@ -3,6 +3,7 @@ package dev.yernur.moneytracker.ui
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,21 +19,20 @@ import kotlin.math.roundToLong
 internal fun rolled(from: Long, to: Long, fraction: Float): Long = if (fraction >= 1f) to else from + ((to - from) * fraction.toDouble()).roundToLong()
 
 /**
- * An amount that counts up or down to its new value instead of jumping, e.g. the Home balance after an entry is added.
- * The first real value appears at once (no count from zero when the app opens).
+ * An amount that counts up from zero when it first appears and up or down to each new value after that, instead of jumping.
+ * Used for every balance on screen (Home, Accounts, Wealth, the compound interest result).
  */
 @Composable
-fun RollingMoney(value: Long, format: (Long) -> String, style: TextStyle, modifier: Modifier = Modifier) {
-    var from by remember { mutableLongStateOf(value) }
-    var to by remember { mutableLongStateOf(value) }
+fun RollingMoney(value: Long, format: (Long) -> String, modifier: Modifier = Modifier, style: TextStyle = LocalTextStyle.current, maxLines: Int = Int.MAX_VALUE) {
+    var from by remember { mutableLongStateOf(0L) }
+    var to by remember { mutableLongStateOf(0L) }
     val fraction = remember { Animatable(1f) }
     LaunchedEffect(value) {
         if (value == to) return@LaunchedEffect
-        if (to == 0L) { from = value; to = value; return@LaunchedEffect } // the state before the first load
         from = rolled(from, to, fraction.value) // continue from wherever the last roll got to
         to = value
         fraction.snapTo(0f)
-        fraction.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
+        fraction.animateTo(1f, tween(800, easing = FastOutSlowInEasing))
     }
-    Text(format(rolled(from, to, fraction.value)), style = style, modifier = modifier)
+    Text(format(rolled(from, to, fraction.value)), style = style, modifier = modifier, maxLines = maxLines)
 }
