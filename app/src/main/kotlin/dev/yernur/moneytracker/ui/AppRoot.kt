@@ -2,7 +2,10 @@ package dev.yernur.moneytracker.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.Transition
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -14,6 +17,12 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -93,12 +102,37 @@ enum class NavTab(val id: String, val label: String, val icon: ImageVector) {
     Wealth("wealth", "Wealth", Icons.AutoMirrored.Outlined.TrendingUp),
 }
 
+/** Screens that carry their own top bar when they are not in the navbar. */
+private val OWN_BAR_SCREENS = setOf("wealth", "categories", "tags")
+
 private const val ENTRY = "entry?uid={uid}&kind={kind}"
 private const val CATEGORY = "category/{uid}?type={type}"
 private const val ACCOUNT = "account/{uid}"
 
 /** Where a widget tap should land: an add screen of this kind ("expense", "income", "transfer"), or the operation with this uid. Null kind and uid: just open the app. */
 data class AppLaunch(val kind: String?, val uid: String?)
+
+/** The enter/exit transition of the screen being composed (null outside the nav host), so a screen can wait for its arrival to finish. */
+val LocalArrival = staticCompositionLocalOf<Transition<EnterExitState>?> { null }
+
+/** Space around a screen. */
+data class Insets(val left: Dp, val top: Dp, val right: Dp, val bottom: Dp) {
+    fun max(o: Insets) = Insets(maxOf(left, o.left), maxOf(top, o.top), maxOf(right, o.right), maxOf(bottom, o.bottom))
+    fun padding(glass: Boolean) = PaddingValues(left, top, right, if (glass) 0.dp else bottom) // glass screens run under the floating bar
+}
+
+/**
+ * What each screen keeps clear: the app's own bars for the tab screens and More, otherwise just the system bars. Every screen applies its
+ * own, fixed, so a screen sliding away keeps its layout while the bars fade, instead of being resized by the bars' animation (that was the jump).
+ */
+class ChromeInsets(val tabRoutes: Set<String>, val barRoutes: Set<String>, val glass: Boolean, val tab: Insets, val system: Insets) {
+    fun padding(route: String?) = when {
+        route in tabRoutes -> tab.padding(glass)
+        route in barRoutes -> tab.copy(bottom = system.bottom).padding(glass) // More and screens hidden from the navbar have the top bar but no tab bar
+        else -> PaddingValues() // these screens are Scaffolds with their own app bar, which already keep clear of the system bars
+    }
+}
+val LocalChrome = staticCompositionLocalOf<ChromeInsets?> { null }
 
 private fun entryRoute(uid: String? = null, kind: EntryKind = EntryKind.Expense) = "entry?uid=${uid.orEmpty()}&kind=$kind"
 
@@ -129,6 +163,9 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     val tabs = tabIds.mapNotNull { id -> NavTab.entries.firstOrNull { it.id == id } }
     val tabRoutes = tabs.map { it.id }.toSet()
     val startRoute = remember { tabs.first().id }
+    // A screen hidden from the navbar is still reachable from More. Most draw no top bar of their own, so the app bar (with a back arrow) is shown for them.
+    val hiddenScreens = NavTab.entries.filter { it.id !in tabRoutes && it.id !in OWN_BAR_SCREENS }
+    val barRoutes = remember(hiddenScreens) { hiddenScreens.map { it.id }.toSet() + "more" }
 
     val current by nav.currentBackStackEntryAsState()
     val route = current?.destination?.route
@@ -162,7 +199,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     ) {
     Scaffold(
         topBar = {
-            AnimatedVisibility(tab != null, enter = fadeIn(tween(FADE_MS)) + expandVertically(), exit = fadeOut(tween(FADE_MS)) + shrinkVertically()) {
+            AnimatedVisibility(tab != null, enter = fadeIn(tween(FADE_MS)), exit = fadeOut(tween(FADE_MS))) {
                 AppTopBar(
                     title = { Text(lastTab.label, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold) },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = if (glass) Color.Transparent else Color.Unspecified),
@@ -172,8 +209,9 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                     },
                 )
             }
-            if (route == "more") AppTopBar(
-                title = { Text("More") },
+            val barTitle = if (route == "more") "More" else hiddenScreens.firstOrNull { it.id == route }?.label
+            if (barTitle != null) AppTopBar(
+                title = { Text(barTitle) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = if (glass) Color.Transparent else Color.Unspecified),
                 navigationIcon = { IconButton({ nav.popBackStack() }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
             )
@@ -196,7 +234,14 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             }
         },
     ) { padding ->
-      CompositionLocalProvider(LocalGlowTopInset provides with(LocalDensity.current) { padding.calculateTopPadding().toPx() }) {
+      val ltr = LayoutDirection.Ltr
+      val now = Insets(padding.calculateLeftPadding(ltr), padding.calculateTopPadding(), padding.calculateRightPadding(ltr), padding.calculateBottomPadding())
+      var tabInsets by remember(glass) { mutableStateOf(now) }
+      if (tab != null) SideEffect { tabInsets = tabInsets.max(now) } // the largest seen: the fully shown bars, not a frame of their animation
+      val systemBars = ScaffoldDefaults.contentWindowInsets.asPaddingValues()
+      val system = Insets(systemBars.calculateLeftPadding(ltr), systemBars.calculateTopPadding(), systemBars.calculateRightPadding(ltr), systemBars.calculateBottomPadding())
+      val chrome = remember(tabRoutes, barRoutes, glass, tabInsets, system) { ChromeInsets(tabRoutes, barRoutes, glass, tabInsets, system) }
+      CompositionLocalProvider(LocalChrome provides chrome) {
       Box(
           Modifier.fillMaxSize().then(if (glass) Modifier.drawBehind { glow.draw(this, size.width, size.height) } else Modifier)
               .pointerInput(tab, tabs) { // swipe left/right between tabs; drags a child already used (charts, sliders) never reach here
@@ -215,7 +260,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
         NavHost(
             nav, startDestination = startRoute,
             // With glass the content runs under the floating bar (so there is something to blur); otherwise the bar owns that strip.
-            modifier = if (glass) Modifier.padding(top = padding.calculateTopPadding()).layerBackdrop(backdrop) else Modifier.padding(padding),
+            modifier = if (glass) Modifier.layerBackdrop(backdrop) else Modifier,
             // Between two tabs: both move the way you are going (right of the current tab slides in from the right) while fading, so it
             // feels like the swipe. The add screen grows out of the add button. Into any other screen: slide forward while fading.
             enterTransition = {
@@ -276,7 +321,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                     onCategories = { nav.navigate("categories") }, onTags = { nav.navigate("tags") },
                     onNavbar = { nav.navigate("navbar-settings") }, onHomeLayout = { nav.navigate("home-settings") },
                     onSync = { nav.navigate("sync") }, onUpdates = { nav.navigate("updates") }, onFeedback = { nav.navigate("feedback") },
-                    onCompound = { nav.navigate("compound") }, onWealth = { nav.navigate("wealth") }, onAfford = { nav.navigate("afford") },
+                    onCompound = { nav.navigate("compound") }, onWealth = { nav.navigate("wealth") }, onAfford = { nav.navigate("afford") }, onOpenTab = { nav.navigate(it.id) },
                 )
             }
             screen("wealth") {
@@ -345,9 +390,14 @@ private fun NavGraphBuilder.screen(
     route: String, arguments: List<NamedNavArgument> = emptyList(), content: @Composable (NavBackStackEntry) -> Unit,
 ) = plainComposable(route, arguments) { entry ->
     val glow = LocalGlow.current
-    val inset = LocalGlowTopInset.current
+    val chrome = LocalChrome.current
     // Every screen carries its own opaque background: in glass mode the glow (lined up with the one behind the top bar), otherwise the plain color.
-    val background = if (glow != null) Modifier.drawBehind { withTransform({ translate(top = -inset) }) { glow.draw(this, size.width, size.height + inset) } }
+    val background = if (glow != null) Modifier.drawBehind { glow.draw(this, size.width, size.height) }
     else Modifier.background(MaterialTheme.colorScheme.background)
-    Box(Modifier.fillMaxSize().then(background)) { content(entry) }
+    val onTab = chrome != null && route in chrome.tabRoutes
+    CompositionLocalProvider(LocalArrival provides transition, LocalChromeInset provides if (chrome != null && chrome.glass && onTab) GlassBarInset else 0.dp) {
+        Box(Modifier.fillMaxSize().then(background)) {
+            Box(Modifier.fillMaxSize().then(if (chrome != null) Modifier.padding(chrome.padding(route)) else Modifier)) { content(entry) }
+        }
+    }
 }

@@ -42,7 +42,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.animation.EnterExitState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -260,7 +262,13 @@ fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
     val isTransfer = vm.kind == EntryKind.Transfer
     LaunchedEffect(vm.accountUid, vm.toAccountUid, vm.kind, options.accounts) { vm.refreshRateNote() }
     val amountFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { if (!vm.isEditing) amountFocus.requestFocus() } // fast entry: keyboard is ready on open
+    // Fast entry: the keyboard opens right after the screen has finished arriving, not during it (both at once made the motion jerky).
+    val arrival = LocalArrival.current
+    LaunchedEffect(Unit) {
+        if (vm.isEditing) return@LaunchedEffect
+        if (arrival != null) snapshotFlow { arrival.currentState }.first { it == EnterExitState.Visible }
+        amountFocus.requestFocus()
+    }
 
     Scaffold(topBar = {
         AppTopBar(
