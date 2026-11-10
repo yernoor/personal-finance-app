@@ -1,6 +1,8 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -41,7 +43,9 @@ private fun appTypography(base: Typography = Typography()) = base.copy(
 fun AppTheme(content: @Composable () -> Unit) {
     val context = LocalContext.current
     val colors = if (isSystemInDarkTheme()) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-    MaterialTheme(colorScheme = colors, typography = appTypography(), content = content)
+    MaterialTheme(colorScheme = colors, typography = appTypography()) {
+        CompositionLocalProvider(LocalIndication provides PressScaleIndication, content = content)
+    }
 }
 
 /** Over-limit / expense / income colors are fixed on purpose, so they stay recognizable whatever the system accent is. */
