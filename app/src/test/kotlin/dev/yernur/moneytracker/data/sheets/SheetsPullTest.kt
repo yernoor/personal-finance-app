@@ -78,6 +78,16 @@ class SheetsPullTest {
     }
 
     @Test
+    fun aHandTypedRowWhosePushFailed_isNotAddedAgainByTheNextPull() = runBlocking {
+        settings.setLastSyncAt("2026-11-02T00:00:00.000Z")
+        val tabs = pushedTabs()
+        tabs.getValue("Transactions") += mutableListOf<Any?>(RowDate.serial("2026-11-01"), "Income", "Dollars", "", "", 50.0, "USD", 25000.0, "gift")
+        assertEquals(1, pull(tabs).added)
+        assertEquals(0, pull(tabs).added) // the sheet still has no UID on that row: the earlier push did not finish
+        assertEquals(1, db.transactionDao().getAll().count { it.comment == "gift" })
+    }
+
+    @Test
     fun editsMadeOnAPc_comeIn_andKeepWhatTheSheetDoesNotShow() = runBlocking {
         val tabs = pushedTabs()
         val tx = tabs.getValue("Transactions")

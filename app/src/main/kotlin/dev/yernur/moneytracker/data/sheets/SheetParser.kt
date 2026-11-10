@@ -188,6 +188,7 @@ class SheetParser(
             warnings += "transaction row skipped (date, type, account or amount unreadable): ${r.text(11) ?: "row without UID"}"
             return null
         }
+        if (r.text(11) == null && alreadyTakenFromThisRow(date, type, accountUid, amount, r.text(8))) return null
         val categoryName = r.text(3)
         val categoryUid = categoryName?.let { n -> (categories.firstOrNull { it.title == n && it.type == type } ?: categories.firstOrNull { it.title == n })?.uid }
         if (categoryName != null && categoryUid == null) warnings += "unknown category \"$categoryName\" left empty on transaction $uid"
@@ -206,6 +207,16 @@ class SheetParser(
             amountInAccountCurrency = amount, accountCurrencyCode = currency, date = date, comment = r.text(8), isRemoved = false,
         )
     }
+
+    /**
+     * A row typed by hand has no UID until a push writes one back. When that push failed, the phone already holds the row (created by the
+     * earlier pull, after the last sync), and reading it again would add it twice.
+     */
+    private fun alreadyTakenFromThisRow(date: String, type: TransactionType, accountUid: String, amount: Long, comment: String?): Boolean =
+        syncedAt != null && local.transactions.any {
+            !it.isRemoved && it.created > syncedAt && it.date == date && it.type == type && it.accountUid == accountUid &&
+                it.amountInAccountCurrency == amount && it.comment == comment
+        }
 
     // Transfers: Date, From Account, To Account, From Amount, From Cur, To Amount, To Cur, Comment, UID, Created, Modified
     private fun transfer(r: List<Any?>, old: Map<String, TransferEntity>, accountUidByName: Map<String, String>, currencyOf: Map<String, String>): TransferEntity? {
