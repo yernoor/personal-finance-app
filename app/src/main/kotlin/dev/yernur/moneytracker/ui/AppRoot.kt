@@ -63,7 +63,10 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
+import androidx.navigation.NavGraphBuilder
+import androidx.compose.foundation.background
+import androidx.navigation.NamedNavArgument
+import androidx.navigation.compose.composable as plainComposable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
@@ -218,19 +221,22 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             popExitTransition = {
                 slideOutHorizontally(tween(MOVE_MS, easing = slideEasing)) { it }
             },
+            // The swipe gesture has its own defaults (scale down and fade, which shows the screen below through the one leaving): same slides as the button.
+            predictivePopEnterTransition = { slideInHorizontally { -it / 6 } },
+            predictivePopExitTransition = { slideOutHorizontally { it } },
         ) {
-            composable("home") { HomeScreen() }
-            composable("history") {
+            screen("home") { HomeScreen() }
+            screen("history") {
                 HistoryScreen { uid, isTransfer -> nav.navigate(entryRoute(uid, if (isTransfer) EntryKind.Transfer else EntryKind.Expense)) }
             }
-            composable("charts") { ChartsScreen(onOpenCategory = { nav.navigate("category/$it?type=Expense") }, onOpenTransaction = { nav.navigate(entryRoute(it)) }) }
-            composable("accounts") {
+            screen("charts") { ChartsScreen(onOpenCategory = { nav.navigate("category/$it?type=Expense") }, onOpenTransaction = { nav.navigate(entryRoute(it)) }) }
+            screen("accounts") {
                 AccountsScreen(
                     onOpen = { nav.navigate("account/$it") }, onNew = { nav.navigate("account/new") },
                     onNewTransfer = { nav.navigate(entryRoute(kind = EntryKind.Transfer)) },
                 )
             }
-            composable(
+            screen(
                 ENTRY,
                 arguments = listOf(
                     navArgument("uid") { type = NavType.StringType; defaultValue = "" },
@@ -240,10 +246,10 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 val uid = entry.arguments?.getString("uid")?.takeIf { it.isNotEmpty() }
                 EntryScreen(uid, EntryKind.valueOf(entry.arguments?.getString("kind") ?: "Expense")) { nav.popBackStack() }
             }
-            composable(ACCOUNT, arguments = listOf(navArgument("uid") { type = NavType.StringType })) { entry ->
+            screen(ACCOUNT, arguments = listOf(navArgument("uid") { type = NavType.StringType })) { entry ->
                 AccountEditScreen(entry.arguments?.getString("uid")?.takeIf { it != "new" }) { nav.popBackStack() }
             }
-            composable("more") {
+            screen("more") {
                 MoreScreen(
                     onCategories = { nav.navigate("categories") }, onTags = { nav.navigate("tags") },
                     onNavbar = { nav.navigate("navbar-settings") }, onHomeLayout = { nav.navigate("home-settings") },
@@ -251,24 +257,24 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                     onCompound = { nav.navigate("compound") }, onWealth = { nav.navigate("wealth") },
                 )
             }
-            composable("wealth") {
+            screen("wealth") {
                 WealthScreen(embedded = "wealth" in tabRoutes, onCompound = { nav.navigate("compound") }, onBack = { nav.popBackStack() })
             }
-            composable("compound") { CompoundScreen { nav.popBackStack() } }
-            composable("sync") { SyncScreen { nav.popBackStack() } }
-            composable("updates") { UpdatesScreen { nav.popBackStack() } }
-            composable("feedback") { FeedbackScreen { nav.popBackStack() } }
-            composable("feedback/crash") { FeedbackScreen(reportLastCrash = true) { nav.popBackStack() } }
-            composable("navbar-settings") { NavbarSettingsScreen { nav.popBackStack() } }
-            composable("home-settings") { HomeLayoutScreen { nav.popBackStack() } }
-            composable("categories") {
+            screen("compound") { CompoundScreen { nav.popBackStack() } }
+            screen("sync") { SyncScreen { nav.popBackStack() } }
+            screen("updates") { UpdatesScreen { nav.popBackStack() } }
+            screen("feedback") { FeedbackScreen { nav.popBackStack() } }
+            screen("feedback/crash") { FeedbackScreen(reportLastCrash = true) { nav.popBackStack() } }
+            screen("navbar-settings") { NavbarSettingsScreen { nav.popBackStack() } }
+            screen("home-settings") { HomeLayoutScreen { nav.popBackStack() } }
+            screen("categories") {
                 CategoriesScreen(
                     onOpen = { nav.navigate("category/$it?type=Expense") },
                     onNew = { nav.navigate("category/new?type=$it") }, onBack = { nav.popBackStack() },
                     embedded = "categories" in tabRoutes, // as a tab it uses the app bar above instead of its own
                 )
             }
-            composable(
+            screen(
                 CATEGORY,
                 arguments = listOf(
                     navArgument("uid") { type = NavType.StringType },
@@ -280,7 +286,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                     TransactionType.valueOf(entry.arguments?.getString("type") ?: "Expense"),
                 ) { nav.popBackStack() }
             }
-            composable("tags") { TagsScreen(embedded = "tags" in tabRoutes) { nav.popBackStack() } }
+            screen("tags") { TagsScreen(embedded = "tags" in tabRoutes) { nav.popBackStack() } }
         }
         if (glass) {
             val navInset = padding.calculateBottomPadding()
@@ -303,4 +309,12 @@ private fun NavHostController.navigateTop(route: String) = navigate(route) {
     popUpTo(graph.findStartDestination().id) { saveState = true }
     launchSingleTop = true
     restoreState = true
+}
+
+/** A destination with its own opaque background, so the screen underneath never shows through while a back swipe slides this one away. */
+private fun NavGraphBuilder.screen(
+    route: String, arguments: List<NamedNavArgument> = emptyList(), content: @Composable (NavBackStackEntry) -> Unit,
+) = plainComposable(route, arguments) { entry ->
+    val glass = LocalGlass.current
+    Box(Modifier.fillMaxSize().then(if (glass) Modifier else Modifier.background(MaterialTheme.colorScheme.background))) { content(entry) }
 }
