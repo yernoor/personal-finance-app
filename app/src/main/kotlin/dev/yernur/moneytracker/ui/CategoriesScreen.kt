@@ -55,7 +55,7 @@ fun CategoriesScreen(onOpen: (uid: String) -> Unit, onNew: (TransactionType) -> 
     val categories by vm.categories.collectAsStateWithLifecycle(emptyList())
     var tab by remember { mutableStateOf(TransactionType.Expense) }
     Scaffold(contentWindowInsets = embeddedInsets(embedded), topBar = {
-        if (!embedded) TopAppBar(title = { Text("Categories") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
+        if (!embedded) AppTopBar(title = { Text("Categories") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
     }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             val tabs = listOf(TransactionType.Expense, TransactionType.Income)
@@ -129,7 +129,7 @@ fun CategoryEditScreen(uid: String?, type: TransactionType, onBack: () -> Unit) 
     val vm = appViewModel(key = "category-$uid-$type") { CategoryEditViewModel(it.db, it.ledger, uid, type) }
     var confirmDelete by remember { mutableStateOf(false) }
     Scaffold(topBar = {
-        TopAppBar(
+        AppTopBar(
             title = { Text(if (uid == null) "New category" else "Edit category") },
             navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
             actions = { if (uid != null) IconButton({ confirmDelete = true }) { Icon(Icons.Outlined.Delete, "Delete") } },

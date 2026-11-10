@@ -79,7 +79,7 @@ fun RecurringScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text("Recurring and duplicates") },
                 navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),

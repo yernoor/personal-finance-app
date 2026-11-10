@@ -53,7 +53,7 @@ fun FeedbackScreen(reportLastCrash: Boolean = false, onBack: () -> Unit) {
     var details by remember { mutableStateOf(crash?.let { "What I was doing when it closed:\n\n\n```\n$it\n```" } ?: "") }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("Report a bug or suggest a feature") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
+        AppTopBar(title = { Text("Report a bug or suggest a feature") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
     }) { padding ->
         Column(Modifier.padding(padding).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

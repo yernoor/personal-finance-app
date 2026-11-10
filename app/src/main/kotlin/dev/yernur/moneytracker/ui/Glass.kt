@@ -18,6 +18,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -118,6 +120,18 @@ val LocalGlow = staticCompositionLocalOf<Glow?> { null }
 
 /** How far (px) the navigation host sits below the top of the screen, so a screen's copy of the glow lines up with the one behind the top bar. */
 val LocalGlowTopInset = staticCompositionLocalOf { 0f }
+
+/**
+ * In glass mode every Scaffold must be see-through: its default background is an opaque flat color, which would hide the glow that each
+ * screen draws for itself (and leave a seam under the status bar). The nested theme keeps the press feedback, which M3 would reset to a ripple.
+ */
+@Composable
+fun GlassScaffoldTheme(glass: Boolean, content: @Composable () -> Unit) {
+    if (!glass) return content()
+    MaterialTheme(colorScheme = MaterialTheme.colorScheme.copy(background = Color.Transparent), typography = MaterialTheme.typography, shapes = MaterialTheme.shapes) {
+        CompositionLocalProvider(LocalIndication provides PressScaleIndication, content = content)
+    }
+}
 
 /** Container color for dialogs and sheets: translucent with glass on, the usual one otherwise. */
 @Composable

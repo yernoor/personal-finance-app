@@ -80,7 +80,7 @@ fun CategoryTrendScreen(uid: String, onBack: () -> Unit, onOpenTransaction: (Str
     val category = state?.first
     Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(category?.title ?: "Category") },
                 navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),

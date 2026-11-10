@@ -109,7 +109,7 @@ fun WealthScreen(embedded: Boolean = false, onCompound: () -> Unit, onBack: () -
     Scaffold(
         contentWindowInsets = embeddedInsets(embedded),
         topBar = {
-            if (!embedded) TopAppBar(
+            if (!embedded) AppTopBar(
                 title = { Text("Wealth") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
                 actions = { WealthCurrencyAction(Modifier.padding(end = 8.dp)) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),

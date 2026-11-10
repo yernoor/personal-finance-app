@@ -46,7 +46,7 @@ fun TagsScreen(embedded: Boolean = false, onBack: () -> Unit) {
     Scaffold(
         contentWindowInsets = embeddedInsets(embedded),
         topBar = {
-            if (!embedded) TopAppBar(title = { Text("Tags") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
+            if (!embedded) AppTopBar(title = { Text("Tags") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
         },
         floatingActionButton = { FloatingActionButton({ adding = true }, modifier = Modifier.testTag("new-tag")) { Icon(Icons.Outlined.Add, "New tag") } },
     ) { padding ->

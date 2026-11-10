@@ -169,7 +169,7 @@ class AccountEditViewModel(private val db: AppDatabase, private val ledger: Ledg
 fun AccountEditScreen(uid: String?, onBack: () -> Unit) {
     val vm = appViewModel(key = "account-$uid") { AccountEditViewModel(it.db, it.ledger, uid) }
     Scaffold(topBar = {
-        TopAppBar(
+        AppTopBar(
             title = { Text(if (uid == null) "New account" else "Edit account") },
             navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
         )

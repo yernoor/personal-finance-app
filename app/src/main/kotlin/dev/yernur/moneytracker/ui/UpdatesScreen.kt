@@ -151,7 +151,7 @@ fun UpdatesScreen(onBack: () -> Unit) {
     LaunchedEffect(Unit) { if (vm.state == UpdateState.Idle) vm.check() } // opening the screen is asking
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("App updates") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
+        AppTopBar(title = { Text("App updates") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
     }) { padding ->
         Column(Modifier.padding(padding).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("Installed version ${container.installedVersion}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("installed-version"))

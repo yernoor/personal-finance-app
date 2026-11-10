@@ -191,7 +191,7 @@ fun SyncScreen(onBack: () -> Unit) {
     LaunchedEffect(state) { if (state is SyncState.NeedsConsent) consentLauncher.launch(state.request) }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("Google Sheets") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
+        AppTopBar(title = { Text("Google Sheets") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
     }) { padding ->
         Column(Modifier.padding(padding).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(

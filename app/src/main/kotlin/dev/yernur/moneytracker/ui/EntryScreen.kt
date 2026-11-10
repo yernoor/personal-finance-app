@@ -263,7 +263,7 @@ fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
     LaunchedEffect(Unit) { if (!vm.isEditing) amountFocus.requestFocus() } // fast entry: keyboard is ready on open
 
     Scaffold(topBar = {
-        TopAppBar(
+        AppTopBar(
             title = { Text(if (vm.isEditing) "Edit" else "Add") },
             navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
             actions = {

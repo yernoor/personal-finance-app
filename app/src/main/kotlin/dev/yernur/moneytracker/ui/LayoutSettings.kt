@@ -81,7 +81,7 @@ fun NavbarSettingsScreen(onBack: () -> Unit) {
     val visible by settings.navTabs.collectAsStateWithLifecycle()
     val items = AppSettings.NAV_POOL.map { id -> NavTab.entries.first { it.id == id }.let { LayoutItem(it.id, it.label, it.icon) } }
     Scaffold(topBar = {
-        TopAppBar(title = { Text("Navigation bar") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
+        AppTopBar(title = { Text("Navigation bar") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
     }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState())) {
             Text(
@@ -109,7 +109,7 @@ fun HomeLayoutScreen(onBack: () -> Unit) {
     val visible by settings.homeCards.collectAsStateWithLifecycle()
     val period by settings.homeTotalsPeriod.collectAsStateWithLifecycle()
     Scaffold(topBar = {
-        TopAppBar(title = { Text("Home layout") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
+        AppTopBar(title = { Text("Home layout") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
     }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState())) {
             Text("Totals cover", Modifier.padding(start = 16.dp, top = 8.dp), style = MaterialTheme.typography.labelLarge)

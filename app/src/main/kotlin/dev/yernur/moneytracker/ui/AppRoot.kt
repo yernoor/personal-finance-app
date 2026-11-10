@@ -154,6 +154,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     val glassIconSetting by settings.glassIconStyle.collectAsStateWithLifecycle()
     val accentHue = remember(scheme.primary) { Oklch.hueOf(scheme.primary.toArgb()) }
 
+    GlassScaffoldTheme(glass) {
     CompositionLocalProvider(
         LocalGlass provides glass, LocalGlow provides (if (glass) glow else null), LocalChromeInset provides if (glass && tab != null) GlassBarInset else 0.dp,
         LocalIconStyle provides if (glass) glassIconSetting else iconSetting, // glass allows only glass-style icons
@@ -162,7 +163,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     Scaffold(
         topBar = {
             AnimatedVisibility(tab != null, enter = fadeIn(tween(FADE_MS)) + expandVertically(), exit = fadeOut(tween(FADE_MS)) + shrinkVertically()) {
-                TopAppBar(
+                AppTopBar(
                     title = { Text(lastTab.label, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold) },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = if (glass) Color.Transparent else Color.Unspecified),
                     actions = {
@@ -171,7 +172,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                     },
                 )
             }
-            if (route == "more") TopAppBar(
+            if (route == "more") AppTopBar(
                 title = { Text("More") },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = if (glass) Color.Transparent else Color.Unspecified),
                 navigationIcon = { IconButton({ nav.popBackStack() }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
@@ -328,6 +329,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
         }
       }
       }
+    }
     }
     }
 }
