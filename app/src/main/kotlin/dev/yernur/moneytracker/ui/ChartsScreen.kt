@@ -71,7 +71,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
-enum class ChartTab(val label: String) { General("General"), Expenses("Expenses"), Income("Income"), Forecast("Forecast") }
+enum class ChartTab(val label: String) { General("General"), Expenses("Expenses"), Income("Income"), Forecast("Forecast"), Analysis("Analysis") }
 
 data class ChartData(
     val unit: PeriodUnit, val buckets: List<Bucket>, val categories: Map<String?, CategoryEntity>,
@@ -127,7 +127,7 @@ class ChartsViewModel(db: AppDatabase, forecasts: ForecastRepository, private va
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ChartsScreen(onOpenCategory: (String) -> Unit, onOpenTransaction: (String) -> Unit = {}) {
+fun ChartsScreen(onOpenCategory: (String) -> Unit, onOpenTrend: (String) -> Unit = {}, onOpenTransaction: (String) -> Unit = {}) {
     val vm = appViewModel { ChartsViewModel(it.db, it.forecasts) }
     val data by vm.data.collectAsStateWithLifecycle()
     val forecast by vm.forecast.collectAsStateWithLifecycle()
@@ -136,9 +136,10 @@ fun ChartsScreen(onOpenCategory: (String) -> Unit, onOpenTransaction: (String) -
     val page by vm.page.collectAsStateWithLifecycle()
 
     val forecastTab = vm.tab == ChartTab.Forecast
+    val analysisTab = vm.tab == ChartTab.Analysis
     Column(Modifier.fillMaxSize()) {
         // Same header as History: the period slicer on top, then what to show underneath. A forecast is always this month, so no slicer.
-        if (!forecastTab) {
+        if (!forecastTab && !analysisTab) {
             val units = listOf(PeriodUnit.Day, PeriodUnit.Week, PeriodUnit.Month, PeriodUnit.Year)
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                 units.forEachIndexed { index, u ->
@@ -165,6 +166,10 @@ fun ChartsScreen(onOpenCategory: (String) -> Unit, onOpenTransaction: (String) -
                     modifier = Modifier.testTag("chart-tab-${tab.name}"),
                 ) { Text(tab.label, maxLines = 1, style = MaterialTheme.typography.labelMedium) }
             }
+        }
+        if (analysisTab) {
+            AnalysisView(onOpenTrend)
+            return@Column
         }
         if (forecastTab) {
             forecast?.let { ForecastView(it, categories, onOpenCategory) }
