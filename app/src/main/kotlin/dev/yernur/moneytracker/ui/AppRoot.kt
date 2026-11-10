@@ -212,13 +212,11 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 if (isTab(initialState) && isTab(targetState)) fadeOut(tween(FADE_MS))
                 else slideOutHorizontally(tween(MOVE_MS, easing = slideEasing)) { -it / 6 } + fadeOut(tween(MOVE_MS))
             },
-            popEnterTransition = {
-                if (isTab(initialState) && isTab(targetState)) fadeIn(tween(FADE_MS)) + scaleIn(tween(FADE_MS), initialScale = 0.96f)
-                else slideInHorizontally(tween(MOVE_MS, easing = slideEasing)) { -it / 6 } // opaque: a fade here shows through the leaving screen
+            popEnterTransition = { // back (swipe or button), tabs included: opaque slides, a fade shows through the leaving screen
+                slideInHorizontally(tween(MOVE_MS, easing = slideEasing)) { -it / 6 }
             },
             popExitTransition = {
-                if (isTab(initialState) && isTab(targetState)) fadeOut(tween(FADE_MS))
-                else slideOutHorizontally(tween(MOVE_MS, easing = slideEasing)) { it } // full slide, no fade: the screen stays solid under the finger
+                slideOutHorizontally(tween(MOVE_MS, easing = slideEasing)) { it }
             },
         ) {
             composable("home") { HomeScreen() }
