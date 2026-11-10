@@ -238,7 +238,8 @@ class SheetParser(
             return null
         }
         val fromCurrency = r.text(4) ?: currencyOf[from].orEmpty()
-        val toCurrency = r.text(6) ?: currencyOf[to]
+        // An empty cell on a transfer the phone already has stays empty: same-currency transfers store no received side.
+        val toCurrency = r.text(6) ?: if (existing != null) existing.toCurrencyCode else currencyOf[to]
         if (existing == null) {
             return TransferEntity(uid, from, to, fromAmount, fromCurrency, r.money(5), toCurrency, date, r.text(7), r.text(9) ?: now, r.text(10) ?: now)
         }

@@ -78,6 +78,15 @@ class SheetsPullTest {
     }
 
     @Test
+    fun aSameCurrencyTransfer_roundTripsUnchanged() = runBlocking {
+        db.accountDao().insertAll(listOf(AccountEntity("sav", "Savings", "KZT", null, null, 6, null, false, true, false, false, "", "")))
+        LedgerRepository(db).saveTransfer(TransferDraft(null, "main", "sav", 10_000, null, "2026-10-26", null))
+        val result = pull(pushedTabs())
+        assertEquals(0, result.added + result.updated)
+        assertEquals(null, db.transferDao().getAll().single { it.toAccountUid == "sav" }.toCurrencyCode)
+    }
+
+    @Test
     fun twoAccountsWithTheSameName_keepTheirOwnTransactions() = runBlocking {
         db.accountDao().insertAll(listOf("t1", "t2").map { AccountEntity(it, "Twin", "KZT", null, null, 5, null, false, true, false, false, "", "") })
         val ledger = LedgerRepository(db)
