@@ -52,6 +52,12 @@ class AppContainer(
     /** Null in tests: the last crash, kept so the next launch can offer to report it. */
     val crashes: CrashLog? = null,
 ) {
+    /** The period History is showing; a new entry defaults to its date. Null until History has been opened. */
+    val historyRange = kotlinx.coroutines.flow.MutableStateFlow<dev.yernur.moneytracker.data.DateRange?>(null)
+    /** Today when the shown period contains it, otherwise the period's last day (the day itself for a day view). */
+    fun newEntryDate(today: LocalDate = LocalDate.now()): LocalDate =
+        historyRange.value?.let { if (today in it) today else it.to } ?: today
+
     val importer = ImportRepository(db)
     val forecasts = ForecastRepository(db, settings)
     val lock = AppLock(settings)
