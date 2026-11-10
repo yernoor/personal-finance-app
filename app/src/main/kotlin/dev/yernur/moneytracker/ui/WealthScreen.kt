@@ -107,6 +107,7 @@ fun WealthScreen(embedded: Boolean = false, onCompound: () -> Unit, onBack: () -
         container.snapshotNetWorth()
     }
     Scaffold(
+        contentWindowInsets = embeddedInsets(embedded),
         topBar = {
             if (!embedded) TopAppBar(
                 title = { Text("Wealth") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },

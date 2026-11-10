@@ -31,6 +31,8 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.size
 import dev.yernur.moneytracker.data.Oklch
 import androidx.compose.foundation.shape.CircleShape
@@ -139,6 +141,13 @@ fun ColorPicker(selected: Int?, onPick: (Int) -> Unit) {
     }
     if (customOpen) CustomColorDialog(selected, onPick) { customOpen = false }
 }
+
+/**
+ * Insets for the Scaffold of a screen that can also be a tab. As a tab the app's own bar already took the status bar's room, so the
+ * inner Scaffold must not add it again (that left a blank band above the content).
+ */
+@Composable
+fun embeddedInsets(embedded: Boolean): WindowInsets = if (embedded) WindowInsets(0.dp) else ScaffoldDefaults.contentWindowInsets
 
 /** The "Color" heading and picker. Mono draws every icon in the accent, so a color would change nothing there and the section is left out. */
 @Composable

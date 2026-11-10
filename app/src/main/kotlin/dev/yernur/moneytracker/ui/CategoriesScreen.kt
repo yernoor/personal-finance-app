@@ -54,7 +54,7 @@ fun CategoriesScreen(onOpen: (uid: String) -> Unit, onNew: (TransactionType) -> 
     val vm = appViewModel { CategoriesViewModel(it.db) }
     val categories by vm.categories.collectAsStateWithLifecycle(emptyList())
     var tab by remember { mutableStateOf(TransactionType.Expense) }
-    Scaffold(topBar = {
+    Scaffold(contentWindowInsets = embeddedInsets(embedded), topBar = {
         if (!embedded) TopAppBar(title = { Text("Categories") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
     }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
