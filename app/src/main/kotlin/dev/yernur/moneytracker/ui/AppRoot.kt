@@ -52,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -102,6 +103,8 @@ private fun entryRoute(uid: String? = null, kind: EntryKind = EntryKind.Expense)
 // Motion: screens always overlap while they swap, so nothing blinks out before the next one is there.
 private const val MOVE_MS = 300
 private const val FADE_MS = 220
+private const val GROW_MS = 380 // the add screen growing out of the add button
+private val ADD_ORIGIN = TransformOrigin(0.92f, 0.9f) // roughly where the add button sits: bottom right
 private const val SWIPE_PX = 150f
 private val slideEasing = FastOutSlowInEasing
 
@@ -133,6 +136,10 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     if (tab != null) lastTab = tab
 
     fun isTab(entry: NavBackStackEntry) = entry.destination.route in tabRoutes
+    fun isAdd(entry: NavBackStackEntry) = entry.destination.route == ENTRY
+    /** +1 when going to a tab further right in the bar, -1 to one further left. */
+    fun tabDirection(from: NavBackStackEntry, to: NavBackStackEntry) =
+        if (tabs.indexOfFirst { it.id == to.destination.route } >= tabs.indexOfFirst { it.id == from.destination.route }) 1 else -1
 
     val glass by settings.glass.collectAsStateWithLifecycle()
     val scheme = MaterialTheme.colorScheme
@@ -170,14 +177,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 enter = slideInVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeIn(tween(FADE_MS)),
                 exit = slideOutVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeOut(tween(FADE_MS)),
             ) {
-                NavigationBar {
-                    tabs.forEach { t ->
-                        NavigationBarItem(
-                            selected = t == lastTab, onClick = { nav.navigateTop(t.id) },
-                            icon = { Icon(t.icon, null) }, label = { Text(t.label) }, modifier = Modifier.testTag("tab-${t.id}"),
-                        )
-                    }
-                }
+                FloatingTabBar(tabs, lastTab, onSelect = { nav.navigateTop(it.id) })
             }
         },
         floatingActionButton = {
@@ -185,7 +185,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 (tab?.id == "home" || tab?.id == "history") && !glass,
                 enter = scaleIn(tween(FADE_MS)) + fadeIn(tween(FADE_MS)), exit = scaleOut(tween(FADE_MS)) + fadeOut(tween(FADE_MS)),
             ) {
-                FloatingActionButton({ nav.navigate(entryRoute()) }, modifier = Modifier.testTag("add")) { Icon(Icons.Outlined.Add, "Add") }
+                AddButton({ nav.navigate(entryRoute()) }, Modifier.padding(bottom = 4.dp))
             }
         },
     ) { padding ->
@@ -208,20 +208,29 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             nav, startDestination = startRoute,
             // With glass the content runs under the floating bar (so there is something to blur); otherwise the bar owns that strip.
             modifier = if (glass) Modifier.padding(top = padding.calculateTopPadding()).layerBackdrop(backdrop) else Modifier.padding(padding),
-            // Between two tabs: a crossfade with a slight scale (no blank frame). Into a detail screen: slide forward while fading.
+            // Between two tabs: both move the way you are going (right of the current tab slides in from the right) while fading, so it
+            // feels like the swipe. The add screen grows out of the add button. Into any other screen: slide forward while fading.
             enterTransition = {
-                if (isTab(initialState) && isTab(targetState)) fadeIn(tween(FADE_MS)) + scaleIn(tween(FADE_MS), initialScale = 0.96f)
-                else slideInHorizontally(tween(MOVE_MS, easing = slideEasing)) { it / 6 } + fadeIn(tween(MOVE_MS))
+                when {
+                    isTab(initialState) && isTab(targetState) -> slideInHorizontally(tween(MOVE_MS, easing = slideEasing)) { it / 5 * tabDirection(initialState, targetState) } + fadeIn(tween(FADE_MS))
+                    isAdd(targetState) -> scaleIn(tween(GROW_MS, easing = slideEasing), initialScale = 0.15f, transformOrigin = ADD_ORIGIN) + fadeIn(tween(FADE_MS))
+                    else -> slideInHorizontally(tween(MOVE_MS, easing = slideEasing)) { it / 6 } + fadeIn(tween(MOVE_MS))
+                }
             },
             exitTransition = {
-                if (isTab(initialState) && isTab(targetState)) fadeOut(tween(FADE_MS))
-                else slideOutHorizontally(tween(MOVE_MS, easing = slideEasing)) { -it / 6 } + fadeOut(tween(MOVE_MS))
+                when {
+                    isTab(initialState) && isTab(targetState) -> slideOutHorizontally(tween(MOVE_MS, easing = slideEasing)) { -it / 5 * tabDirection(initialState, targetState) } + fadeOut(tween(FADE_MS))
+                    isAdd(targetState) -> scaleOut(tween(GROW_MS, easing = slideEasing), targetScale = 0.96f) + fadeOut(tween(FADE_MS))
+                    else -> slideOutHorizontally(tween(MOVE_MS, easing = slideEasing)) { -it / 6 } + fadeOut(tween(MOVE_MS))
+                }
             },
             popEnterTransition = { // back (swipe or button), tabs included: opaque slides, a fade shows through the leaving screen
-                slideInHorizontally(tween(MOVE_MS, easing = slideEasing)) { -it / 6 }
+                if (isAdd(initialState)) scaleIn(tween(GROW_MS, easing = slideEasing), initialScale = 0.96f) + fadeIn(tween(FADE_MS))
+                else slideInHorizontally(tween(MOVE_MS, easing = slideEasing)) { -it / 6 }
             },
             popExitTransition = {
-                slideOutHorizontally(tween(MOVE_MS, easing = slideEasing)) { it }
+                if (isAdd(initialState)) scaleOut(tween(GROW_MS, easing = slideEasing), targetScale = 0.15f, transformOrigin = ADD_ORIGIN) + fadeOut(tween(MOVE_MS))
+                else slideOutHorizontally(tween(MOVE_MS, easing = slideEasing)) { it }
             },
             // The swipe gesture has its own defaults (scale down and fade, which shows the screen below through the one leaving): same slides as the button.
             predictivePopEnterTransition = { slideInHorizontally { -it / 6 } },
