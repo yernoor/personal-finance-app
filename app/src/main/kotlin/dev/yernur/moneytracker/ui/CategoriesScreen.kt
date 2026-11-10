@@ -59,11 +59,10 @@ fun CategoriesScreen(onOpen: (uid: String) -> Unit, onNew: (TransactionType) -> 
     }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             val tabs = listOf(TransactionType.Expense, TransactionType.Income)
-            PrimaryTabRow(selectedTabIndex = tabs.indexOf(tab), containerColor = androidx.compose.ui.graphics.Color.Transparent) {
-                tabs.forEach { type ->
-                    Tab(tab == type, { tab = type }, text = { Text(if (type == TransactionType.Expense) "Expenses" else "Income") }, modifier = Modifier.testTag("tab-$type"))
-                }
-            }
+            SlidingSegmented(
+                listOf("Expenses", "Income"), tabs.indexOf(tab), tabs.map { "tab-$it" }, { tab = tabs[it] },
+                Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
             FlowRow(
                 Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + LocalChromeInset.current),
                 horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
