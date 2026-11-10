@@ -17,6 +17,12 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -106,6 +112,25 @@ data class AppLaunch(val kind: String?, val uid: String?)
 /** The enter/exit transition of the screen being composed (null outside the nav host), so a screen can wait for its arrival to finish. */
 val LocalArrival = staticCompositionLocalOf<Transition<EnterExitState>?> { null }
 
+/** Space around a screen. */
+data class Insets(val left: Dp, val top: Dp, val right: Dp, val bottom: Dp) {
+    fun max(o: Insets) = Insets(maxOf(left, o.left), maxOf(top, o.top), maxOf(right, o.right), maxOf(bottom, o.bottom))
+    fun padding(glass: Boolean) = PaddingValues(left, top, right, if (glass) 0.dp else bottom) // glass screens run under the floating bar
+}
+
+/**
+ * What each screen keeps clear: the app's own bars for the tab screens and More, otherwise just the system bars. Every screen applies its
+ * own, fixed, so a screen sliding away keeps its layout while the bars fade, instead of being resized by the bars' animation (that was the jump).
+ */
+class ChromeInsets(val tabRoutes: Set<String>, val glass: Boolean, val tab: Insets, val system: Insets) {
+    fun padding(route: String?) = when {
+        route in tabRoutes -> tab.padding(glass)
+        route == "more" -> tab.copy(bottom = system.bottom).padding(glass) // More has the top bar but no tab bar
+        else -> PaddingValues() // these screens are Scaffolds with their own app bar, which already keep clear of the system bars
+    }
+}
+val LocalChrome = staticCompositionLocalOf<ChromeInsets?> { null }
+
 private fun entryRoute(uid: String? = null, kind: EntryKind = EntryKind.Expense) = "entry?uid=${uid.orEmpty()}&kind=$kind"
 
 // Motion: screens always overlap while they swap, so nothing blinks out before the next one is there.
@@ -168,7 +193,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     ) {
     Scaffold(
         topBar = {
-            AnimatedVisibility(tab != null, enter = fadeIn(tween(FADE_MS)) + expandVertically(), exit = fadeOut(tween(FADE_MS)) + shrinkVertically()) {
+            AnimatedVisibility(tab != null, enter = fadeIn(tween(FADE_MS)), exit = fadeOut(tween(FADE_MS))) {
                 AppTopBar(
                     title = { Text(lastTab.label, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold) },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = if (glass) Color.Transparent else Color.Unspecified),
@@ -202,7 +227,14 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             }
         },
     ) { padding ->
-      CompositionLocalProvider(LocalGlowTopInset provides with(LocalDensity.current) { padding.calculateTopPadding().toPx() }) {
+      val ltr = LayoutDirection.Ltr
+      val now = Insets(padding.calculateLeftPadding(ltr), padding.calculateTopPadding(), padding.calculateRightPadding(ltr), padding.calculateBottomPadding())
+      var tabInsets by remember(glass) { mutableStateOf(now) }
+      if (tab != null) SideEffect { tabInsets = tabInsets.max(now) } // the largest seen: the fully shown bars, not a frame of their animation
+      val systemBars = ScaffoldDefaults.contentWindowInsets.asPaddingValues()
+      val system = Insets(systemBars.calculateLeftPadding(ltr), systemBars.calculateTopPadding(), systemBars.calculateRightPadding(ltr), systemBars.calculateBottomPadding())
+      val chrome = remember(tabRoutes, glass, tabInsets, system) { ChromeInsets(tabRoutes, glass, tabInsets, system) }
+      CompositionLocalProvider(LocalChrome provides chrome) {
       Box(
           Modifier.fillMaxSize().then(if (glass) Modifier.drawBehind { glow.draw(this, size.width, size.height) } else Modifier)
               .pointerInput(tab, tabs) { // swipe left/right between tabs; drags a child already used (charts, sliders) never reach here
@@ -221,7 +253,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
         NavHost(
             nav, startDestination = startRoute,
             // With glass the content runs under the floating bar (so there is something to blur); otherwise the bar owns that strip.
-            modifier = if (glass) Modifier.padding(top = padding.calculateTopPadding()).layerBackdrop(backdrop) else Modifier.padding(padding),
+            modifier = if (glass) Modifier.layerBackdrop(backdrop) else Modifier,
             // Between two tabs: both move the way you are going (right of the current tab slides in from the right) while fading, so it
             // feels like the swipe. The add screen grows out of the add button. Into any other screen: slide forward while fading.
             enterTransition = {
@@ -351,9 +383,14 @@ private fun NavGraphBuilder.screen(
     route: String, arguments: List<NamedNavArgument> = emptyList(), content: @Composable (NavBackStackEntry) -> Unit,
 ) = plainComposable(route, arguments) { entry ->
     val glow = LocalGlow.current
-    val inset = LocalGlowTopInset.current
+    val chrome = LocalChrome.current
     // Every screen carries its own opaque background: in glass mode the glow (lined up with the one behind the top bar), otherwise the plain color.
-    val background = if (glow != null) Modifier.drawBehind { withTransform({ translate(top = -inset) }) { glow.draw(this, size.width, size.height + inset) } }
+    val background = if (glow != null) Modifier.drawBehind { glow.draw(this, size.width, size.height) }
     else Modifier.background(MaterialTheme.colorScheme.background)
-    CompositionLocalProvider(LocalArrival provides transition) { Box(Modifier.fillMaxSize().then(background)) { content(entry) } }
+    val onTab = chrome != null && route in chrome.tabRoutes
+    CompositionLocalProvider(LocalArrival provides transition, LocalChromeInset provides if (chrome != null && chrome.glass && onTab) GlassBarInset else 0.dp) {
+        Box(Modifier.fillMaxSize().then(background)) {
+            Box(Modifier.fillMaxSize().then(if (chrome != null) Modifier.padding(chrome.padding(route)) else Modifier)) { content(entry) }
+        }
+    }
 }

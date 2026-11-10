@@ -118,9 +118,6 @@ class Glow private constructor(private val base: Color, private val orbs: List<O
 /** The glow, for the screens in the navigation host: each draws its own opaque copy of it, so a screen that is sliding away never lets the one below show through. */
 val LocalGlow = staticCompositionLocalOf<Glow?> { null }
 
-/** How far (px) the navigation host sits below the top of the screen, so a screen's copy of the glow lines up with the one behind the top bar. */
-val LocalGlowTopInset = staticCompositionLocalOf { 0f }
-
 /**
  * In glass mode every Scaffold must be see-through: its default background is an opaque flat color, which would hide the glow that each
  * screen draws for itself (and leave a seam under the status bar). The nested theme keeps the press feedback, which M3 would reset to a ripple.
