@@ -5,6 +5,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
+import dev.yernur.moneytracker.data.Oklch
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -29,6 +36,7 @@ import dev.yernur.moneytracker.data.wallet.WalletPrompts.Companion.pendingFrom
 import kotlinx.coroutines.launch
 
 /** The full list behind the notification's "More…" button (and its tap): the account first when none is chosen, then the category. */
+@OptIn(ExperimentalLayoutApi::class)
 class WalletPromptActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,6 +46,13 @@ class WalletPromptActivity : ComponentActivity() {
         val prompts = WalletPrompts(this, container)
         setContent {
             AppTheme {
+              // The icons follow the owner's icon style and accent, as in the app itself.
+              val glass by container.settings.glass.collectAsStateWithLifecycle()
+              val iconStyle by container.settings.iconStyle.collectAsStateWithLifecycle()
+              val glassIconStyle by container.settings.glassIconStyle.collectAsStateWithLifecycle()
+              val primary = MaterialTheme.colorScheme.primary
+              val accentHue = remember(primary) { Oklch.hueOf(primary.toArgb()) }
+              CompositionLocalProvider(LocalIconStyle provides if (glass) glassIconStyle else iconStyle, LocalAccentHue provides accentHue) {
                 val scope = rememberCoroutineScope()
                 val accounts by remember { container.db.accountDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
                 val categories by remember { container.db.categoryDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
@@ -46,8 +61,7 @@ class WalletPromptActivity : ComponentActivity() {
                 val choosable = WalletPlan.choosableAccounts(accounts)
                 val account = choosable.firstOrNull { it.uid == accountUid }
                 val amount = Money.format(pending.payment.amount, pending.payment.currency)
-                if (done) return@AppTheme
-                AlertDialog(
+                if (!done) AlertDialog(
                     onDismissRequest = { finish() },
                     title = { Text(if (account == null) "Which account do you pay with?" else "$amount · ${pending.payment.merchant}") },
                     text = {
@@ -57,10 +71,10 @@ class WalletPromptActivity : ComponentActivity() {
                                 choosable.forEach { Text(it.title, Modifier.fillMaxWidth().clickable { container.settings.setWalletAccount(it.uid) }.padding(vertical = 12.dp)) }
                             } else {
                                 Text("Pick a category · ${account.title}", Modifier.padding(bottom = 8.dp))
-                                WalletPlan.expenseCategories(categories).forEach { category ->
-                                    Text(
-                                        category.title,
-                                        Modifier.fillMaxWidth().clickable {
+                                // The same icon tiles as the Add screen, so a category is recognised by its icon.
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    WalletPlan.expenseCategories(categories).forEach { category ->
+                                        CategoryTile(category, selected = false) {
                                             done = true
                                             scope.launch {
                                                 WalletPlan.save(container.ledger, pending, account.uid, category.uid)
@@ -68,14 +82,15 @@ class WalletPromptActivity : ComponentActivity() {
                                                 prompts.confirmSaved(pending, account.title, category.title)
                                                 finish()
                                             }
-                                        }.padding(vertical = 12.dp),
-                                    )
+                                        }
+                                    }
                                 }
                             }
                         }
                     },
                     confirmButton = { TextButton({ getSystemService(NotificationManager::class.java).cancel(WalletPrompts.idOf(pending)); finish() }) { Text("Skip") } },
                 )
+              }
             }
         }
     }
