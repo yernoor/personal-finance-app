@@ -32,7 +32,7 @@ class MainActivity : FragmentActivity() {
         // Hide: a standing switch (API 33), not a flag set in onPause: the system takes the snapshot before that reaches the window.
         // It affects only the recents thumbnail, so screenshots inside the app still work.
         lifecycleScope.launch { container.settings.recentsMode.collect { setRecentsScreenshotEnabled(it != RecentsMode.Hide) } }
-        launch = launchFrom(intent)
+        launch = if (savedInstanceState == null) launchFrom(intent) else null // a rotation or theme change must not replay the widget tap
         lifecycleScope.launch { container.dailyWealthRefresh() }
         setContent {
             CompositionLocalProvider(LocalAppContainer provides container) {
