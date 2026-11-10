@@ -65,6 +65,11 @@ class SheetParser(
         val tags = settleAll(rows(SheetLayout.TAGS), local.tags.associateBy { it.uid }, { it.uid }, ::tag, { it.modified }) { it.copy(modified = now) }
 
         val accountUidByName = (local.accounts.filter { !it.isRemoved } + accounts.all).associate { it.title.ifBlank { MAIN } to it.uid }
+        val accountTitle = (local.accounts.filter { !it.isRemoved } + accounts.all).associate { it.uid to it.title.ifBlank { MAIN } }
+        // Names are not unique, UIDs are: a row keeps the account it already has while the cell still shows that account's name.
+        val resolveAccount = { name: String?, current: String? ->
+            name?.let { n -> current?.takeIf { accountTitle[it] == n } ?: accountUidByName[n] }
+        }
         val currencyOf = (local.accounts + accounts.all).associate { it.uid to it.currencyCode }
         // Live categories first, then removed ones, so old transactions of a deleted category keep pointing at it.
         val byUid = (local.categories.filter { !it.isRemoved } + categories.all).associateBy { it.uid }
@@ -78,7 +83,7 @@ class SheetParser(
         val liveTransactionUids = mutableSetOf<String>()
         val transactions = mutableListOf<TransactionEntity>()
         for (row in rows(SheetLayout.TRANSACTIONS)) {
-            val parsed = transaction(row, oldTransactions, accountUidByName, liveCategories, currencyOf) ?: continue
+            val parsed = transaction(row, oldTransactions, resolveAccount, liveCategories, currencyOf) ?: continue
             val tagUids = row.text(4)?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty().map { name ->
                 tagUidByName.getOrPut(name) { TagEntity(newUid(), name, 0, null, now, now).also { newTags += it; added++ }.uid }
             }.toSet()
@@ -95,7 +100,7 @@ class SheetParser(
         val liveTransferUids = mutableSetOf<String>()
         val transfers = mutableListOf<TransferEntity>()
         for (row in rows(SheetLayout.TRANSFERS)) {
-            val parsed = transfer(row, oldTransfers, accountUidByName, currencyOf) ?: continue
+            val parsed = transfer(row, oldTransfers, resolveAccount, currencyOf) ?: continue
             liveTransferUids += parsed.uid
             val old = oldTransfers[parsed.uid]
             if (old == parsed || (old != null && phoneNewer(old.modified))) continue
@@ -175,14 +180,14 @@ class SheetParser(
 
     // Transactions: Date, Type, Account, Category, Tags, Amount, Currency, Net (KZT), Comment, Created, Modified, UID
     private fun transaction(
-        r: List<Any?>, old: Map<String, TransactionEntity>, accountUidByName: Map<String, String>,
+        r: List<Any?>, old: Map<String, TransactionEntity>, resolveAccount: (String?, String?) -> String?,
         categories: Collection<CategoryEntity>, currencyOf: Map<String, String>,
     ): TransactionEntity? {
         val uid = r.text(11) ?: newUid()
         val existing = old[uid]
         val date = r.date(0)
         val type = enumOrNull<TransactionType>(r.text(1))
-        val accountUid = r.text(2)?.let(accountUidByName::get)
+        val accountUid = resolveAccount(r.text(2), existing?.accountUid)
         val amount = r.money(5)?.let { kotlin.math.abs(it) }
         if (date == null || type == null || accountUid == null || amount == null) {
             warnings += "transaction row skipped (date, type, account or amount unreadable): ${r.text(11) ?: "row without UID"}"
@@ -190,7 +195,9 @@ class SheetParser(
         }
         if (r.text(11) == null && alreadyTakenFromThisRow(date, type, accountUid, amount, r.text(8))) return null
         val categoryName = r.text(3)
-        val categoryUid = categoryName?.let { n -> (categories.firstOrNull { it.title == n && it.type == type } ?: categories.firstOrNull { it.title == n })?.uid }
+        val categoryUid = categoryName?.let { n ->
+            (categories.firstOrNull { it.uid == existing?.categoryUid && it.title == n } ?: categories.firstOrNull { it.title == n && it.type == type } ?: categories.firstOrNull { it.title == n })?.uid
+        }
         if (categoryName != null && categoryUid == null) warnings += "unknown category \"$categoryName\" left empty on transaction $uid"
 
         val currency = r.text(6) ?: currencyOf[accountUid]
@@ -219,12 +226,12 @@ class SheetParser(
         }
 
     // Transfers: Date, From Account, To Account, From Amount, From Cur, To Amount, To Cur, Comment, UID, Created, Modified
-    private fun transfer(r: List<Any?>, old: Map<String, TransferEntity>, accountUidByName: Map<String, String>, currencyOf: Map<String, String>): TransferEntity? {
+    private fun transfer(r: List<Any?>, old: Map<String, TransferEntity>, resolveAccount: (String?, String?) -> String?, currencyOf: Map<String, String>): TransferEntity? {
         val uid = r.text(8) ?: newUid()
         val existing = old[uid]
         val date = r.date(0)
-        val from = r.text(1)?.let(accountUidByName::get)
-        val to = r.text(2)?.let(accountUidByName::get)
+        val from = resolveAccount(r.text(1), existing?.fromAccountUid)
+        val to = resolveAccount(r.text(2), existing?.toAccountUid)
         val fromAmount = r.money(3)
         if (date == null || from == null || to == null || fromAmount == null) {
             warnings += "transfer row skipped (date, account or amount unreadable): ${r.text(8) ?: "row without UID"}"
