@@ -1,5 +1,10 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -156,22 +161,29 @@ private fun MonthlyBars(bars: List<MonthBar>, average: Long?) {
     val bar = MaterialTheme.colorScheme.primary
     val line = MaterialTheme.colorScheme.onSurface
     val summary = bars.joinToString("; ") { "${it.month}: ${money(it.projected ?: it.spent)}" }
+    // The bars grow up from the bottom, one after the other, whenever the Analysis tab opens or its data changes
+    val grow = remember { Animatable(0f) }
+    LaunchedEffect(bars) {
+        grow.snapTo(0f)
+        grow.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
+    }
     Canvas(Modifier.fillMaxWidth().height(140.dp).semantics { contentDescription = "Monthly expenses. $summary" }) {
         val top = maxOf(bars.maxOf { maxOf(it.spent, it.projected ?: 0) }, average ?: 0, 1L).toFloat()
         val slot = size.width / bars.size
         val width = slot * 0.6f
         val dash = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
-        fun height(value: Long) = size.height * value / top
+        fun height(value: Long, progress: Float = 1f) = size.height * value / top * progress
         bars.forEachIndexed { i, b ->
+            val progress = staggered(grow.value, i, bars.size)
             val x = slot * i + (slot - width) / 2
             if (b.projected != null) {
-                drawRoundRect(bar, Offset(x, size.height - height(b.projected)), Size(width, height(b.projected)), CornerRadius(6f), style = Stroke(2.dp.toPx(), pathEffect = dash))
+                drawRoundRect(bar, Offset(x, size.height - height(b.projected, progress)), Size(width, height(b.projected, progress)), CornerRadius(6f), style = Stroke(2.dp.toPx(), pathEffect = dash))
             }
-            drawRoundRect(bar, Offset(x, size.height - height(b.spent)), Size(width, height(b.spent)), CornerRadius(6f))
+            drawRoundRect(bar, Offset(x, size.height - height(b.spent, progress)), Size(width, height(b.spent, progress)), CornerRadius(6f))
         }
         if (average != null) {
             val y = size.height - height(average)
-            drawLine(line, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.5.dp.toPx(), pathEffect = dash)
+            drawLine(line.copy(alpha = grow.value), Offset(0f, y), Offset(size.width, y), strokeWidth = 1.5.dp.toPx(), pathEffect = dash)
         }
     }
 }
