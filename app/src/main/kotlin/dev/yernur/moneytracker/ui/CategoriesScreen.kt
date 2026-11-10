@@ -158,11 +158,10 @@ fun CategoryEditScreen(uid: String?, type: TransactionType, onBack: () -> Unit) 
             Text("Icon", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AppIcons.names.forEach { name ->
-                    IconButton({ vm.icon = name }) { PickableIcon(name, vm.color, vm.icon == name) }
+                    PickableIcon(name, vm.color, vm.icon == name) { vm.icon = name }
                 }
             }
-            Text("Color", style = MaterialTheme.typography.labelLarge)
-            ColorPicker(vm.color) { vm.color = it }
+            ColorSection(vm.color) { vm.color = it }
             Button({ vm.save(onBack) }, enabled = vm.title.isNotBlank(), modifier = Modifier.fillMaxWidth().testTag("save")) { Text("Save") }
         }
     }

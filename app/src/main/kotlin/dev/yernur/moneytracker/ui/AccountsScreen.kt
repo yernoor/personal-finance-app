@@ -185,11 +185,10 @@ fun AccountEditScreen(uid: String?, onBack: () -> Unit) {
             Text("Icon", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ACCOUNT_ICONS.forEach { name ->
-                    IconButton({ vm.icon = name }) { PickableIcon(name, vm.color, vm.icon == name) }
+                    PickableIcon(name, vm.color, vm.icon == name) { vm.icon = name }
                 }
             }
-            Text("Color", style = MaterialTheme.typography.labelLarge)
-            ColorPicker(vm.color) { vm.color = it }
+            ColorSection(vm.color) { vm.color = it }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Hide from the Total", Modifier.weight(1f))
                 Switch(vm.ignoreInBalance, { vm.ignoreInBalance = it })

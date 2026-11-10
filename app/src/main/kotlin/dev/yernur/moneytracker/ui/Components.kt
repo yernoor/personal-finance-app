@@ -22,13 +22,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Slider
 import dev.yernur.moneytracker.data.Oklch
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.MaterialTheme
@@ -134,44 +140,73 @@ fun ColorPicker(selected: Int?, onPick: (Int) -> Unit) {
     if (customOpen) CustomColorDialog(selected, onPick) { customOpen = false }
 }
 
-private fun parseHex(text: String): Int? =
-    text.trim().removePrefix("#").takeIf { it.length == 6 }?.toIntOrNull(16)?.let { 0xFF000000.toInt() or it }
+/** The "Color" heading and picker. Mono draws every icon in the accent, so a color would change nothing there and the section is left out. */
+@Composable
+fun ColorSection(selected: Int?, onPick: (Int) -> Unit) {
+    if (LocalIconStyle.current == IconStyle.Mono) return
+    Text("Color", style = MaterialTheme.typography.labelLarge)
+    ColorPicker(selected, onPick)
+}
 
-/** An exact color: a hex field and a hue slider that edit the same value. The icon styles then draw with that hue. */
+private const val WHEEL_LIGHTNESS = 0.70f
+private const val WHEEL_CHROMA = 0.15f
+private const val WHEEL_START_HUE = 250f
+
+/**
+ * A color wheel: drag around the ring to pick a hue, the circle in the middle shows the result. Only the hue is chosen, because the
+ * icon styles set lightness and strength themselves; a gray is one of the 12 stored colors.
+ */
 @Composable
 private fun CustomColorDialog(selected: Int?, onPick: (Int) -> Unit, onDismiss: () -> Unit) {
-    var text by remember { mutableStateOf("%06X".format((if (AccentPalette.isCustom(selected)) selected!! else 0xFF3E7BFA.toInt()) and 0xFFFFFF)) }
-    val parsed = parseHex(text)
+    var hue by remember { mutableFloatStateOf(if (AccentPalette.isCustom(selected)) Oklch.hueOf(selected!!) else WHEEL_START_HUE) }
+    val chosen = Color(Oklch.toArgb(WHEEL_LIGHTNESS, WHEEL_CHROMA, hue))
+    val ring = remember { Brush.sweepGradient((0..24).map { Color(Oklch.toArgb(WHEEL_LIGHTNESS, WHEEL_CHROMA, it * 15f)) }) }
+    val outline = MaterialTheme.colorScheme.onSurface
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = glassContainer(AlertDialogDefaults.containerColor),
         title = { Text("Custom color") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Box(Modifier.size(48.dp).clip(CircleShape).background(parsed?.let { Color(it) } ?: Color.Transparent).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
-                    OutlinedTextField(
-                        text, { text = it.trim().removePrefix("#").take(6).uppercase() }, label = { Text("Hex") }, prefix = { Text("#") },
-                        singleLine = true, isError = parsed == null, modifier = Modifier.testTag("custom-hex"),
-                    )
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Canvas(
+                    Modifier.size(240.dp).testTag("color-wheel").pointerInput(Unit) {
+                        awaitEachGesture {
+                            fun point(p: Offset) { hue = ((Math.toDegrees(atan2(p.y - size.height / 2.0, p.x - size.width / 2.0)) + 360) % 360).toFloat() }
+                            val down = awaitFirstDown()
+                            point(down.position)
+                            do {
+                                val event = awaitPointerEvent()
+                                event.changes.firstOrNull()?.let { point(it.position); it.consume() }
+                            } while (event.changes.any { it.pressed })
+                        }
+                    },
+                ) {
+                    val band = 40.dp.toPx()
+                    val radius = (size.minDimension - band) / 2
+                    drawCircle(ring, radius, style = Stroke(band))
+                    val angle = Math.toRadians(hue.toDouble())
+                    val thumb = center + Offset((radius * cos(angle)).toFloat(), (radius * sin(angle)).toFloat())
+                    drawCircle(Color.White, band / 2 + 2.dp.toPx(), thumb)
+                    drawCircle(outline.copy(alpha = 0.35f), band / 2 + 2.dp.toPx(), thumb, style = Stroke(1.dp.toPx()))
+                    drawCircle(chosen, band / 2 - 3.dp.toPx(), thumb)
+                    drawCircle(chosen, radius - band / 2 - 14.dp.toPx(), center) // the result, large, in the middle
                 }
-                Text("Hue", style = MaterialTheme.typography.labelLarge)
-                Slider(
-                    value = parsed?.let { Oklch.hueOf(it) } ?: 0f, onValueChange = { text = "%06X".format(Oklch.toArgb(0.65f, 0.15f, it) and 0xFFFFFF) },
-                    valueRange = 0f..360f, modifier = Modifier.testTag("custom-hue"),
-                )
             }
         },
-        confirmButton = { TextButton({ parsed?.let { onPick(it); onDismiss() } }, enabled = parsed != null, modifier = Modifier.testTag("custom-use")) { Text("Use") } },
+        confirmButton = { TextButton({ onPick(Oklch.toArgb(WHEEL_LIGHTNESS, WHEEL_CHROMA, hue)); onDismiss() }, modifier = Modifier.testTag("custom-use")) { Text("Use") } },
         dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
     )
 }
 
 /** An icon in a picker: the selected one is ringed, the others are dimmed. */
 @Composable
-fun PickableIcon(name: String, colorKey: Int?, selected: Boolean) {
-    IconBadge(
-        name, colorKey, size = 44.dp,
-        modifier = if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape).padding(2.dp) else Modifier.alpha(0.6f),
-    )
+fun PickableIcon(name: String, colorKey: Int?, selected: Boolean, onClick: () -> Unit) {
+    // Not an IconButton: that clips its content to a circle, which cuts the corners off the tile (and off an Outline tile's ring)
+    Box(Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+        IconBadge(
+            name, colorKey, size = 44.dp,
+            modifier = if (selected) Modifier else Modifier.alpha(0.6f),
+            ringColor = if (selected) MaterialTheme.colorScheme.primary else null,
+        )
+    }
 }

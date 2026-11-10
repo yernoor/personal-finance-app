@@ -62,6 +62,7 @@ private class Look(
     val shadow: Color = Color.Transparent,
     val edgeWidth: Float = 1f,
     val bodyFill: Boolean = true, // false: shapes are only stroked (the Outline look)
+    val bodyStroke: Float = 1.2f, // outline width of the closed shapes; the Outline look matches it to the lines so the glyph has one weight
 )
 
 /** [hue] is what the slot's formulas get (an exact color's own hue); [accentHue] is the app's accent, which Mono always uses. */
@@ -92,7 +93,7 @@ private fun look(style: IconStyle, slot: Int, hue: Float, accentHue: Float, dark
             Look(
                 baseTop = Color.Transparent, baseBottom = Color.Transparent,
                 edge = glyph.copy(alpha = 0.55f), edgeWidth = 3f,
-                glyphTop = glyph, glyphBottom = glyph, knock = Color.Transparent, bodyFill = false,
+                glyphTop = glyph, glyphBottom = glyph, knock = Color.Transparent, bodyFill = false, bodyStroke = 1.7f,
             )
         }
         IconStyle.Mono -> {
@@ -141,7 +142,9 @@ private fun DrawScope.drawTile(look: Look, glyph: Glyph) {
     if (look.glow.alpha > 0f) {
         drawPath(squircle, Brush.radialGradient(listOf(look.glow, look.glow.copy(alpha = 0f)), Offset(50f, 104f), 62f))
     }
-    drawPath(squircle, look.edge, style = Stroke(look.edgeWidth))
+    // The ring is drawn inset by half its width: centered on the tile's own outline, the part outside the canvas would be cut off at the four extremes
+    val inset = (49.6f - look.edgeWidth / 2f) / 49.6f
+    withTransform({ scale(inset, inset, pivot = Offset(50f, 50f)) }) { drawPath(squircle, look.edge, style = Stroke(look.edgeWidth)) }
     look.rim?.let { (start, middle, end) ->
         withTransform({
             translate(0.8f, 0.8f)
@@ -174,7 +177,7 @@ private fun DrawScope.drawTile(look: Look, glyph: Glyph) {
         }
         val fill = Brush.verticalGradient(listOf(look.glyphTop, look.glyphBottom), 3f, 21f)
         if (look.bodyFill) drawPath(body, fill)
-        drawPath(body, fill, style = round(1.2f))
+        drawPath(body, fill, style = round(look.bodyStroke))
         detail?.let { drawPath(it, fill, style = round(1.9f)) }
         // Lines drawn inside the filled shape are cut out of it again, so the glyph keeps its inner detail
         if (detail != null) clipPath(body) { drawPath(detail, look.knock, style = round(1.5f)) }
