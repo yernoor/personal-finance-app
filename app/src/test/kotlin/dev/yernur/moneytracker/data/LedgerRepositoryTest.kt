@@ -57,6 +57,19 @@ class LedgerRepositoryTest {
     }
 
     @Test
+    fun editingAnOldUsdEntry_keepsItsTengeAmount_untilTheAmountChanges() = runBlocking {
+        repo.saveTransaction(draft("usd", 10_000)) // $100 at 450
+        val saved = db.transactionDao().getAll().single()
+        val repoNewRate = LedgerRepository(db, allRates = { mapOf(("USD" to "KZT") to 500.0) })
+
+        repoNewRate.saveTransaction(draft("usd", 10_000, uid = saved.uid).copy(comment = "edited"))
+        assertEquals(4_500_000L, db.transactionDao().get(saved.uid)!!.amountInDefaultCurrency)
+
+        repoNewRate.saveTransaction(draft("usd", 20_000, uid = saved.uid))
+        assertEquals(10_000_000L, db.transactionDao().get(saved.uid)!!.amountInDefaultCurrency) // new amount, today's rate
+    }
+
+    @Test
     fun overwriteBalance_addsUncategorizedCorrection_upAndDown() = runBlocking {
         repo.saveTransaction(draft("kzt", 1_000_019)) // balance -10,000.19
         assertEquals(500_000L, repo.overwriteBalance("kzt", -500_019L, "2026-10-26")) // up by 5,000.00
