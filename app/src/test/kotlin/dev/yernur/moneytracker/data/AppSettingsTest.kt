@@ -93,4 +93,21 @@ class AppSettingsTest {
         prefs.edit().clear().commit()
         assertEquals(false, AppSettings(prefs).glass.value)
     }
+
+    @Test
+    fun walletCapture_isOffUntilConsent_andTheAccountIsRemembered() {
+        prefs.edit().clear().commit()
+        val fresh = AppSettings(prefs)
+        assertEquals(false, fresh.walletCapture.value)
+        assertEquals(null, fresh.walletAccountUid.value)
+
+        fresh.setWalletCapture(true)
+        fresh.setWalletAccount("main")
+        val reread = AppSettings(prefs)
+        assertEquals(true, reread.walletCapture.value)
+        assertEquals("main", reread.walletAccountUid.value)
+
+        reread.setWalletAccount(null)
+        assertEquals(null, AppSettings(prefs).walletAccountUid.value)
+    }
 }

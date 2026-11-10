@@ -322,6 +322,8 @@ Owner wants a payment made with a Google Wallet card to become an expense in the
 - **Format verified on the owner's phone (logger export, 2026-11-10, two successful payments):** package `com.google.android.apps.walletnfcrel`; title = merchant; text = `KZT1,234.00 with <card name> ••<last4>`
   (3-letter code, `,` thousands, `.` decimals); `bigText` empty; not group summaries; **both payments reused notification id 1001**, so dedupe uses time + amount + card + merchant.
   Still unseen (so ignored, not guessed): declines, refunds, foreign-currency payments, pending amounts that change. Parser: `data/wallet/WalletParser.kt`, unit-tested with placeholder values.
+- **Settings (BUILT, More -> Automation):** "Google Wallet payments" switch asks for consent first (what is read, that other apps are ignored unread, nothing leaves the phone), then opens Android's notification-access screen;
+  "Default account for payments" picks where Wallet payments go. The first payment asks for the account when none is chosen. Off until the owner agrees.
 - **Step 2, in progress:** parser + category prompt in the main app, written against the samples the logger collects (card `••last4` to account mapping, dedupe, heads-up notification with category buttons).
 - Rating: **must** (owner request).
 

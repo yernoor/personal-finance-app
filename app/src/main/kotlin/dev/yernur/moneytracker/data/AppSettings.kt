@@ -42,6 +42,8 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _showAllAccounts = MutableStateFlow(prefs?.getBoolean(SHOW_ALL_ACCOUNTS, false) ?: false)
     private val _reminderEnabled = MutableStateFlow(prefs?.getBoolean(REMINDER_ENABLED, true) ?: true)
     private val _reminderMinute = MutableStateFlow(prefs?.getInt(REMINDER_MINUTE, 20 * 60) ?: (20 * 60))
+    private val _walletCapture = MutableStateFlow(prefs?.getBoolean(WALLET_CAPTURE, false) ?: false)
+    private val _walletAccountUid = MutableStateFlow(prefs?.getString(WALLET_ACCOUNT, null))
     private val _autoSync = MutableStateFlow(prefs?.getBoolean(AUTO_SYNC, true) ?: true)
     private val _lastSyncAt = MutableStateFlow(prefs?.getString(LAST_SYNC_AT, null))
     private val _pendingSpreadsheetId = MutableStateFlow(prefs?.getString(PENDING_SPREADSHEET_ID, null))
@@ -137,6 +139,22 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         _reminderEnabled.value = enabled
         _reminderMinute.value = minuteOfDay.coerceIn(0, 24 * 60 - 1)
         prefs?.edit()?.putBoolean(REMINDER_ENABLED, enabled)?.putInt(REMINDER_MINUTE, _reminderMinute.value)?.apply()
+    }
+
+    /** The owner's consent to read Google Wallet payment notifications (More -> Automation). Off until they agree. */
+    val walletCapture: StateFlow<Boolean> = _walletCapture
+
+    fun setWalletCapture(enabled: Boolean) {
+        _walletCapture.value = enabled
+        prefs?.edit()?.putBoolean(WALLET_CAPTURE, enabled)?.apply()
+    }
+
+    /** The account Wallet payments go to; null until the owner picks one (the first payment asks). */
+    val walletAccountUid: StateFlow<String?> = _walletAccountUid
+
+    fun setWalletAccount(uid: String?) {
+        _walletAccountUid.value = uid
+        prefs?.edit()?.apply { if (uid != null) putString(WALLET_ACCOUNT, uid) else remove(WALLET_ACCOUNT) }?.apply()
     }
 
     /** Sync with the sheet once a week in the background (only matters while a sheet is linked). */
@@ -358,6 +376,8 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val KEPT_DUPLICATES = "keptDuplicates"
         private const val REMINDER_ENABLED = "reminderEnabled"
         private const val REMINDER_MINUTE = "reminderMinute"
+        private const val WALLET_CAPTURE = "walletCapture"
+        private const val WALLET_ACCOUNT = "walletAccountUid"
         private const val AUTO_SYNC = "autoSync"
         private const val LAST_SYNC_AT = "lastSyncAt"
         private const val ICON_STYLE = "iconStyle"
