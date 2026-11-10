@@ -98,7 +98,7 @@ class ReportsFlowTest {
         compose.onNodeWithText("₸2,000").assertExists() // expenses
 
         compose.onNodeWithTag("zoom-Day").performClick()
-        waitForText(today.format(DateTimeFormatter.ofPattern("EEE, MMM d, yyyy")))
+        waitForText("Today") // the current day says Today, not its full date
 
         compose.onNodeWithTag("chart-tab-Expenses").performClick()
         waitForText("Кафе")
