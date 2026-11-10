@@ -24,9 +24,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -161,14 +158,7 @@ private fun NumberField(label: String, value: String, onChange: (String) -> Unit
 private fun Choice(label: String, options: List<String>, selected: Int, tag: String, onPick: (Int) -> Unit) {
     Column {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-            options.forEachIndexed { index, text ->
-                SegmentedButton(
-                    selected == index, { onPick(index) }, SegmentedButtonDefaults.itemShape(index, options.size),
-                    modifier = Modifier.testTag("$tag-$index"),
-                ) { Text(text) }
-            }
-        }
+        SlidingSegmented(options, selected, options.indices.map { "$tag-$it" }, onPick, Modifier.padding(top = 4.dp))
     }
 }
 

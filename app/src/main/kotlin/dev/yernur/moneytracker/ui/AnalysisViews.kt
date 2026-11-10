@@ -19,9 +19,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -93,14 +90,10 @@ fun AnalysisScreen(onOpenCategory: (String) -> Unit, onOpenTrend: (String) -> Un
     val forecast by vm.forecast.collectAsStateWithLifecycle()
     val categories = vm.state.collectAsStateWithLifecycle().value?.second.orEmpty()
     Column(Modifier.fillMaxSize()) {
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
-            AnalysisTab.entries.forEachIndexed { index, t ->
-                SegmentedButton(
-                    tab == t, { tab = t }, SegmentedButtonDefaults.itemShape(index, AnalysisTab.entries.size),
-                    modifier = Modifier.testTag("analysis-tab-${t.name}"),
-                ) { Text(t.label) }
-            }
-        }
+        SlidingSegmented(
+            AnalysisTab.entries.map { it.label }, tab.ordinal, AnalysisTab.entries.map { "analysis-tab-${it.name}" }, { tab = AnalysisTab.entries[it] },
+            Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
         if (tab == AnalysisTab.Forecast) forecast?.let { ForecastView(it, categories, onOpenCategory) }
         else AnalysisView(onOpenTrend, onOpenRecurring)
     }

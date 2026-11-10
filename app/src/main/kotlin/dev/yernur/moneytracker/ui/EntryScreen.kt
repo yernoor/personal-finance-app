@@ -37,9 +37,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -290,15 +287,7 @@ fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
                 isTransfer -> listOf(EntryKind.Transfer)
                 else -> listOf(EntryKind.Expense, EntryKind.Income)
             }
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                kinds.forEachIndexed { index, k ->
-                    SegmentedButton(
-                        selected = vm.kind == k, onClick = { vm.kind = k },
-                        shape = SegmentedButtonDefaults.itemShape(index, kinds.size),
-                        modifier = Modifier.testTag("kind-$k"),
-                    ) { Text(k.name) }
-                }
-            }
+            SlidingSegmented(kinds.map { it.name }, kinds.indexOf(vm.kind), kinds.map { "kind-$it" }, { vm.kind = kinds[it] })
 
             AmountField(
                 vm.amount, vm::changeAmount, if (isTransfer) "Amount sent" else "Amount", vm.currencyOf(vm.accountUid).orEmpty(), "amount",
