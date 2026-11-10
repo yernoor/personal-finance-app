@@ -319,7 +319,10 @@ Owner wants a payment made with a Google Wallet card to become an expense in the
   a `NotificationListenerService` that stores title, text, big text, post time, id and the group-summary flag for allow-listed packages only (default: the Wallet package). For any other package it
   records the package name alone (a "seen packages" list so the owner can find the bank app's real package) and never reads the notification. Export writes a text file through the system file picker.
   Installed over adb from a local build (no GitHub release: owner dropped that on 2026-11-10). Shows a silent status notification while reading, with a pause switch. Run on the owner's Nothing Phone 3a: an adb install showed no restricted-settings gate (one phone, observed).
-- **Step 2, not built:** parser + category prompt in the main app, written against the samples the logger collects (card `••last4` to account mapping, dedupe, heads-up notification with category buttons).
+- **Format verified on the owner's phone (logger export, 2026-11-10, two successful payments):** package `com.google.android.apps.walletnfcrel`; title = merchant; text = `KZT1,234.00 with <card name> ••<last4>`
+  (3-letter code, `,` thousands, `.` decimals); `bigText` empty; not group summaries; **both payments reused notification id 1001**, so dedupe uses time + amount + card + merchant.
+  Still unseen (so ignored, not guessed): declines, refunds, foreign-currency payments, pending amounts that change. Parser: `data/wallet/WalletParser.kt`, unit-tested with placeholder values.
+- **Step 2, in progress:** parser + category prompt in the main app, written against the samples the logger collects (card `••last4` to account mapping, dedupe, heads-up notification with category buttons).
 - Rating: **must** (owner request).
 
 ## Open questions for the owner
