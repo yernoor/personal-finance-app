@@ -16,7 +16,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material3.Card
+
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -165,7 +165,7 @@ private fun Choice(label: String, options: List<String>, selected: Int, tag: Str
 @Composable
 private fun Result(rows: List<CompoundYear>, currency: String) {
     val last = rows.last()
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer), shape = MaterialTheme.shapes.extraLarge) {
+    AppCard(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer), shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.fillMaxWidth().padding(20.dp)) {
             Text("Balance after ${rows.size} years", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
             Text(
@@ -178,7 +178,7 @@ private fun Result(rows: List<CompoundYear>, currency: String) {
             }
         }
     }
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), shape = MaterialTheme.shapes.large) {
+    AppCard(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), shape = MaterialTheme.shapes.large) {
         Column(Modifier.fillMaxWidth().padding(16.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Year by year", style = MaterialTheme.typography.titleSmall)

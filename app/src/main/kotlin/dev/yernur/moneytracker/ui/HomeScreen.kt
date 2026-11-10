@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
+
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -140,7 +140,7 @@ fun HomeScreen() {
 
 @Composable
 private fun WarningsCard(warnings: List<HomeWarning>) {
-    Card(Modifier.fillMaxWidth().testTag("home-warnings"), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+    AppCard(Modifier.fillMaxWidth().testTag("home-warnings"), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Spending warnings", style = MaterialTheme.typography.labelLarge)
             warnings.take(4).forEach { Text("${it.title}: ${it.text}", style = MaterialTheme.typography.bodyMedium) }
@@ -150,7 +150,7 @@ private fun WarningsCard(warnings: List<HomeWarning>) {
 
 @Composable
 private fun BalanceCard(state: HomeState, showAll: Boolean) {
-    Card(Modifier.fillMaxWidth().testTag("home-balance")) {
+    AppCard(Modifier.fillMaxWidth().testTag("home-balance")) {
         Column(Modifier.padding(16.dp)) {
             Text("Balance", style = MaterialTheme.typography.labelLarge)
             Text(Money.format(state.counted, DEFAULT_CURRENCY), style = MaterialTheme.typography.displaySmall)
@@ -161,7 +161,7 @@ private fun BalanceCard(state: HomeState, showAll: Boolean) {
 
 @Composable
 private fun TotalsCard(period: PeriodTotals) {
-    Card(Modifier.fillMaxWidth().testTag("home-totals")) {
+    AppCard(Modifier.fillMaxWidth().testTag("home-totals")) {
         Column(Modifier.padding(16.dp)) {
             Text(periodTitle(period.unit, period.range), style = MaterialTheme.typography.labelLarge, modifier = Modifier.testTag("home-totals-title"))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -178,7 +178,7 @@ private fun TotalsCard(period: PeriodTotals) {
 
 @Composable
 private fun TopCategoriesCard(period: PeriodTotals) {
-    Card(Modifier.fillMaxWidth().testTag("home-top-categories")) {
+    AppCard(Modifier.fillMaxWidth().testTag("home-top-categories")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Top spending · ${periodTitle(period.unit, period.range)}", style = MaterialTheme.typography.labelLarge)
             if (period.top.isEmpty()) Text("Nothing spent yet", style = MaterialTheme.typography.bodyMedium)
@@ -195,7 +195,7 @@ private fun TopCategoriesCard(period: PeriodTotals) {
 
 @Composable
 private fun RecentCard(recent: List<RecentEntry>) {
-    Card(Modifier.fillMaxWidth().testTag("home-recent")) {
+    AppCard(Modifier.fillMaxWidth().testTag("home-recent")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Latest entries", style = MaterialTheme.typography.labelLarge)
             if (recent.isEmpty()) Text("No entries yet", style = MaterialTheme.typography.bodyMedium)

@@ -11,7 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -88,7 +88,7 @@ fun RecurringScreen(onBack: () -> Unit) {
     ) { padding ->
         val s = state ?: return@Scaffold
         Column(Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).testTag("recurring"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Card(Modifier.fillMaxWidth().testTag("recurring-total"), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)) {
+            AppCard(Modifier.fillMaxWidth().testTag("recurring-total"), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)) {
                 Column(Modifier.padding(20.dp)) {
                     Text("Recurring costs per month", style = MaterialTheme.typography.labelLarge)
                     Text(money(s.recurring.sumOf { it.amount }), style = MaterialTheme.typography.headlineMedium)
@@ -131,7 +131,7 @@ private fun RecurringRow(item: RecurringItem) {
 
 @Composable
 private fun DuplicateCard(pair: DuplicatePair, category: String?, onKeep: () -> Unit, onDelete: () -> Unit) {
-    Card(Modifier.fillMaxWidth().testTag("duplicate-${pair.second.uid}"), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer)) {
+    AppCard(Modifier.fillMaxWidth().testTag("duplicate-${pair.second.uid}"), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Two entries with the same amount, category and account, created minutes apart.", style = MaterialTheme.typography.bodyMedium)
             listOf("First" to pair.first, "Second (newer)" to pair.second).forEach { (label, it) ->

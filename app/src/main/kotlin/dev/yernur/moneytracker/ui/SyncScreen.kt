@@ -21,7 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -216,7 +216,7 @@ fun SyncScreen(onBack: () -> Unit) {
                     ) { Text("Create or refresh the sheet") }
                 }
             } else {
-                Card(Modifier.fillMaxWidth().testTag("sync-connected")) {
+                AppCard(Modifier.fillMaxWidth().testTag("sync-connected")) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Connected", style = MaterialTheme.typography.titleMedium)
                         Text(spreadsheetUrl.orEmpty(), style = MaterialTheme.typography.bodySmall)

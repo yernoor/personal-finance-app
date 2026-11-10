@@ -17,7 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -146,7 +146,7 @@ fun WealthScreen(embedded: Boolean = false, onCompound: () -> Unit, onBack: () -
 
 @Composable
 private fun SectionCard(title: String, onAdd: (() -> Unit)?, addTag: String, content: @Composable () -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), shape = MaterialTheme.shapes.large) {
+    AppCard(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), shape = MaterialTheme.shapes.large) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
@@ -162,7 +162,7 @@ private fun NetWorthCard(data: WealthOverview, show: (Long) -> String) {
     val today = LocalDate.now()
     val total = data.netWorth.totalMinor
     val change = netWorthChange(data.snapshots.map { LocalDate.parse(it.date) to it.totalMinor }, today, total)
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer), shape = MaterialTheme.shapes.extraLarge) {
+    AppCard(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer), shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.fillMaxWidth().padding(20.dp)) {
             Text("Net worth", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
             Text(show(total), fontSize = 34.sp, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.testTag("net-worth"))

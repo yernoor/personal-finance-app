@@ -28,7 +28,6 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -58,6 +57,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
@@ -159,8 +159,8 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     Scaffold(
         topBar = {
             AnimatedVisibility(tab != null, enter = fadeIn(tween(FADE_MS)) + expandVertically(), exit = fadeOut(tween(FADE_MS)) + shrinkVertically()) {
-                CenterAlignedTopAppBar(
-                    title = { Text(lastTab.label) },
+                TopAppBar(
+                    title = { Text(lastTab.label, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold) },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = if (glass) Color.Transparent else Color.Unspecified),
                     actions = { IconButton({ nav.navigate("more") }, modifier = Modifier.testTag("more")) { Icon(Icons.Outlined.MoreVert, "More") } },
                 )

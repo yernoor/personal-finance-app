@@ -364,3 +364,13 @@ Owner wants a payment made with a Google Wallet card to become an expense in the
   Deposit 2 2.31M (230507718), Freedom USD $13.56 (1356). So `account_balance` is what the owner saw on the phone.
 - The replay gap was a data-format quirk, not missing operations: 60 USD rows keep their amount in the real-currency
   field. With that rule every account reconciles to the cent (docs/FORMAT.md 4b). No opening-balance adjustment needed.
+
+## UI redesign (2026-11-11), from the design canvas the owner approved
+BUILT and unit-tested; looked at on the emulator, not yet on the phone.
+- **Type**: Inter, with Inter Tight for headings and big numbers, tabular figures (see the font note above).
+- **Cards** (`AppCard`): white surface, hairline border, 22 dp corners; cards with their own colors (warnings, results) keep them. **Titles**: large, left-aligned.
+- **Bottom bar** (`FloatingTabBar`): a floating pill; the chosen tab shows icon and label, the others only their icon, one highlight slides between them. Fits 2 to 5 tabs; checked with the owner's five (Home, History, Analysis, Accounts, Wealth) in the mock-up. The add button is a round accent button above the bar's right end, still only on Home and History.
+- **Selectors** (`SlidingSegmented`): a track with a thumb that slides to the chosen segment (History, Charts, Entry, Analysis, Compound).
+- **Motion**: rows and cards shrink a few dp while pressed and spring back (`PressScaleIndication`, app-wide for plain clickables; Material's own buttons, chips and FAB keep their built-in state layer). Tabs slide the way you move along the bar; the add screen grows out of the add button.
+- **History says "Today"** for the current day (also in Charts' day view).
+- **Not done from the canvas**: Home's income and expense as two cards, the accent hero cards on Wealth and Compound interest, the reordered Compound interest page, bars and ring animating in on Charts and History, the balance rolling to a new value, glass mode (deliberately left for later).

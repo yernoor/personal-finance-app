@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
+
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -42,7 +42,7 @@ fun WarningKind.text(): String = when (this) {
 fun ForecastView(forecast: Forecast, categories: Map<String?, CategoryEntity>, onOpenCategory: (String) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + LocalChromeInset.current), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            Card(Modifier.fillMaxWidth().testTag("forecast-overall")) {
+            AppCard(Modifier.fillMaxWidth().testTag("forecast-overall")) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("This month, day ${forecast.daysElapsed} of ${forecast.daysInMonth}", style = MaterialTheme.typography.labelLarge)
                     Text("On track for ${money(forecast.runRateIncluded)}", style = MaterialTheme.typography.headlineSmall)
@@ -68,7 +68,7 @@ fun ForecastView(forecast: Forecast, categories: Map<String?, CategoryEntity>, o
 @Composable
 private fun CategoryForecastCard(row: CategoryForecast, category: CategoryEntity?, onOpen: (String) -> Unit) {
     val warned = row.warnings.isNotEmpty()
-    Card(
+    AppCard(
         Modifier.fillMaxWidth().testTag("forecast-${row.categoryUid ?: "none"}")
             .clickable(enabled = row.categoryUid != null) { onOpen(row.categoryUid!!) },
         colors = CardDefaults.cardColors(containerColor = if (warned) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant),

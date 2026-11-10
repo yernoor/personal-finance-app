@@ -15,7 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material3.Card
+
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -114,7 +114,7 @@ private fun AnalysisView(onOpenCategory: (String) -> Unit, onOpenRecurring: () -
         Text("Category trends", style = MaterialTheme.typography.titleMedium)
         Text("Change is this month's pace against the 3-month average.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         analysis.categories.forEach { TrendRow(it, categories[it.categoryUid], onOpenCategory) }
-        Card(Modifier.fillMaxWidth().clickable(onClick = onOpenRecurring).testTag("open-recurring")) {
+        AppCard(Modifier.fillMaxWidth().clickable(onClick = onOpenRecurring).testTag("open-recurring")) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Recurring costs and duplicates", style = MaterialTheme.typography.titleMedium)
@@ -129,7 +129,7 @@ private fun AnalysisView(onOpenCategory: (String) -> Unit, onOpenRecurring: () -
 
 @Composable
 private fun MonthlyCard(analysis: Analysis) {
-    Card(Modifier.fillMaxWidth().testTag("analysis-monthly")) {
+    AppCard(Modifier.fillMaxWidth().testTag("analysis-monthly")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Average per month", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(analysis.average?.let(::money) ?: "Not enough history", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("analysis-average"))
@@ -178,7 +178,7 @@ private fun MonthlyBars(bars: List<MonthBar>, average: Long?) {
 
 @Composable
 private fun InsightsCard(insights: List<Insight>, categories: Map<String?, CategoryEntity>) {
-    Card(Modifier.fillMaxWidth().testTag("analysis-insights"), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+    AppCard(Modifier.fillMaxWidth().testTag("analysis-insights"), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Worth a look", style = MaterialTheme.typography.titleMedium)
             insights.forEach {
