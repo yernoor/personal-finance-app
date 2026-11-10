@@ -21,6 +21,14 @@ class AppSettingsTest {
     }
 
     @Test
+    fun keptDuplicates_areRemembered() {
+        prefs.edit().clear().commit()
+        AppSettings(prefs).keepDuplicate("a")
+        AppSettings(prefs).keepDuplicate("b")
+        assertEquals(setOf("a", "b"), AppSettings(prefs).keptDuplicates.value)
+    }
+
+    @Test
     fun anUnknownStoredPeriodFallsBackToTheDay() {
         prefs.edit().putString("historyPeriod", "Fortnight").commit()
         assertEquals(PeriodUnit.Day, AppSettings(prefs).historyPeriod.value)

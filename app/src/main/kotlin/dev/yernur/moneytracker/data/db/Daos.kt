@@ -23,6 +23,12 @@ data class TxDetail(
     val uid: String, val date: String, val type: TransactionType, val categoryUid: String?, val accountUid: String, val comment: String?, val amount: Long,
 )
 
+/** What recurring and duplicate detection need: [amount] in the default currency, [accountAmount] in the account's own currency. */
+data class TxFull(
+    val uid: String, val date: String, val type: TransactionType, val categoryUid: String?, val accountUid: String,
+    val comment: String?, val amount: Long, val accountAmount: Long, val created: String,
+)
+
 @Dao
 interface AccountDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
@@ -148,6 +154,9 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE isRemoved = 0 ORDER BY date DESC, created DESC LIMIT :limit")
     fun observeRecent(limit: Int): Flow<List<TransactionEntity>>
+
+    @Query("SELECT uid, date, type, categoryUid, accountUid, comment, COALESCE(amountInDefaultCurrency, 0) AS amount, COALESCE(amountInAccountCurrency, amountInRealCurrency, 0) AS accountAmount, created FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to")
+    fun observeFull(from: String, to: String): Flow<List<TxFull>>
 
     @Query("SELECT MIN(date) FROM transactions WHERE isRemoved = 0")
     fun observeEarliestDate(): Flow<String?>

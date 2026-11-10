@@ -272,7 +272,7 @@ LLM, no new network call.
 | "Can I afford this?" check | **BUILT** (More -> Can I afford this?) | Price (default currency), category, paying-from account. Verdict Yes / Tight / No with the numbers behind it. Not built: item name, purchase date other than today (the mock-up had them), prefilling the add screen from "Log as expense" (it opens an empty one). Never run on a device; unit and Robolectric tests only. |
 | Spending analysis (in Charts) | **BUILT** (Charts -> Analysis tab) | Six monthly bars with a projected current month and an average line, "worth a look" insights, per-category sparkline and change vs the 3-month average. Taps open the category trend. Not run on a device. |
 | Category trend screen | **BUILT** (tap a category in Analysis) | 12-month line (current month drawn as the run-rate segment) with limit and 3-month average, Friday-to-Sunday share and weekday bars, three largest operations this month. Not built: the mock-up's "Open all in History" button (History has no category filter). |
-| Recurring costs, price changes, possible duplicates | must | Detected from the ledger's own history; nothing changes unless the owner confirms. |
+| Recurring costs, price changes, possible duplicates | must (detection BUILT, screen next) | Detected from the ledger's own history; nothing changes unless the owner confirms. "Keep both" is remembered per second operation in settings. |
 
 ### Affordability rules (all amounts in default-currency minor units)
 - `balance` = the chosen account's balance converted to the default currency.
