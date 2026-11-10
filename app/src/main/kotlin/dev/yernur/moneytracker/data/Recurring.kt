@@ -67,7 +67,8 @@ fun findDuplicates(rows: List<TxFull>, kept: Set<String> = emptySet()): List<Dup
     rows.filter { it.accountAmount > 0 }
         .groupBy { listOf(it.type, it.accountUid, it.categoryUid, it.accountAmount, it.date) }
         .values.flatMap { group ->
-            group.sortedBy { it.created }.zipWithNext().filter { (a, b) ->
+            // the uid breaks a tie of the same millisecond, so the order is stable
+            group.sortedWith(compareBy({ it.created }, { it.uid })).zipWithNext().filter { (a, b) ->
                 b.uid !in kept && minutesBetween(a.created, b.created) <= DUPLICATE_WINDOW_MINUTES
             }.map { (a, b) -> DuplicatePair(a, b) }
         }.sortedByDescending { it.second.created }

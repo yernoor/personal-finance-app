@@ -38,7 +38,7 @@ class AppSettingsTest {
     fun navbarAndHomeLayout_defaultToTheStandardShape_andPersist() {
         prefs.edit().clear().commit()
         val fresh = AppSettings(prefs)
-        assertEquals(listOf("home", "history", "charts", "accounts"), fresh.navTabs.value)
+        assertEquals(listOf("home", "history", "charts", "accounts", "analysis"), fresh.navTabs.value)
         assertEquals(listOf("warnings", "balance", "totals"), fresh.homeCards.value)
         assertEquals(PeriodUnit.Month, fresh.homeTotalsPeriod.value) // the monthly totals the owner likes
 

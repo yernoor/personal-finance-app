@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,9 +18,15 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -42,6 +49,7 @@ import androidx.lifecycle.viewModelScope
 import dev.yernur.moneytracker.data.Analysis
 import dev.yernur.moneytracker.data.CategoryTrend
 import dev.yernur.moneytracker.data.DEFAULT_CURRENCY
+import dev.yernur.moneytracker.data.Forecast
 import dev.yernur.moneytracker.data.ForecastRepository
 import dev.yernur.moneytracker.data.Insight
 import dev.yernur.moneytracker.data.InsightKind
@@ -71,11 +79,35 @@ class AnalysisViewModel(db: AppDatabase, forecasts: ForecastRepository, today: L
             analysis(rows, forecast, today) to categories.associateBy<CategoryEntity, String?> { it.uid }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     }
+    val forecast: StateFlow<Forecast?> = forecasts.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }
 
-/** The Analysis tab of Charts: six months of spending, what stands out, and every category's trend. */
+enum class AnalysisTab(val label: String) { Trends("Trends"), Forecast("Forecast") }
+
+/** The Analysis tab of the bottom bar: Trends (six months, insights, category trends) or the Forecast of this month. */
 @Composable
-fun AnalysisView(onOpenCategory: (String) -> Unit, onOpenRecurring: () -> Unit = {}) {
+fun AnalysisScreen(onOpenCategory: (String) -> Unit, onOpenTrend: (String) -> Unit, onOpenRecurring: () -> Unit) {
+    var tab by rememberSaveable { mutableStateOf(AnalysisTab.Trends) }
+    val vm = appViewModel { AnalysisViewModel(it.db, it.forecasts) }
+    val forecast by vm.forecast.collectAsStateWithLifecycle()
+    val categories = vm.state.collectAsStateWithLifecycle().value?.second.orEmpty()
+    Column(Modifier.fillMaxSize()) {
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+            AnalysisTab.entries.forEachIndexed { index, t ->
+                SegmentedButton(
+                    tab == t, { tab = t }, SegmentedButtonDefaults.itemShape(index, AnalysisTab.entries.size),
+                    modifier = Modifier.testTag("analysis-tab-${t.name}"),
+                ) { Text(t.label) }
+            }
+        }
+        if (tab == AnalysisTab.Forecast) forecast?.let { ForecastView(it, categories, onOpenCategory) }
+        else AnalysisView(onOpenTrend, onOpenRecurring)
+    }
+}
+
+/** Six months of spending, what stands out, and every category's trend. */
+@Composable
+private fun AnalysisView(onOpenCategory: (String) -> Unit, onOpenRecurring: () -> Unit) {
     val vm = appViewModel { AnalysisViewModel(it.db, it.forecasts) }
     val state by vm.state.collectAsStateWithLifecycle()
     val (analysis, categories) = state ?: return

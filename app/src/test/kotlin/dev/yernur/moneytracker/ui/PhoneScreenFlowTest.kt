@@ -226,7 +226,7 @@ class PhoneScreenFlowTest {
         check("nav", "charts") // hide Charts
         tap("nav-down-home") // Home after History
         check("nav", "categories") // show Categories
-        assertEquals(listOf("history", "home", "accounts", "categories"), container.settings.navTabs.value)
+        assertEquals(listOf("history", "home", "accounts", "analysis", "categories"), container.settings.navTabs.value)
         compose.onNodeWithContentDescription("Back").performClick()
         compose.onNodeWithContentDescription("Back").performClick()
 

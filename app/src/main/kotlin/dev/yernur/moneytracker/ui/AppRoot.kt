@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -83,6 +84,7 @@ enum class NavTab(val id: String, val label: String, val icon: ImageVector) {
     History("history", "History", Icons.Outlined.History),
     Charts("charts", "Charts", Icons.Outlined.BarChart),
     Accounts("accounts", "Accounts", Icons.Outlined.AccountBalanceWallet),
+    Analysis("analysis", "Analysis", Icons.Outlined.Insights),
     Categories("categories", "Categories", Icons.Outlined.Category),
     Tags("tags", "Tags", Icons.AutoMirrored.Outlined.Label),
     Wealth("wealth", "Wealth", Icons.AutoMirrored.Outlined.TrendingUp),
@@ -229,7 +231,10 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             screen("history") {
                 HistoryScreen { uid, isTransfer -> nav.navigate(entryRoute(uid, if (isTransfer) EntryKind.Transfer else EntryKind.Expense)) }
             }
-            screen("charts") { ChartsScreen(onOpenCategory = { nav.navigate("category/$it?type=Expense") }, onOpenTrend = { nav.navigate("trend/$it") }, onOpenRecurring = { nav.navigate("recurring") }, onOpenTransaction = { nav.navigate(entryRoute(it)) }) }
+            screen("charts") { ChartsScreen(onOpenTransaction = { nav.navigate(entryRoute(it)) }) }
+            screen("analysis") {
+                AnalysisScreen(onOpenCategory = { nav.navigate("category/$it?type=Expense") }, onOpenTrend = { nav.navigate("trend/$it") }, onOpenRecurring = { nav.navigate("recurring") })
+            }
             screen("accounts") {
                 AccountsScreen(
                     onOpen = { nav.navigate("account/$it") }, onNew = { nav.navigate("account/new") },

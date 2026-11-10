@@ -49,8 +49,7 @@ class AnalysisFlowTest {
 
     @Test
     fun analysisTab_showsTheMonthlyCard_andACategoryRowOpensItsTrend() {
-        compose.onNodeWithTag("tab-charts").performClick()
-        compose.onNodeWithTag("chart-tab-Analysis").performClick()
+        compose.onNodeWithTag("tab-analysis").performClick()
         waitFor("analysis-monthly")
         compose.onNodeWithTag("analysis-average").assertIsDisplayed()
         waitFor("trend-cafe")

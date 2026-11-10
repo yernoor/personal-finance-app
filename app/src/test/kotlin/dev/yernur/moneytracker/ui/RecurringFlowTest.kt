@@ -59,8 +59,7 @@ class RecurringFlowTest {
     private fun gone(tag: String) = compose.waitUntil(5_000) { compose.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isEmpty() }
 
     private fun openScreen() {
-        compose.onNodeWithTag("tab-charts").performClick()
-        compose.onNodeWithTag("chart-tab-Analysis").performClick()
+        compose.onNodeWithTag("tab-analysis").performClick()
         waitFor("open-recurring")
         compose.onNodeWithTag("open-recurring").performScrollTo().performClick()
         waitFor("recurring")
@@ -80,7 +79,7 @@ class RecurringFlowTest {
         openScreen()
         val pairs = { runBlocking { db.transactionDao().getAll() }.filter { it.comment == "Lunch" && !it.isRemoved } }
         assertEquals(2, pairs().size)
-        val newer = pairs().maxBy { it.created }
+        val newer = pairs().maxWith(compareBy({ it.created }, { it.uid })) // same order the detection uses
         waitFor("duplicate-${newer.uid}")
         compose.onNodeWithTag("duplicate-delete").performScrollTo().performClick()
         gone("duplicate-${newer.uid}")

@@ -138,8 +138,8 @@ class ReportsFlowTest {
 
     @Test
     fun forecastTab_listsTheCategoryWithItsLimitAndWarning() {
-        compose.onNodeWithTag("tab-charts").performClick()
-        compose.onNodeWithTag("chart-tab-Forecast").performClick()
+        compose.onNodeWithTag("tab-analysis").performClick()
+        compose.onNodeWithTag("analysis-tab-Forecast").performClick()
         waitForText("Over the limit")
         compose.onNodeWithTag("forecast-overall").assertIsDisplayed()
         compose.onNodeWithText("Limit ₸1,000").assertIsDisplayed()
