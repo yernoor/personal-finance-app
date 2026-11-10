@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
+import androidx.glance.GlanceTheme
 import androidx.glance.GlanceModifier
 import androidx.glance.Image
 import androidx.glance.ImageProvider
@@ -50,17 +51,15 @@ abstract class MoneyWidget(private val cellsWide: Int, private val cellsHigh: In
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val container = (context.applicationContext as MoneyApp).container
         val data = loadWidgetData(container.db, container.forecasts)
-        val palette = WidgetPalette(container.settings.widgetGlass.value)
-        val dot = container.settings.widgetDotNumerals.value
-        provideContent { Content(context, data, palette, dot) }
+        val style = container.settings.widgetStyle.value
+        provideContent { GlanceTheme { Content(context, data, widgetPalette(context, style), style.dotNumerals) } }
     }
 
     /** Android 15+: the picker shows the real widget, drawn with fictional numbers in the look the owner chose. */
     override suspend fun providePreview(context: Context, widgetCategory: Int) {
         val container = (context.applicationContext as MoneyApp).container
-        val palette = WidgetPalette(container.settings.widgetGlass.value)
-        val dot = container.settings.widgetDotNumerals.value
-        provideContent { Content(context, sampleWidgetData(), palette, dot) }
+        val style = container.settings.widgetStyle.value
+        provideContent { GlanceTheme { Content(context, sampleWidgetData(), widgetPalette(context, style), style.dotNumerals) } }
     }
 }
 
@@ -74,7 +73,7 @@ class MonthWidget : MoneyWidget(2, 2) {
                 Label("Spent in ${data.monthName()}", palette)
                 Spacer(GlanceModifier.defaultWeight())
                 BigNumber(context, wholeUnits(data.monthSpent), palette, dot)
-                Label("₸ · on pace for ${wholeUnits(data.projected)}", palette, warn = data.overLimit)
+                Label("₸ · on pace for ${wholeUnits(data.projected)}", palette, accent = true)
             }
         }
     }
@@ -132,7 +131,7 @@ class BudgetWidget : MoneyWidget(4, 4) {
             Column(GlanceModifier.fillMaxSize()) {
                 Label("Spent in ${data.monthName()}", palette)
                 BigNumber(context, wholeUnits(data.monthSpent), palette, dot)
-                Label("₸ · on pace for ${wholeUnits(data.projected)}", palette, warn = data.overLimit)
+                Label("₸ · on pace for ${wholeUnits(data.projected)}", palette, accent = true)
                 Spacer(GlanceModifier.height(10.dp))
                 BarImage(WidgetBitmaps.stackedBar(data.topCategories.take(6).map { it.spent }, track = palette.bitmapTrack), 10)
                 Spacer(GlanceModifier.height(8.dp))
@@ -170,7 +169,7 @@ class DashboardWidget : MoneyWidget(4, 6) {
             Column(GlanceModifier.fillMaxSize()) {
                 Label("Spent in ${data.monthName()}", palette)
                 BigNumber(context, wholeUnits(data.monthSpent), palette, dot)
-                Label("₸ · on pace for ${wholeUnits(data.projected)} · today ${wholeUnits(data.todaySpent)}", palette, warn = data.overLimit)
+                Label("₸ · on pace for ${wholeUnits(data.projected)} · today ${wholeUnits(data.todaySpent)}", palette, accent = true)
                 Spacer(GlanceModifier.height(8.dp))
                 BarImage(WidgetBitmaps.stackedBar(data.topCategories.take(6).map { it.spent }, track = palette.bitmapTrack), 10)
                 Spacer(GlanceModifier.height(8.dp))

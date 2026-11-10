@@ -6,6 +6,9 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.glance.ColorFilter
+import androidx.glance.GlanceTheme
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceModifier
@@ -33,16 +36,23 @@ import androidx.glance.color.ColorProvider as DayNightColor
 import androidx.glance.unit.ColorProvider
 import dev.yernur.moneytracker.MainActivity
 import dev.yernur.moneytracker.R
+import dev.yernur.moneytracker.data.WidgetStyle
 
-/** Colours of one widget look. Glass is dark and translucent with white text; solid is a card that follows light/dark mode. */
-class WidgetPalette(val glass: Boolean) {
-    val background = ImageProvider(if (glass) R.drawable.widget_glass else R.drawable.widget_solid)
-    val primary = if (glass) ColorProvider(Color.White) else DayNightColor(Color(0xFF14181C), Color(0xFFF2F4F6))
-    val secondary = if (glass) ColorProvider(Color(0xCCFFFFFF)) else DayNightColor(Color(0xFF5B636B), Color(0xFFB4BBC2))
-    val warning = ColorProvider(Color(0xFFFFB74D))
-    val bitmapPrimary = if (glass) 0xFFFFFFFF.toInt() else 0xFF14181C.toInt() // dot numerals cannot follow day/night, so solid uses the dark text
-    val bitmapTrack = if (glass) 0x33FFFFFF else 0x22000000
+/** Colours of one widget look. All looks follow light/dark mode: Nothing OS and glass are translucent, usual is opaque. [accent] is the system accent (Material You). */
+class WidgetPalette(style: WidgetStyle, val accent: ColorProvider, val accentArgb: Int) {
+    val background = ImageProvider(
+        when (style) { WidgetStyle.NothingOs -> R.drawable.widget_nothing; WidgetStyle.Glass -> R.drawable.widget_glass; WidgetStyle.Usual -> R.drawable.widget_solid },
+    )
+    val primary = DayNightColor(Color(0xFF14181C), Color(0xFFF2F4F6))
+    val secondary = DayNightColor(Color(0xFF4A525A), Color(0xFFC4CBD2))
+    val warning = DayNightColor(Color(0xFFB26A00), Color(0xFFFFB74D))
+    val bitmapTrack = 0x33808890 // mid grey: visible on light and dark cards
 }
+
+/** The palette for the current accent; call inside GlanceTheme. */
+@Composable
+fun widgetPalette(context: Context, style: WidgetStyle) =
+    WidgetPalette(style, GlanceTheme.colors.primary, GlanceTheme.colors.primary.getColor(context).toArgb())
 
 /** Opens the app, optionally straight into an add screen (kind) or an existing operation (uid): MainActivity reads the extras. */
 fun openApp(context: Context, kind: String? = null, uid: String? = null) = actionStartActivity(
@@ -64,14 +74,17 @@ fun WidgetCard(palette: WidgetPalette, onClick: androidx.glance.action.Action, c
 }
 
 @Composable
-fun Label(text: String, palette: WidgetPalette, bold: Boolean = false, size: Int = 12, warn: Boolean = false) =
-    Text(text, style = TextStyle(color = if (warn) palette.warning else palette.secondary.takeUnless { bold } ?: palette.primary, fontSize = size.sp, fontWeight = if (bold) FontWeight.Medium else FontWeight.Normal), maxLines = 1)
+fun Label(text: String, palette: WidgetPalette, bold: Boolean = false, size: Int = 12, warn: Boolean = false, accent: Boolean = false) =
+    Text(text, style = TextStyle(color = if (warn) palette.warning else if (accent) palette.accent else palette.secondary.takeUnless { bold } ?: palette.primary, fontSize = size.sp, fontWeight = if (bold) FontWeight.Medium else FontWeight.Normal), maxLines = 1)
 
 /** The big number: Doto bitmap when enabled (never below 16 sp), otherwise the system font. */
 @Composable
 fun BigNumber(context: Context, text: String, palette: WidgetPalette, dot: Boolean, sizeDp: Int = 34) {
     if (dot) {
-        Image(ImageProvider(WidgetBitmaps.dotText(context, text, sizeDp.toFloat(), palette.bitmapPrimary)), text, GlanceModifier.height((sizeDp * 1.25f).dp))
+        Image( // drawn white, tinted by the launcher so it follows light/dark mode
+            ImageProvider(WidgetBitmaps.dotText(context, text, sizeDp.toFloat(), 0xFFFFFFFF.toInt())), text, GlanceModifier.height((sizeDp * 1.25f).dp),
+            colorFilter = ColorFilter.tint(palette.primary),
+        )
     } else {
         Text(text, style = TextStyle(color = palette.primary, fontSize = (sizeDp - 4).sp, fontWeight = FontWeight.Medium), maxLines = 1)
     }
@@ -91,7 +104,7 @@ fun LimitRow(bar: LimitBar, palette: WidgetPalette) {
             Label("${wholeUnits(bar.spent)} / ${wholeUnits(bar.limit)}", palette, size = 12, warn = fraction > 1f)
         }
         Spacer(GlanceModifier.height(3.dp))
-        BarImage(WidgetBitmaps.progressBar(fraction, if (fraction > 1f) 0xFFFFB74D.toInt() else palette.bitmapPrimary, track = palette.bitmapTrack), 6)
+        BarImage(WidgetBitmaps.progressBar(fraction, if (fraction > 1f) 0xFFFFB74D.toInt() else palette.accentArgb, track = palette.bitmapTrack), 6)
     }
 }
 

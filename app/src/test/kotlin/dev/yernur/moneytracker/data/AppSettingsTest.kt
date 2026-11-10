@@ -95,6 +95,19 @@ class AppSettingsTest {
     }
 
     @Test
+    fun widgetStyle_comesFromTheOldSwitchesOnce_thenPersists() {
+        prefs.edit().clear().commit()
+        assertEquals(WidgetStyle.NothingOs, AppSettings(prefs).widgetStyle.value) // old defaults: glass and dot-matrix on
+        prefs.edit().putBoolean("widgetDotNumerals", false).commit()
+        assertEquals(WidgetStyle.Glass, AppSettings(prefs).widgetStyle.value)
+        prefs.edit().putBoolean("widgetGlass", false).commit()
+        assertEquals(WidgetStyle.Usual, AppSettings(prefs).widgetStyle.value)
+
+        AppSettings(prefs).setWidgetStyle(WidgetStyle.NothingOs)
+        assertEquals(WidgetStyle.NothingOs, AppSettings(prefs).widgetStyle.value) // the stored style beats the old switches
+    }
+
+    @Test
     fun walletCapture_isOffUntilConsent_andTheAccountIsRemembered() {
         prefs.edit().clear().commit()
         val fresh = AppSettings(prefs)

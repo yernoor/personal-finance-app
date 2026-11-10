@@ -34,8 +34,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _recentsMode = MutableStateFlow(
         prefs?.getString(RECENTS_MODE, null)?.let { name -> RecentsMode.entries.firstOrNull { it.name == name } ?: RecentsMode.Hide.takeIf { name == "Blur" } } ?: RecentsMode.Off,
     )
-    private val _widgetGlass = MutableStateFlow(prefs?.getBoolean(WIDGET_GLASS, true) ?: true)
-    private val _widgetDotNumerals = MutableStateFlow(prefs?.getBoolean(WIDGET_DOT_NUMERALS, true) ?: true)
+    private val _widgetStyle = MutableStateFlow(storedWidgetStyle(prefs))
     private val _spreadsheetId = MutableStateFlow(prefs?.getString(SPREADSHEET_ID, null))
     private val _spreadsheetUrl = MutableStateFlow(prefs?.getString(SPREADSHEET_URL, null))
     private val _keptDuplicates = MutableStateFlow(prefs?.getString(KEPT_DUPLICATES, null)?.split(',')?.filter { it.isNotEmpty() }?.toSet().orEmpty())
@@ -227,20 +226,12 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         prefs?.edit()?.putString(ICON_STYLE, style.name)?.apply()
     }
 
-    /** Widget look: glass (dark translucent) or a solid card that follows the phone's light/dark mode. */
-    val widgetGlass: StateFlow<Boolean> = _widgetGlass
+    /** Widget look: Nothing OS (with dot-matrix numerals), glass or usual (opaque). All follow the phone light/dark mode. */
+    val widgetStyle: StateFlow<WidgetStyle> = _widgetStyle
 
-    fun setWidgetGlass(enabled: Boolean) {
-        _widgetGlass.value = enabled
-        prefs?.edit()?.putBoolean(WIDGET_GLASS, enabled)?.apply()
-    }
-
-    /** Big widget numerals in the dot-matrix font (Doto) instead of the system font. */
-    val widgetDotNumerals: StateFlow<Boolean> = _widgetDotNumerals
-
-    fun setWidgetDotNumerals(enabled: Boolean) {
-        _widgetDotNumerals.value = enabled
-        prefs?.edit()?.putBoolean(WIDGET_DOT_NUMERALS, enabled)?.apply()
+    fun setWidgetStyle(style: WidgetStyle) {
+        _widgetStyle.value = style
+        prefs?.edit()?.putString(WIDGET_STYLE, style.name)?.apply()
     }
 
     /** The app-lock PIN (hash only), or null when there is none. */
@@ -364,7 +355,8 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val HISTORY_PERIOD = "historyPeriod"
         private const val NAV_TABS = "navTabs"
         private const val GLASS = "glass"
-        private const val WIDGET_GLASS = "widgetGlass"
+        private const val WIDGET_STYLE = "widgetStyle"
+        private const val WIDGET_GLASS = "widgetGlass" // old two-switch settings, read once to pick the style
         private const val WIDGET_DOT_NUMERALS = "widgetDotNumerals"
         private const val PIN_HASH = "pinHash"
         private const val PIN_SALT = "pinSalt"
@@ -405,3 +397,12 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
 /** A stored style, accepted only if it belongs to the right set (glass looks for glass, the others otherwise). */
 private fun storedIconStyle(prefs: SharedPreferences?, key: String, glass: Boolean, default: IconStyle): IconStyle =
     IconStyle.entries.firstOrNull { it.name == prefs?.getString(key, null) && it.forGlass == glass } ?: default
+
+/** The stored widget style; without one, the old glass and dot-matrix switches (both defaulted on) decide. */
+private fun storedWidgetStyle(prefs: SharedPreferences?): WidgetStyle {
+    val stored = WidgetStyle.entries.firstOrNull { it.name == prefs?.getString("widgetStyle", null) }
+    if (stored != null) return stored
+    val glass = prefs?.getBoolean("widgetGlass", true) ?: true
+    val dot = prefs?.getBoolean("widgetDotNumerals", true) ?: true
+    return if (!glass) WidgetStyle.Usual else if (dot) WidgetStyle.NothingOs else WidgetStyle.Glass
+}

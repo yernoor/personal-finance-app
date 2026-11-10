@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Dark translucent fill with a light edge: reads as glass on any wallpaper. The launcher draws the widget, so there is no real backdrop blur. -->
+<!-- Light frosted fill, like the system widgets in light mode (drawable-night has the dark one). The launcher draws the widget, so there is no real backdrop blur: the fill is a little more opaque to make up for it. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#66101418" />
-    <stroke android:width="1dp" android:color="#55FFFFFF" />
+    <solid android:color="#A6F2F5F7" />
+    <stroke android:width="0.5dp" android:color="#33FFFFFF" />
     <corners android:radius="26dp" />
 </shape>
