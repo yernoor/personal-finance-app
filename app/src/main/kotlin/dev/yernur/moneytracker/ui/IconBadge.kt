@@ -62,7 +62,6 @@ private class Look(
     val shadow: Color = Color.Transparent,
     val edgeWidth: Float = 1f,
     val bodyFill: Boolean = true, // false: shapes are only stroked (the Outline look)
-    val lip: Color = Color.Transparent, // the darker edge under a raised tile (the 3D look)
 )
 
 private fun look(style: IconStyle, slot: Int, hue: Float, dark: Boolean): Look {
@@ -87,17 +86,6 @@ private fun look(style: IconStyle, slot: Int, hue: Float, dark: Boolean): Look {
                 glyphTop = glyph, glyphBottom = glyph, knock = background,
             )
         }
-        IconStyle.Raised -> Look(
-            baseTop = c(AccentPalette.liquidTop(slot, hue, dark)), baseBottom = c(AccentPalette.springBottom(slot, hue, dark)),
-            gloss = if (dark) 0.22f else 0.42f,
-            edge = c(AccentPalette.springShadow(slot, hue, dark), 0.9f),
-            rim = Triple(if (dark) 0.40f else 0.65f, 0.06f, 0.18f),
-            glyphTop = Color.White, glyphBottom = Color.White,
-            knock = c(AccentPalette.springKnock(slot, hue, dark)),
-            shadow = c(AccentPalette.springShadow(slot, hue, dark), 0.9f),
-            edgeWidth = 2.5f,
-            lip = c(AccentPalette.springShadow(slot, hue, dark)),
-        )
         IconStyle.Outline -> {
             val glyph = c(AccentPalette.softGlyph(slot, hue, dark))
             Look(
@@ -145,16 +133,7 @@ private fun look(style: IconStyle, slot: Int, hue: Float, dark: Boolean): Look {
     }
 }
 
-/** The 3D look sits on a darker lip: the tile is drawn a little smaller, lifted, over a copy of itself pushed down. */
 private fun DrawScope.drawTile(look: Look, glyph: Glyph) {
-    if (look.lip.alpha == 0f) return drawTileBody(look, glyph)
-    withTransform({ scale(0.93f, 0.93f, pivot = Offset(50f, 0f)) }) {
-        withTransform({ translate(0f, 7f) }) { drawPath(squircle, look.lip) }
-        drawTileBody(look, glyph)
-    }
-}
-
-private fun DrawScope.drawTileBody(look: Look, glyph: Glyph) {
     val white = Color.White
     drawPath(squircle, Brush.verticalGradient(listOf(look.baseTop, look.baseBottom), 0f, TILE))
     if (look.gloss > 0f) drawPath(squircle, Brush.verticalGradient(listOf(white.copy(alpha = look.gloss), Color.Transparent), 0f, 58f))

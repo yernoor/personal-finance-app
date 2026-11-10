@@ -7,7 +7,6 @@ package dev.yernur.moneytracker.data
 enum class IconStyle(val label: String, val forGlass: Boolean) {
     Springboard("Solid (Springboard)", false),
     SoftFill("Tonal (Soft fill)", false),
-    Raised("3D", false),
     Outline("Outline", false),
     Mono("Mono", false),
     Sticker("Sticker", false),
