@@ -13,7 +13,6 @@ import dev.yernur.moneytracker.AppContainer
 import dev.yernur.moneytracker.MainActivity
 import dev.yernur.moneytracker.data.Money
 import dev.yernur.moneytracker.data.db.AccountEntity
-import dev.yernur.moneytracker.ui.WalletPromptActivity
 import kotlinx.coroutines.flow.first
 
 /** The heads-up prompts for a Wallet payment: which account (first time only), then which category. */
@@ -79,8 +78,9 @@ class WalletPrompts(private val context: Context, private val container: AppCont
         return Notification.Action.Builder(icon(), label, pi).build()
     }
 
+    /** Opens the app on the category picker for this payment (the notification tap, and its "More..." button). */
     private fun openPicker(pending: PendingPayment): PendingIntent = PendingIntent.getActivity(
-        context, requestCode(pending, "picker", ""), pending.putInto(Intent(context, WalletPromptActivity::class.java)),
+        context, requestCode(pending, "picker", ""), pending.putInto(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
