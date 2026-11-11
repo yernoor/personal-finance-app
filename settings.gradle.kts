@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "moneytracker"
-include(":app", ":walletlogger")
+include(":app", ":walletlogger", ":walletstub")

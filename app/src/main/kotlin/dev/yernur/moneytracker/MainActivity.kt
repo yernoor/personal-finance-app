@@ -14,7 +14,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.yernur.moneytracker.data.security.RecentsMode
+import dev.yernur.moneytracker.data.wallet.PendingPayment
+import dev.yernur.moneytracker.data.wallet.WalletPrompts.Companion.pendingFrom
 import dev.yernur.moneytracker.ui.AppLaunch
+import dev.yernur.moneytracker.ui.WalletPickerDialog
 import dev.yernur.moneytracker.ui.LockScreen
 import dev.yernur.moneytracker.widget.EXTRA_KIND
 import dev.yernur.moneytracker.widget.EXTRA_UID
@@ -33,6 +36,7 @@ class MainActivity : FragmentActivity() {
         // It affects only the recents thumbnail, so screenshots inside the app still work.
         lifecycleScope.launch { container.settings.recentsMode.collect { setRecentsScreenshotEnabled(it != RecentsMode.Hide) } }
         launch = if (savedInstanceState == null) launchFrom(intent) else null // a rotation or theme change must not replay the widget tap
+        walletPending = if (savedInstanceState == null) pendingFrom(intent) else null
         lifecycleScope.launch { container.dailyWealthRefresh() }
         setContent {
             CompositionLocalProvider(LocalAppContainer provides container) {
@@ -43,6 +47,7 @@ class MainActivity : FragmentActivity() {
                     Box {
                         // Kept composed under the lock screen, so unlocking returns to the same screen.
                         AppRoot(launch = launch, onLaunched = { launch = null })
+                        walletPending?.takeIf { !locked }?.let { WalletPickerDialog(it) { walletPending = null } }
                         pin?.takeIf { locked }?.let { LockScreen(container.lock, it.length, biometric) }
                     }
                 }
@@ -53,9 +58,13 @@ class MainActivity : FragmentActivity() {
     /** A widget tap that asked for an add screen or an operation; consumed once by AppRoot. */
     private var launch by mutableStateOf<AppLaunch?>(null)
 
+    /** A tapped Wallet payment notification: the category picker opens over the app. */
+    private var walletPending by mutableStateOf<PendingPayment?>(null)
+
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         launch = launchFrom(intent)
+        pendingFrom(intent)?.let { walletPending = it }
     }
 
     private fun launchFrom(intent: android.content.Intent?): AppLaunch? {

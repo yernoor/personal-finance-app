@@ -332,9 +332,15 @@ Owner wants a payment made with a Google Wallet card to become an expense in the
   group summaries and unknown formats are ignored; repeats are dropped by a persisted dedupe key (last 100). `WalletPlan` decides the next step:
   no default account -> a heads-up "Which account do you pay with?" (first three accounts as buttons, tap for the full list), the answer is saved as the default; the default account's currency differs from the payment's
   -> "not added, add it by hand" (no conversion: the foreign-currency format is unseen); otherwise -> "<amount> · <merchant>" with the two most used expense categories as buttons plus "More…" (a notification shows three buttons at most).
+  Tapping the notification (or "More…") opens the app with a bottom sheet over it (`WalletPickerDialog`, no separate activity): the payment, account chips (the default is preselected; another account applies to this payment only, the default stays), the same icon tiles as the Add screen in the owner's icon style and accent, and a full-width button: Skip, which becomes Add once a category is selected (a tap only selects, saving takes the second tap, so a stray touch cannot add an entry). Checked on the emulator 2026-11-11.
   Picking a category saves the expense (account = default, date = local day of the post, comment = merchant) and shows a short "Added" confirmation. Lock-screen version shows only "Wallet payment".
   Not done: per-card account mapping (all payments use the default account), converting foreign-currency payments, auto-dismissing Wallet's own notification, the PIN lock is not asked for these prompts.
   Unverified on a device: the prompts' look and buttons, the "More…" activity, what Android 17 does with the listener of a release-signed build.
+- **Emulator test, `walletstub/`:** a test-only app with Wallet's own package name that posts a Wallet-shaped payment notification, so the main app's listener can be run without a phone (the listener ignores every other package). Never install it beside the real Wallet.
+  Setup: install both debug APKs, `pm grant` POST_NOTIFICATIONS to both, `cmd notification allow_listener dev.yernur.moneytracker/dev.yernur.moneytracker.data.wallet.WalletListenerService`, switch "Google Wallet payments" on in More -> Automation.
+  Post (wrap the whole command in quotes so `adb shell` keeps spaces in values):
+  `adb shell "am broadcast -a dev.yernur.moneytracker.walletstub.POST -n com.google.android.apps.walletnfcrel/dev.yernur.moneytracker.walletstub.PostReceiver --es merchant 'Test Cafe' --es amount 1234.5"`.
+  Extras: `currency`, `card`, `last4`, and `text` (replaces the text line, for formats not seen yet). Checked on the emulator 2026-11-11: the main app answered with its "Which account do you pay with?" prompt.
 - Rating: **must** (owner request).
 
 ## Open questions for the owner
