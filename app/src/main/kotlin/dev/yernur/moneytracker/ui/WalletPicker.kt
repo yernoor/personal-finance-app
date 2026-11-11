@@ -2,6 +2,12 @@ package dev.yernur.moneytracker.ui
 
 import android.app.NotificationManager
 import androidx.compose.foundation.clickable
+import androidx.compose.material3.Button
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -46,11 +52,9 @@ import dev.yernur.moneytracker.data.db.AccountEntity
 import dev.yernur.moneytracker.data.wallet.PendingPayment
 import dev.yernur.moneytracker.data.wallet.WalletPlan
 import dev.yernur.moneytracker.data.wallet.WalletPrompts
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val GRID_COLUMNS = 4
-private const val PRESS_SHOWN_MS = 220L // lets the tile's press animation play before the sheet closes
 
 /**
  * What opens in the app when a Wallet payment notification is tapped (or its "More…"): a sheet from the bottom with the payment, the account
@@ -75,7 +79,8 @@ fun WalletPickerDialog(pending: PendingPayment, onClose: () -> Unit) {
         val categories by remember { container.db.categoryDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
         val defaultUid by container.settings.walletAccountUid.collectAsStateWithLifecycle()
         var otherUid by rememberSaveable { mutableStateOf<String?>(null) } // an account picked for this payment only
-        var picked by remember { mutableStateOf(false) }
+        var selectedUid by rememberSaveable { mutableStateOf<String?>(null) } // a tap only selects: nothing is saved until Add
+        var saving by remember { mutableStateOf(false) }
         var closed by remember { mutableStateOf(false) }
         val choosable = WalletPlan.choosableAccounts(accounts)
         val defaultAccount = choosable.firstOrNull { it.uid == defaultUid }
@@ -105,20 +110,11 @@ fun WalletPickerDialog(pending: PendingPayment, onClose: () -> Unit) {
                             Row(Modifier.fillMaxWidth()) {
                                 row.forEach { category ->
                                     Column(
-                                        Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).clickable(enabled = !picked) {
-                                            picked = true
-                                            scope.launch {
-                                                delay(PRESS_SHOWN_MS)
-                                                WalletPlan.save(container.ledger, pending, account.uid, category.uid)
-                                                container.afterLedgerChange()
-                                                prompts.confirmSaved(pending, account.title, category.title)
-                                                closed = true
-                                                onClose()
-                                            }
-                                        }.padding(vertical = 6.dp).testTag("wallet-category-${category.uid}"),
+                                        Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).clickable { selectedUid = if (selectedUid == category.uid) null else category.uid }
+                                            .padding(vertical = 6.dp).testTag("wallet-category-${category.uid}"),
                                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
                                     ) {
-                                        IconBadge(category.icon, category.color, size = 52.dp)
+                                        IconBadge(category.icon, category.color, size = 52.dp, ringColor = if (selectedUid == category.uid) MaterialTheme.colorScheme.primary else null)
                                         Text(category.title, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
@@ -127,7 +123,25 @@ fun WalletPickerDialog(pending: PendingPayment, onClose: () -> Unit) {
                         }
                     }
                 }
-                FilledTonalButton(::skip, Modifier.fillMaxWidth().testTag("wallet-skip")) { Text("Skip") }
+                // Skip until a category is selected, then Add in its place: saving takes a deliberate second tap, so a stray touch cannot add an entry.
+                val selected = account?.let { chosen -> WalletPlan.expenseCategories(categories).firstOrNull { it.uid == selectedUid }?.let { chosen to it } }
+                AnimatedContent(selected, transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(150)) }, label = "wallet-action") { choice ->
+                    if (choice == null) FilledTonalButton(::skip, Modifier.fillMaxWidth().testTag("wallet-skip")) { Text("Skip") }
+                    else Button(
+                        {
+                            saving = true
+                            val (to, category) = choice
+                            scope.launch {
+                                WalletPlan.save(container.ledger, pending, to.uid, category.uid)
+                                container.afterLedgerChange()
+                                prompts.confirmSaved(pending, to.title, category.title)
+                                closed = true
+                                onClose()
+                            }
+                        },
+                        Modifier.fillMaxWidth().testTag("wallet-add"), enabled = !saving,
+                    ) { Text("Add") }
+                }
             }
         }
     }
