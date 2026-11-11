@@ -1,5 +1,7 @@
 package dev.yernur.moneytracker.ui
 
+import dev.yernur.moneytracker.data.AnimationKind
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
@@ -125,6 +127,8 @@ fun ChartsScreen(onOpenTransaction: (String) -> Unit = {}) {
     val data by vm.data.collectAsStateWithLifecycle()
     val unit by vm.unit.collectAsStateWithLifecycle()
     val page by vm.page.collectAsStateWithLifecycle()
+    val cues = rememberCueTracker(unit, -page.toLong()) // older pages are further from the present
+    val periodFade = periodFade(unit to page)
 
     Column(Modifier.fillMaxSize()) {
         // Same header as History: the period slicer on top, then what to show underneath.
@@ -137,7 +141,7 @@ fun ChartsScreen(onOpenTransaction: (String) -> Unit = {}) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton({ vm.turnPage(1) }, modifier = Modifier.testTag("chart-older")) { Icon(Icons.Outlined.ChevronLeft, "Older") }
                 Text(
-                    data?.let { windowTitle(it) }.orEmpty(), Modifier.weight(1f), textAlign = TextAlign.Center,
+                    data?.let { windowTitle(it) }.orEmpty(), Modifier.weight(1f).graphicsLayer { alpha = periodFade }, textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.titleMedium,
                 )
                 IconButton({ vm.turnPage(-1) }, enabled = page > 0, modifier = Modifier.testTag("chart-newer")) { Icon(Icons.Outlined.ChevronRight, "Newer") }
@@ -149,7 +153,7 @@ fun ChartsScreen(onOpenTransaction: (String) -> Unit = {}) {
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
         Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            data?.let { chart -> ChartBody(chart, vm.tab, vm.selected, onSelect = { vm.selected = it }, onOpenTransaction) }
+            data?.let { chart -> ChartBody(chart, vm.tab, cues, vm.selected, onSelect = { vm.selected = it }, onOpenTransaction) }
             Spacer(Modifier.height(LocalChromeInset.current))
         }
     }
@@ -169,7 +173,7 @@ private val LossColor = Color(0xFFFF7043)
 private val SmallSlicesColor = Color(0xFF9E9E9E)
 
 @Composable
-private fun ChartBody(chart: ChartData, tab: ChartTab, selectedRaw: Int, onSelect: (Int) -> Unit, onOpenTransaction: (String) -> Unit) {
+private fun ChartBody(chart: ChartData, tab: ChartTab, cues: CueTracker, selectedRaw: Int, onSelect: (Int) -> Unit, onOpenTransaction: (String) -> Unit) {
     val selected = if (selectedRaw in chart.buckets.indices) selectedRaw else chart.buckets.lastIndex
     val groups: List<BarGroup> = when (tab) {
         ChartTab.General -> chart.buckets.map { b ->
@@ -187,7 +191,7 @@ private fun ChartBody(chart: ChartData, tab: ChartTab, selectedRaw: Int, onSelec
             }
         }
     }
-    BarChart(groups, chart.buckets.map { label(chart.unit, it.range) }, selected, onSelect)
+    BarChart(groups, chart.buckets.map { label(chart.unit, it.range) }, selected, onSelect, tab, cues)
 
     val bucket = chart.buckets[selected]
     Text(periodTitle(chart.unit, bucket.range), style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("bucket-title"))
@@ -221,7 +225,7 @@ private fun AmountRow(label: String, amount: Long, color: Color) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.size(12.dp).clip(CircleShape).background(color))
         Text(label, Modifier.weight(1f))
-        Text(Money.format(amount, DEFAULT_CURRENCY))
+        RollingMoney(amount, { Money.format(it, DEFAULT_CURRENCY) }, changeKind = AnimationKind.PeriodSwitch)
     }
 }
 

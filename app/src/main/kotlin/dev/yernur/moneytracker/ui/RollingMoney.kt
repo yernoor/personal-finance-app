@@ -33,9 +33,9 @@ fun animated(kind: AnimationKind): Boolean = kind !in LocalAnimationsOff.current
  * Both animations can be switched off in More (count up on opening, roll on change). Used for every balance on screen (Home, Accounts, Wealth, the compound interest result).
  */
 @Composable
-fun RollingMoney(value: Long, format: (Long) -> String, modifier: Modifier = Modifier, style: TextStyle = LocalTextStyle.current, maxLines: Int = Int.MAX_VALUE) {
+fun RollingMoney(value: Long, format: (Long) -> String, modifier: Modifier = Modifier, style: TextStyle = LocalTextStyle.current, maxLines: Int = Int.MAX_VALUE, changeKind: AnimationKind = AnimationKind.RollChange) {
     val countUp = animated(AnimationKind.CountUp)
-    val roll = animated(AnimationKind.RollChange)
+    val roll = animated(changeKind) // what a later change follows: the roll switch, or e.g. the period switch for a total that follows the shown period
     val born = remember { System.nanoTime() }
     var from by remember { mutableLongStateOf(if (countUp) 0L else value) }
     var to by remember { mutableLongStateOf(if (countUp) 0L else value) }
