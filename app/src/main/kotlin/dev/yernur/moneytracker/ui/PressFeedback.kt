@@ -28,7 +28,8 @@ object PressScaleIndication : IndicationNodeFactory {
 
 private const val SHRINK_DP = 7f
 private const val MIN_SHRINK = 0.015f // a wide row never shrinks less than this
-private const val MAX_SHRINK = 0.06f  // a small button never shrinks more than this
+private const val MAX_SHRINK = 0.08f  // a small button never shrinks more than this
+private const val PRESS_MS = 90
 
 /** The scale a pressed element of this size (px) is drawn at, given how far into the press it is (0 = rest, 1 = fully pressed). */
 internal fun pressScale(maxSidePx: Float, density: Float, pressed: Float): Float {
@@ -46,14 +47,20 @@ private class PressScaleNode(private val source: InteractionSource) : Modifier.N
         coroutineScope.launch {
             source.interactions.collect { interaction ->
                 when (interaction) {
-                    is PressInteraction.Press -> presses++
-                    is PressInteraction.Release, is PressInteraction.Cancel -> presses = maxOf(0, presses - 1)
+                    is PressInteraction.Press -> {
+                        presses++
+                        job?.cancel()
+                        job = launch { pressed.animateTo(1f, tween(PRESS_MS)) }
+                    }
+                    is PressInteraction.Release, is PressInteraction.Cancel -> {
+                        presses = maxOf(0, presses - 1)
+                        if (presses == 0) {
+                            // A quick tap still shows the whole press: the spring back waits for the shrink to finish.
+                            val shrinking = job
+                            job = launch { shrinking?.join(); pressed.animateTo(0f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium)) }
+                        }
+                    }
                     else -> return@collect
-                }
-                job?.cancel()
-                job = launch {
-                    if (presses > 0) pressed.animateTo(1f, tween(70))
-                    else pressed.animateTo(0f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium))
                 }
             }
         }
