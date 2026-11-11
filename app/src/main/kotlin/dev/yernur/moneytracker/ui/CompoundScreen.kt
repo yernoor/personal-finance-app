@@ -1,5 +1,6 @@
 package dev.yernur.moneytracker.ui
 
+import dev.yernur.moneytracker.data.AnimationKind
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -222,8 +223,9 @@ private fun Legend(color: Color, text: String) {
 private fun YearBars(rows: List<CompoundYear>, modifier: Modifier) {
     val own = MaterialTheme.colorScheme.outline
     val interest = MaterialTheme.colorScheme.primary
-    val grow = remember { Animatable(0f) } // grows up when the page opens; edits after that redraw directly, so typing is not animated
-    LaunchedEffect(Unit) { grow.animateTo(1f, tween(700, easing = FastOutSlowInEasing)) }
+    val drawIn = animated(AnimationKind.Charts)
+    val grow = remember { Animatable(if (drawIn) 0f else 1f) } // grows up when the page opens; edits after that redraw directly, so typing is not animated
+    LaunchedEffect(Unit) { if (drawIn) grow.animateTo(1f, tween(700, easing = FastOutSlowInEasing)) }
     Canvas(modifier) {
         val top = rows.maxOf { maxOf(it.balance, 1L) }.toFloat()
         val gap = 6.dp.toPx()

@@ -1,5 +1,6 @@
 package dev.yernur.moneytracker.ui
 
+import dev.yernur.moneytracker.data.AnimationKind
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -47,8 +48,10 @@ fun BarChart(groups: List<BarGroup>, labels: List<String>, selected: Int, onSele
     val axis = MaterialTheme.colorScheme.outlineVariant
     val tallest = groups.maxOfOrNull { group -> group.maxOfOrNull { bar -> bar.sumOf { it.value } } ?: 0L }?.coerceAtLeast(1L) ?: 1L
     // The bars grow up from the axis, one group after the other, whenever the data changes (a new period, another tab)
-    val grow = remember { Animatable(0f) }
+    val drawIn = animated(AnimationKind.Charts)
+    val grow = remember { Animatable(if (drawIn) 0f else 1f) }
     LaunchedEffect(groups) {
+        if (!drawIn) return@LaunchedEffect
         grow.snapTo(0f)
         grow.animateTo(1f, tween(GROW_MS, easing = FastOutSlowInEasing))
     }

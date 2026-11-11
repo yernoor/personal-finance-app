@@ -147,4 +147,15 @@ class AppSettingsTest {
         reread.setWalletAccount(null)
         assertEquals(null, AppSettings(prefs).walletAccountUid.value)
     }
+
+    @Test
+    fun everyAnimationIsOnByDefault_andOffSwitchesAreRemembered() {
+        prefs.edit().clear().commit()
+        assertEquals(emptySet<AnimationKind>(), AppSettings(prefs).animationsOff.value)
+
+        AppSettings(prefs).setAnimation(AnimationKind.CountUp, false)
+        AppSettings(prefs).setAnimation(AnimationKind.Charts, false)
+        AppSettings(prefs).setAnimation(AnimationKind.Charts, true)
+        assertEquals(setOf(AnimationKind.CountUp), AppSettings(prefs).animationsOff.value) // RollChange stays on: only the count up is off
+    }
 }

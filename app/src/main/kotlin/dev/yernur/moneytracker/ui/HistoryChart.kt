@@ -1,5 +1,6 @@
 package dev.yernur.moneytracker.ui
 
+import dev.yernur.moneytracker.data.AnimationKind
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animate
@@ -154,8 +155,10 @@ fun HistoryChart(
 /** 0 -> 1 when the chart first shows and when switching between expenses and income (not when scrolled between ring and bar). */
 @Composable
 private fun drawInProgress(income: Boolean): Float {
-    val progress = remember { Animatable(0f) }
+    val drawIn = animated(AnimationKind.Charts)
+    val progress = remember { Animatable(if (drawIn) 0f else 1f) }
     LaunchedEffect(income) { // not on every data edit: adding an entry should not make the chart redraw from zero
+        if (!drawIn) return@LaunchedEffect
         progress.snapTo(0f)
         progress.animateTo(1f, tween(650, easing = FastOutSlowInEasing))
     }

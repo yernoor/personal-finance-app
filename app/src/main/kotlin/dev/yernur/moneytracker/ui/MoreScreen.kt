@@ -1,5 +1,6 @@
 package dev.yernur.moneytracker.ui
 
+import dev.yernur.moneytracker.data.AnimationKind
 import android.Manifest
 import android.content.Intent
 import android.net.Uri
@@ -257,6 +258,18 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
                 leadingContent = { Icon(Icons.Outlined.Widgets, null) }, headlineContent = { Text("Widget style") },
                 supportingContent = { Text("${widgetStyle.label}: ${widgetStyle.description}. Widgets show spending, never account balances") },
             )
+        }
+        Section("animations", "Animations", openId, { openId = it }) {
+            val off by container.settings.animationsOff.collectAsStateWithLifecycle()
+            AnimationKind.entries.forEach { kind ->
+                val on = kind !in off
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+                    modifier = Modifier.clickable { container.settings.setAnimation(kind, !on) }.testTag("animation-${kind.id}"),
+                    headlineContent = { Text(kind.label) }, supportingContent = { Text(kind.description) },
+                    trailingContent = { Switch(on, { container.settings.setAnimation(kind, it) }) },
+                )
+            }
         }
         Section("homehistory", "Home and History", openId, { openId = it }) {
             val showAll by container.settings.showAllAccounts.collectAsStateWithLifecycle()
