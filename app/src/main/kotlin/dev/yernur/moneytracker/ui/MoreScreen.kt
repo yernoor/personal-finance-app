@@ -57,6 +57,15 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.ui.draw.rotate
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
@@ -89,6 +98,10 @@ import dev.yernur.moneytracker.data.update.parseVersion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+class MoreSections : androidx.lifecycle.ViewModel() {
+    var open by mutableStateOf<String?>(null)
+}
 
 @Composable
 fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onFeedback: () -> Unit, onCompound: () -> Unit, onWealth: () -> Unit, onAfford: () -> Unit, onOpenTab: (NavTab) -> Unit) {
@@ -156,6 +169,9 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
         container.refreshRatesDaily()
         container.snapshotNetWorth()
     }
+    // One group open at a time keeps the page short. Held in a ViewModel: switching liquid glass rebuilds the screen, and plain state would close the group.
+    val sections = appViewModel { MoreSections() }
+    var openId by sections::open
     Column(Modifier.verticalScroll(rememberScrollState())) {
         val hidden = NavTab.entries.filter { it.id !in navbar }
         val tools = hidden.filter { it.id !in setOf("wealth", "categories", "tags") } // those three have their own rows below
@@ -199,198 +215,203 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
             modifier = Modifier.clickable(onClick = onTags).testTag("open-tags"),
             leadingContent = { Icon(Icons.AutoMirrored.Outlined.Label, null) }, headlineContent = { Text("Tags") },
         )
-        SectionHeader("Home")
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable(onClick = onHomeLayout).testTag("open-home-settings"),
-            leadingContent = { Icon(Icons.Outlined.Dashboard, null) }, headlineContent = { Text("Home layout") },
-            supportingContent = { Text("Choose and order the Home cards") },
-        )
-        val showAll by container.settings.showAllAccounts.collectAsStateWithLifecycle()
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable { container.settings.setShowAllAccounts(!showAll) }.testTag("toggle-all-accounts"),
-            leadingContent = { Icon(Icons.Outlined.Tune, null) }, headlineContent = { Text("Show \"All accounts\" on Home") },
-            trailingContent = { Switch(showAll, { container.settings.setShowAllAccounts(it) }) },
-        )
-        SectionHeader("History")
-        val historyPeriod by container.settings.historyPeriod.collectAsStateWithLifecycle()
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable { showHistoryPeriod = true }.testTag("open-history-period"),
-            leadingContent = { Icon(Icons.Outlined.History, null) }, headlineContent = { Text("History opens on") },
-            supportingContent = { Text(historyPeriod.name) },
-        )
-        SectionHeader("Appearance")
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable(onClick = onNavbar).testTag("open-navbar-settings"),
-            leadingContent = { Icon(Icons.Outlined.Tune, null) }, headlineContent = { Text("Navigation bar") },
-            supportingContent = { Text("Choose and order the tabs") },
-        )
-        val iconStyle by container.settings.iconStyle.collectAsStateWithLifecycle()
-        val glassIconStyle by container.settings.glassIconStyle.collectAsStateWithLifecycle()
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable { showIconStyle = true }.testTag("open-icon-style"),
-            leadingContent = { Icon(Icons.Outlined.Palette, null) }, headlineContent = { Text("Icon style") },
-            // Liquid glass has its own two looks; the everyday ones are not offered while it is on
-            supportingContent = { Text(if (glass) "${glassIconStyle.label} (liquid glass)" else iconStyle.label) },
-        )
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable { container.settings.setGlass(!glass) }.testTag("glass-toggle"),
-            leadingContent = { Icon(Icons.Outlined.BlurOn, null) }, headlineContent = { Text("Liquid glass (experimental)") },
-            supportingContent = { Text("Floating glass bar and add button, frosted sheets and dialogs") },
-            trailingContent = { Switch(glass, { container.settings.setGlass(it) }) },
-        )
-        SectionHeader("Automation")
-        val walletOn by container.settings.walletCapture.collectAsStateWithLifecycle()
-        val walletAccountUid by container.settings.walletAccountUid.collectAsStateWithLifecycle()
-        val accounts by remember { container.db.accountDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
-        val walletAccessGranted = {
-            context.getSystemService(android.app.NotificationManager::class.java)
-                .isNotificationListenerAccessGranted(android.content.ComponentName(context, dev.yernur.moneytracker.data.wallet.WalletListenerService::class.java))
-        }
-        var walletAccess by remember { mutableStateOf(walletAccessGranted()) }
-        androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { walletAccess = walletAccessGranted() } // back from Android's settings
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            modifier = Modifier.clickable { if (walletOn) container.settings.setWalletCapture(false) else showWalletConsent = true }.testTag("wallet-capture"),
-            leadingContent = { Icon(Icons.Outlined.AccountBalanceWallet, null) }, headlineContent = { Text("Google Wallet payments") },
-            supportingContent = {
-                Text(
-                    when {
-                        !walletOn -> "Off. Offer each Wallet card payment as an expense"
-                        !walletAccess -> "On, but Android notification access is still off (see the next row)"
-                        else -> "On: each card payment is offered as an expense"
-                    },
-                )
-            },
-            trailingContent = { Switch(walletOn, { if (it) showWalletConsent = true else container.settings.setWalletCapture(false) }) },
-        )
-        if (walletOn && !walletAccess) ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            modifier = Modifier.clickable { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.testTag("wallet-access"),
-            leadingContent = { Icon(Icons.Outlined.AccountBalanceWallet, null) }, headlineContent = { Text("Allow notification access") },
-            supportingContent = { Text("Opens Android's screen: switch Money Tracker on") },
-        )
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            modifier = Modifier.clickable { showWalletAccount = true }.testTag("wallet-account"),
-            leadingContent = { Icon(Icons.Outlined.AccountBalanceWallet, null) }, headlineContent = { Text("Default account for payments") },
-            supportingContent = { Text(accounts.firstOrNull { it.uid == walletAccountUid }?.title ?: "Not chosen: the first payment asks") },
-        )
-        SectionHeader("Notifications")
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable { showWarnings = true }.testTag("open-warnings"),
-            leadingContent = { Icon(Icons.Outlined.NotificationsActive, null) }, headlineContent = { Text("Spending warnings") },
-            supportingContent = { Text("Threshold and notifications") },
-        )
-        val reminderOn by container.settings.reminderEnabled.collectAsStateWithLifecycle()
-        val reminderMinute by container.settings.reminderMinute.collectAsStateWithLifecycle()
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable { showReminder = true }.testTag("open-reminder"),
-            leadingContent = { Icon(Icons.Outlined.NotificationsActive, null) }, headlineContent = { Text("Daily reminder") },
-            supportingContent = {
-                val blocked = reminderOn && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
-                Text(
-                    if (!reminderOn) "Off" else "Every day at %02d:%02d".format(reminderMinute / 60, reminderMinute % 60) +
-                        if (blocked) " (notifications are blocked for this app in Android settings)" else "",
-                )
-            },
-        )
-        SectionHeader("Privacy")
-        val pin by container.settings.pin.collectAsStateWithLifecycle()
-        val autoLock by container.settings.autoLockSeconds.collectAsStateWithLifecycle()
-        val recents by container.settings.recentsMode.collectAsStateWithLifecycle()
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable { if (pin == null) pinDialog = PinDialog.Set else pinDialog = PinDialog.CheckThenMenu }.testTag("app-lock"),
-            leadingContent = { Icon(Icons.Outlined.Lock, null) }, headlineContent = { Text("App lock") },
-            supportingContent = { Text(if (pin == null) "Off. Set a PIN to lock the app" else "On: ${pin!!.length}-digit PIN. Tap to change or remove it") },
-        )
-        val biometric by container.settings.biometricUnlock.collectAsStateWithLifecycle()
-        if (pin != null && BiometricGate.available(context)) ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            modifier = Modifier.clickable { container.settings.setBiometricUnlock(!biometric) }.testTag("biometric-unlock"),
-            leadingContent = { Icon(Icons.Outlined.Fingerprint, null) }, headlineContent = { Text("Unlock with fingerprint or face") },
-            supportingContent = { Text("The PIN always works as a fallback") },
-            trailingContent = { Switch(biometric, { container.settings.setBiometricUnlock(it) }) },
-        )
-        if (pin != null) ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            modifier = Modifier.clickable { showAutoLock = true }.testTag("auto-lock"),
-            leadingContent = { Icon(Icons.Outlined.Timer, null) }, headlineContent = { Text("Lock after") },
-            supportingContent = { Text(autoLockLabel(autoLock)) },
-        )
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            modifier = Modifier.clickable { showRecents = true }.testTag("recents-mode"),
-            leadingContent = { Icon(Icons.Outlined.VisibilityOff, null) }, headlineContent = { Text("In the recent apps list") },
-            supportingContent = { Text("${recents.label}. Screenshots inside the app always work") },
-        )
-        SectionHeader("Widgets")
-        val widgetStyle by container.settings.widgetStyle.collectAsStateWithLifecycle()
-        fun refreshWidgets() {
-            scope.launch {
-                dev.yernur.moneytracker.widget.updateAllWidgets(context.applicationContext)
-                dev.yernur.moneytracker.widget.updateWidgetPreviews(context.applicationContext)
+        Section("appearance", "Appearance", openId, { openId = it }) {
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+                modifier = Modifier.clickable(onClick = onNavbar).testTag("open-navbar-settings"),
+                leadingContent = { Icon(Icons.Outlined.Tune, null) }, headlineContent = { Text("Navigation bar") },
+                supportingContent = { Text("Choose and order the tabs") },
+            )
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+                modifier = Modifier.clickable(onClick = onHomeLayout).testTag("open-home-settings"),
+                leadingContent = { Icon(Icons.Outlined.Dashboard, null) }, headlineContent = { Text("Home layout") },
+                supportingContent = { Text("Choose and order the Home cards") },
+            )
+            val iconStyle by container.settings.iconStyle.collectAsStateWithLifecycle()
+            val glassIconStyle by container.settings.glassIconStyle.collectAsStateWithLifecycle()
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+                modifier = Modifier.clickable { showIconStyle = true }.testTag("open-icon-style"),
+                leadingContent = { Icon(Icons.Outlined.Palette, null) }, headlineContent = { Text("Icon style") },
+                // Liquid glass has its own two looks; the everyday ones are not offered while it is on
+                supportingContent = { Text(if (glass) "${glassIconStyle.label} (liquid glass)" else iconStyle.label) },
+            )
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+                modifier = Modifier.clickable { container.settings.setGlass(!glass) }.testTag("glass-toggle"),
+                leadingContent = { Icon(Icons.Outlined.BlurOn, null) }, headlineContent = { Text("Liquid glass (experimental)") },
+                supportingContent = { Text("Floating glass bar and add button, frosted sheets and dialogs") },
+                trailingContent = { Switch(glass, { container.settings.setGlass(it) }) },
+            )
+            val widgetStyle by container.settings.widgetStyle.collectAsStateWithLifecycle()
+            fun refreshWidgets() {
+                scope.launch {
+                    dev.yernur.moneytracker.widget.updateAllWidgets(context.applicationContext)
+                    dev.yernur.moneytracker.widget.updateWidgetPreviews(context.applicationContext)
+                }
             }
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable { showWidgetStyle = true }.testTag("widget-style"),
+                leadingContent = { Icon(Icons.Outlined.Widgets, null) }, headlineContent = { Text("Widget style") },
+                supportingContent = { Text("${widgetStyle.label}: ${widgetStyle.description}. Widgets show spending, never account balances") },
+            )
         }
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            modifier = Modifier.clickable { showWidgetStyle = true }.testTag("widget-style"),
-            leadingContent = { Icon(Icons.Outlined.Widgets, null) }, headlineContent = { Text("Widget style") },
-            supportingContent = { Text("${widgetStyle.label}: ${widgetStyle.description}. Widgets show spending, never account balances") },
-        )
-        SectionHeader("Data and sync")
-        val sheetUrl by container.settings.spreadsheetUrl.collectAsStateWithLifecycle()
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable(onClick = onSync).testTag("open-sync"),
-            leadingContent = { Icon(Icons.Outlined.CloudSync, null) }, headlineContent = { Text("Google Sheets") },
-            supportingContent = { Text(if (sheetUrl == null) "Not connected" else "Connected") },
-        )
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable { picker.launch(arrayOf("*/*")) }.testTag("import"),
-            leadingContent = { Icon(Icons.Outlined.FileUpload, null) }, headlineContent = { Text("Import .mmbackup") },
-            supportingContent = { Text("Adds rows the phone does not have; nothing is overwritten or deleted") },
-        )
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable { backupPicker.launch("moneytracker-${java.time.LocalDate.now()}.db") }.testTag("backup"),
-            leadingContent = { Icon(Icons.Outlined.Save, null) }, headlineContent = { Text("Back up to a file") },
-            supportingContent = { Text("A copy of all data on the phone; keep it somewhere safe. It is not encrypted") },
-        )
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable { restorePicker.launch(arrayOf("*/*")) }.testTag("restore"),
-            leadingContent = { Icon(Icons.Outlined.Restore, null) }, headlineContent = { Text("Restore from a backup file") },
-            supportingContent = { Text("Replaces everything on the phone with the file's data") },
-        )
-        SectionHeader("App")
-        val availableUpdate by container.settings.availableUpdate.collectAsStateWithLifecycle()
-        val newer = availableUpdate?.takeIf { tag ->
-            val latest = parseVersion(tag)
-            val mine = parseVersion(container.installedVersion)
-            latest != null && mine != null && isNewer(latest, mine)
+        Section("homehistory", "Home and History", openId, { openId = it }) {
+            val showAll by container.settings.showAllAccounts.collectAsStateWithLifecycle()
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+                modifier = Modifier.clickable { container.settings.setShowAllAccounts(!showAll) }.testTag("toggle-all-accounts"),
+                leadingContent = { Icon(Icons.Outlined.Tune, null) }, headlineContent = { Text("Show \"All accounts\" on Home") },
+                trailingContent = { Switch(showAll, { container.settings.setShowAllAccounts(it) }) },
+            )
+            val historyPeriod by container.settings.historyPeriod.collectAsStateWithLifecycle()
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+                modifier = Modifier.clickable { showHistoryPeriod = true }.testTag("open-history-period"),
+                leadingContent = { Icon(Icons.Outlined.History, null) }, headlineContent = { Text("History opens on") },
+                supportingContent = { Text(historyPeriod.name) },
+            )
         }
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable(onClick = onUpdates).testTag("open-updates"),
-            leadingContent = { Icon(Icons.Outlined.SystemUpdate, null) }, headlineContent = { Text("App updates") },
-            supportingContent = { Text(if (newer != null) "Version ${newer.removePrefix("v")} is available" else "Version ${container.installedVersion}") },
-        )
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            modifier = Modifier.clickable(onClick = onFeedback).testTag("open-feedback"),
-            leadingContent = { Icon(Icons.Outlined.BugReport, null) }, headlineContent = { Text("Report a bug or suggest a feature") },
-            supportingContent = { Text("Opens a GitHub issue") },
-        )
+        Section("notifications", "Notifications", openId, { openId = it }) {
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+                modifier = Modifier.clickable { showWarnings = true }.testTag("open-warnings"),
+                leadingContent = { Icon(Icons.Outlined.NotificationsActive, null) }, headlineContent = { Text("Spending warnings") },
+                supportingContent = { Text("Threshold and notifications") },
+            )
+            val reminderOn by container.settings.reminderEnabled.collectAsStateWithLifecycle()
+            val reminderMinute by container.settings.reminderMinute.collectAsStateWithLifecycle()
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+                modifier = Modifier.clickable { showReminder = true }.testTag("open-reminder"),
+                leadingContent = { Icon(Icons.Outlined.NotificationsActive, null) }, headlineContent = { Text("Daily reminder") },
+                supportingContent = {
+                    val blocked = reminderOn && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                    Text(
+                        if (!reminderOn) "Off" else "Every day at %02d:%02d".format(reminderMinute / 60, reminderMinute % 60) +
+                            if (blocked) " (notifications are blocked for this app in Android settings)" else "",
+                    )
+                },
+            )
+        }
+        Section("automation", "Automation", openId, { openId = it }) {
+            val walletOn by container.settings.walletCapture.collectAsStateWithLifecycle()
+            val walletAccountUid by container.settings.walletAccountUid.collectAsStateWithLifecycle()
+            val accounts by remember { container.db.accountDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
+            val walletAccessGranted = {
+                context.getSystemService(android.app.NotificationManager::class.java)
+                    .isNotificationListenerAccessGranted(android.content.ComponentName(context, dev.yernur.moneytracker.data.wallet.WalletListenerService::class.java))
+            }
+            var walletAccess by remember { mutableStateOf(walletAccessGranted()) }
+            androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { walletAccess = walletAccessGranted() } // back from Android's settings
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable { if (walletOn) container.settings.setWalletCapture(false) else showWalletConsent = true }.testTag("wallet-capture"),
+                leadingContent = { Icon(Icons.Outlined.AccountBalanceWallet, null) }, headlineContent = { Text("Google Wallet payments") },
+                supportingContent = {
+                    Text(
+                        when {
+                            !walletOn -> "Off. Offer each Wallet card payment as an expense"
+                            !walletAccess -> "On, but Android notification access is still off (see the next row)"
+                            else -> "On: each card payment is offered as an expense"
+                        },
+                    )
+                },
+                trailingContent = { Switch(walletOn, { if (it) showWalletConsent = true else container.settings.setWalletCapture(false) }) },
+            )
+            if (walletOn && !walletAccess) ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.testTag("wallet-access"),
+                leadingContent = { Icon(Icons.Outlined.AccountBalanceWallet, null) }, headlineContent = { Text("Allow notification access") },
+                supportingContent = { Text("Opens Android's screen: switch Money Tracker on") },
+            )
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable { showWalletAccount = true }.testTag("wallet-account"),
+                leadingContent = { Icon(Icons.Outlined.AccountBalanceWallet, null) }, headlineContent = { Text("Default account for payments") },
+                supportingContent = { Text(accounts.firstOrNull { it.uid == walletAccountUid }?.title ?: "Not chosen: the first payment asks") },
+            )
+        }
+        Section("privacy", "Privacy and security", openId, { openId = it }) {
+            val pin by container.settings.pin.collectAsStateWithLifecycle()
+            val autoLock by container.settings.autoLockSeconds.collectAsStateWithLifecycle()
+            val recents by container.settings.recentsMode.collectAsStateWithLifecycle()
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+                modifier = Modifier.clickable { if (pin == null) pinDialog = PinDialog.Set else pinDialog = PinDialog.CheckThenMenu }.testTag("app-lock"),
+                leadingContent = { Icon(Icons.Outlined.Lock, null) }, headlineContent = { Text("App lock") },
+                supportingContent = { Text(if (pin == null) "Off. Set a PIN to lock the app" else "On: ${pin!!.length}-digit PIN. Tap to change or remove it") },
+            )
+            val biometric by container.settings.biometricUnlock.collectAsStateWithLifecycle()
+            if (pin != null && BiometricGate.available(context)) ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable { container.settings.setBiometricUnlock(!biometric) }.testTag("biometric-unlock"),
+                leadingContent = { Icon(Icons.Outlined.Fingerprint, null) }, headlineContent = { Text("Unlock with fingerprint or face") },
+                supportingContent = { Text("The PIN always works as a fallback") },
+                trailingContent = { Switch(biometric, { container.settings.setBiometricUnlock(it) }) },
+            )
+            if (pin != null) ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable { showAutoLock = true }.testTag("auto-lock"),
+                leadingContent = { Icon(Icons.Outlined.Timer, null) }, headlineContent = { Text("Lock after") },
+                supportingContent = { Text(autoLockLabel(autoLock)) },
+            )
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable { showRecents = true }.testTag("recents-mode"),
+                leadingContent = { Icon(Icons.Outlined.VisibilityOff, null) }, headlineContent = { Text("In the recent apps list") },
+                supportingContent = { Text("${recents.label}. Screenshots inside the app always work") },
+            )
+        }
+        Section("data", "Data and sync", openId, { openId = it }) {
+            val sheetUrl by container.settings.spreadsheetUrl.collectAsStateWithLifecycle()
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+                modifier = Modifier.clickable(onClick = onSync).testTag("open-sync"),
+                leadingContent = { Icon(Icons.Outlined.CloudSync, null) }, headlineContent = { Text("Google Sheets") },
+                supportingContent = { Text(if (sheetUrl == null) "Not connected" else "Connected") },
+            )
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+                modifier = Modifier.clickable { picker.launch(arrayOf("*/*")) }.testTag("import"),
+                leadingContent = { Icon(Icons.Outlined.FileUpload, null) }, headlineContent = { Text("Import .mmbackup") },
+                supportingContent = { Text("Adds rows the phone does not have; nothing is overwritten or deleted") },
+            )
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+                modifier = Modifier.clickable { backupPicker.launch("moneytracker-${java.time.LocalDate.now()}.db") }.testTag("backup"),
+                leadingContent = { Icon(Icons.Outlined.Save, null) }, headlineContent = { Text("Back up to a file") },
+                supportingContent = { Text("A copy of all data on the phone; keep it somewhere safe. It is not encrypted") },
+            )
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+                modifier = Modifier.clickable { restorePicker.launch(arrayOf("*/*")) }.testTag("restore"),
+                leadingContent = { Icon(Icons.Outlined.Restore, null) }, headlineContent = { Text("Restore from a backup file") },
+                supportingContent = { Text("Replaces everything on the phone with the file's data") },
+            )
+        }
+        Section("about", "About", openId, { openId = it }) {
+            val availableUpdate by container.settings.availableUpdate.collectAsStateWithLifecycle()
+            val newer = availableUpdate?.takeIf { tag ->
+                val latest = parseVersion(tag)
+                val mine = parseVersion(container.installedVersion)
+                latest != null && mine != null && isNewer(latest, mine)
+            }
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+                modifier = Modifier.clickable(onClick = onUpdates).testTag("open-updates"),
+                leadingContent = { Icon(Icons.Outlined.SystemUpdate, null) }, headlineContent = { Text("App updates") },
+                supportingContent = { Text(if (newer != null) "Version ${newer.removePrefix("v")} is available" else "Version ${container.installedVersion}") },
+            )
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable(onClick = onFeedback).testTag("open-feedback"),
+                leadingContent = { Icon(Icons.Outlined.BugReport, null) }, headlineContent = { Text("Report a bug or suggest a feature") },
+                supportingContent = { Text("Opens a GitHub issue") },
+            )
+        }
     }
     when (pinDialog) {
         PinDialog.Set -> PinSetupDialog({ pinDialog = null }) { container.lock.setPin(it); pinDialog = null }
@@ -482,6 +503,21 @@ private fun <T> ChoiceDialog(title: String, choices: List<Pair<T, String>>, curr
         },
         confirmButton = { TextButton(onDismiss) { Text("Close") } },
     )
+}
+
+/** A settings group: a tappable header that opens its rows below it; [openId] is the one open group (null = all closed). */
+@Composable
+private fun Section(id: String, title: String, openId: String?, onOpen: (String?) -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    val open = openId == id
+    val turn by animateFloatAsState(if (open) 180f else 0f, label = "section-chevron")
+    Row(
+        Modifier.fillMaxWidth().clickable { onOpen(if (open) null else id) }.testTag("section-$id").padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+        Icon(Icons.Outlined.ExpandMore, if (open) "Collapse" else "Expand", Modifier.rotate(turn))
+    }
+    AnimatedVisibility(open, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) { Column(content = content) }
 }
 
 @Composable
