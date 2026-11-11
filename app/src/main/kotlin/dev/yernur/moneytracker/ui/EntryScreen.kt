@@ -53,7 +53,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -253,7 +257,7 @@ class EntryViewModel(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
+fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
     val vm = appViewModel(key = "entry-$uid-$kind") { EntryViewModel(it.db, it.ledger, uid, kind, it::afterLedgerChange, { it.fx.allRates.first() }, { it.settings.ratesUpdatedAt.value }, { it.newEntryDate() }) }
     val options by vm.options.collectAsStateWithLifecycle()
     val balances by vm.balances.collectAsStateWithLifecycle()
@@ -262,6 +266,19 @@ fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
     val isTransfer = vm.kind == EntryKind.Transfer
     LaunchedEffect(vm.accountUid, vm.toAccountUid, vm.kind, options.accounts) { vm.refreshRateNote() }
     val amountFocus = remember { FocusRequester() }
+    // Leaving: the keyboard goes down in the same moment the screen starts to shrink, instead of waiting until the screen is gone. The bottom bar keeps
+    // the height it had, so it does not slide down inside the shrinking screen (that was the second, clustered motion).
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focus = LocalFocusManager.current
+    val density = LocalDensity.current
+    val bottomInset = WindowInsets.navigationBars.union(WindowInsets.ime)
+    var frozenBottom by remember { mutableStateOf<Dp?>(null) }
+    val onBack = {
+        if (frozenBottom == null) frozenBottom = with(density) { bottomInset.getBottom(density).toDp() }
+        focus.clearFocus()
+        keyboard?.hide()
+        onLeave()
+    }
     // Fast entry: the keyboard opens right after the screen has finished arriving, not during it (both at once made the motion jerky).
     val arrival = LocalArrival.current
     LaunchedEffect(Unit) {
@@ -280,7 +297,7 @@ fun EntryScreen(uid: String?, kind: EntryKind, onBack: () -> Unit) {
         )
     }, bottomBar = {
         // Always visible: pinned to the bottom of the screen and lifted above the keyboard.
-        Column(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime)).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxWidth().then(frozenBottom?.let { Modifier.padding(bottom = it) } ?: Modifier.windowInsetsPadding(bottomInset)).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             vm.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("error")) }
             Button({ vm.save(onBack) }, modifier = Modifier.fillMaxWidth().testTag("save")) { Text(if (vm.isEditing) "Save" else "Add") }
         }

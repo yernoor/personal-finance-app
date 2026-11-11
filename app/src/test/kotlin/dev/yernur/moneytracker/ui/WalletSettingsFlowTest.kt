@@ -58,6 +58,7 @@ class WalletSettingsFlowTest {
 
     private fun openMoreTag(tag: String) {
         compose.onNodeWithTag("more").performClick()
+        compose.onNodeWithTag("section-automation").performScrollTo().performClick() // the group is closed until tapped
         compose.onNodeWithTag(tag).performScrollTo().performClick()
     }
 

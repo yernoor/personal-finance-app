@@ -162,6 +162,7 @@ class ReportsFlowTest {
     @Test
     fun warningSettings_saveTheGlobalThreshold() {
         compose.onNodeWithTag("more").performClick()
+        compose.onNodeWithTag("section-notifications").performScrollTo().performClick()
         compose.onNodeWithTag("open-warnings").performScrollTo().performClick()
         compose.onNodeWithTag("warn-threshold").performTextReplacement("90")
         compose.onNodeWithText("Save").performClick()

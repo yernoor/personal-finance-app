@@ -1,5 +1,7 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.ui.graphics.graphicsLayer
+import dev.yernur.moneytracker.data.AnimationKind
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -240,6 +242,8 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
     var chartIncome by remember { mutableStateOf(false) }
     val slices = remember(state.groups, chartIncome) { chartSlices(state.groups, chartIncome) }
     val dayFormat = DateTimeFormatter.ofPattern("EEE, MMM d")
+    val cues = rememberCueTracker(unit, range.from.toEpochDay())
+    val periodFade = periodFade(unit to range)
 
     Column(Modifier.fillMaxSize()) {
         val units = PeriodUnit.entries
@@ -251,7 +255,7 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
             IconButton({ vm.shift(-1) }, modifier = Modifier.testTag("prev-period")) { Icon(Icons.Outlined.ChevronLeft, "Previous") }
             Text(
                 periodTitle(unit, range), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f).clickable { vm.jumpToToday() }.testTag("period-label"), // tap to jump back to today
+                modifier = Modifier.weight(1f).graphicsLayer { alpha = periodFade }.clickable { vm.jumpToToday() }.testTag("period-label"), // tap to jump back to today
             )
             IconButton({ vm.shift(1) }, enabled = range.to < LocalDate.now(), modifier = Modifier.testTag("next-period")) { Icon(Icons.Outlined.ChevronRight, "Next") }
         }
@@ -261,13 +265,13 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("+${Money.format(state.income, DEFAULT_CURRENCY)}")
-            Text("-${Money.format(state.expense, DEFAULT_CURRENCY)}")
+            RollingMoney(state.income, { "+${Money.format(it, DEFAULT_CURRENCY)}" }, changeKind = AnimationKind.PeriodSwitch)
+            RollingMoney(state.expense, { "-${Money.format(it, DEFAULT_CURRENCY)}" }, changeKind = AnimationKind.PeriodSwitch)
         }
         // Pinned above the list: scrolling the list shrinks the ring into the bar first (nestedScroll), so there is no toggle button.
-        HistoryChart(slices, chartIncome, collapse, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        HistoryChart(slices, chartIncome, collapse, cues, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
         // Bottom padding keeps the last row's amount clear of the add button.
-        LazyColumn(Modifier.weight(1f).nestedScroll(collapse).testTag("history-list"), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
+        LazyColumn(Modifier.weight(1f).graphicsLayer { alpha = periodFade }.nestedScroll(collapse).testTag("history-list"), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
             item(key = "search") {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(query, { vm.query.value = it }, label = { Text("Search") }, singleLine = true, modifier = Modifier.weight(1f).testTag("search"))

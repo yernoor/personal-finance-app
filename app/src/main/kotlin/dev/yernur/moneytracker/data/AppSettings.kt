@@ -52,6 +52,9 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _lastRatesDate = MutableStateFlow(prefs?.getString(LAST_RATES_DATE, null))
     private val _availableUpdate = MutableStateFlow(prefs?.getString(AVAILABLE_UPDATE, null))
     private val _googleConnected = MutableStateFlow(prefs?.getBoolean(GOOGLE_CONNECTED, false) ?: false)
+    private val _animationsOff = MutableStateFlow(
+        prefs?.getString(ANIMATIONS_OFF, null)?.split(',')?.mapNotNull(AnimationKind::byId)?.toSet().orEmpty(),
+    )
     private val _glass = MutableStateFlow(prefs?.getBoolean(GLASS, false) ?: false)
     private val warned = HashSet<String>(prefs?.getStringSet(WARNED, emptySet()).orEmpty())
 
@@ -285,6 +288,14 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         prefs?.edit()?.putString(GLASS_ICON_STYLE, style.name)?.apply()
     }
 
+    /** The animations switched off in More; everything else animates. */
+    val animationsOff: StateFlow<Set<AnimationKind>> = _animationsOff
+
+    fun setAnimation(kind: AnimationKind, on: Boolean) {
+        _animationsOff.value = if (on) _animationsOff.value - kind else _animationsOff.value + kind
+        prefs?.edit()?.putString(ANIMATIONS_OFF, _animationsOff.value.joinToString(",") { it.id })?.apply()
+    }
+
     /** Experimental liquid glass look (floating glass bar, add button, sheets, dialogs). Off by default. */
     val glass: StateFlow<Boolean> = _glass
 
@@ -354,6 +365,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val WARNED = "warned"
         private const val HISTORY_PERIOD = "historyPeriod"
         private const val NAV_TABS = "navTabs"
+        private const val ANIMATIONS_OFF = "animationsOff"
         private const val GLASS = "glass"
         private const val WIDGET_STYLE = "widgetStyle"
         private const val WIDGET_GLASS = "widgetGlass" // old two-switch settings, read once to pick the style

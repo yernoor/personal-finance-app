@@ -1,5 +1,6 @@
 package dev.yernur.moneytracker.ui
 
+import dev.yernur.moneytracker.data.AnimationKind
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -162,8 +163,10 @@ private fun MonthlyBars(bars: List<MonthBar>, average: Long?) {
     val line = MaterialTheme.colorScheme.onSurface
     val summary = bars.joinToString("; ") { "${it.month}: ${money(it.projected ?: it.spent)}" }
     // The bars grow up from the bottom, one after the other, whenever the Analysis tab opens or its data changes
-    val grow = remember { Animatable(0f) }
+    val drawIn = animated(AnimationKind.Charts)
+    val grow = remember { Animatable(if (drawIn) 0f else 1f) }
     LaunchedEffect(bars) {
+        if (!drawIn) return@LaunchedEffect
         grow.snapTo(0f)
         grow.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
     }

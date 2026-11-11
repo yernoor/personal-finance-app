@@ -1,5 +1,6 @@
 package dev.yernur.moneytracker.ui
 
+import dev.yernur.moneytracker.data.AnimationKind
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.EnterExitState
@@ -181,6 +182,8 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
         if (tabs.indexOfFirst { it.id == to.destination.route } >= tabs.indexOfFirst { it.id == from.destination.route }) 1 else -1
 
     val glass by settings.glass.collectAsStateWithLifecycle()
+    val animationsOff by settings.animationsOff.collectAsStateWithLifecycle()
+    val slides = AnimationKind.Screens !in animationsOff // off: screens just fade, so a swap is still there but nothing travels
     val scheme = MaterialTheme.colorScheme
     val darkTheme = isDarkSurface()
     val glow = remember(scheme.surface, scheme.primary, darkTheme) { Glow.of(scheme.surface, scheme.primary, darkTheme) }
@@ -193,7 +196,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
 
     GlassScaffoldTheme(glass) {
     CompositionLocalProvider(
-        LocalGlass provides glass, LocalGlow provides (if (glass) glow else null), LocalChromeInset provides if (glass && tab != null) GlassBarInset else 0.dp,
+        LocalAnimationsOff provides animationsOff, LocalGlass provides glass, LocalGlow provides (if (glass) glow else null), LocalChromeInset provides if (glass && tab != null) GlassBarInset else 0.dp,
         LocalIconStyle provides if (glass) glassIconSetting else iconSetting, // glass allows only glass-style icons
         LocalAccentHue provides accentHue,
     ) {
@@ -265,6 +268,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             // feels like the swipe. The add screen grows out of the add button. Into any other screen: slide forward while fading.
             enterTransition = {
                 when {
+                    !slides -> fadeIn(tween(FADE_MS))
                     isTab(initialState) && isTab(targetState) -> slideInHorizontally(tween(MOVE_MS, easing = slideEasing)) { it / 5 * tabDirection(initialState, targetState) } + fadeIn(tween(FADE_MS))
                     isAdd(targetState) -> scaleIn(tween(GROW_MS, easing = slideEasing), initialScale = 0.15f, transformOrigin = ADD_ORIGIN) + fadeIn(tween(FADE_MS))
                     else -> slideInHorizontally(tween(MOVE_MS, easing = slideEasing)) { it / 6 } + fadeIn(tween(MOVE_MS))
@@ -272,17 +276,20 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             },
             exitTransition = {
                 when {
+                    !slides -> fadeOut(tween(FADE_MS))
                     isTab(initialState) && isTab(targetState) -> slideOutHorizontally(tween(MOVE_MS, easing = slideEasing)) { -it / 5 * tabDirection(initialState, targetState) } + fadeOut(tween(FADE_MS))
                     isAdd(targetState) -> scaleOut(tween(GROW_MS, easing = slideEasing), targetScale = 0.96f) + fadeOut(tween(FADE_MS))
                     else -> slideOutHorizontally(tween(MOVE_MS, easing = slideEasing)) { -it / 6 } + fadeOut(tween(MOVE_MS))
                 }
             },
             popEnterTransition = { // back (swipe or button), tabs included: opaque slides, a fade shows through the leaving screen
-                if (isAdd(initialState)) scaleIn(tween(GROW_MS, easing = slideEasing), initialScale = 0.96f) + fadeIn(tween(FADE_MS))
+                if (!slides) fadeIn(tween(FADE_MS))
+                else if (isAdd(initialState)) scaleIn(tween(GROW_MS, easing = slideEasing), initialScale = 0.96f) + fadeIn(tween(FADE_MS))
                 else slideInHorizontally(tween(MOVE_MS, easing = slideEasing)) { -it / 6 }
             },
             popExitTransition = {
-                if (isAdd(initialState)) scaleOut(tween(GROW_MS, easing = slideEasing), targetScale = 0.15f, transformOrigin = ADD_ORIGIN) + fadeOut(tween(MOVE_MS))
+                if (!slides) fadeOut(tween(FADE_MS))
+                else if (isAdd(initialState)) scaleOut(tween(GROW_MS, easing = slideEasing), targetScale = 0.15f, transformOrigin = ADD_ORIGIN) + fadeOut(tween(MOVE_MS))
                 else slideOutHorizontally(tween(MOVE_MS, easing = slideEasing)) { it }
             },
             // The swipe gesture has its own defaults (scale down and fade, which shows the screen below through the one leaving): same slides as the button.

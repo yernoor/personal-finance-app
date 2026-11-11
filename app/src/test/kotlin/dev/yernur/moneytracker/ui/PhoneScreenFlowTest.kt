@@ -193,6 +193,7 @@ class PhoneScreenFlowTest {
     @Test
     fun theDefaultPeriodIsConfigurableInMore() {
         tap("more")
+        tapScrolled("section-homehistory")
         tap("open-history-period")
         tap("history-default-Month") // choosing closes the dialog
         compose.onNodeWithContentDescription("Back").performClick()
@@ -222,6 +223,7 @@ class PhoneScreenFlowTest {
     @Test
     fun navbar_canHideReorderAndAddTabs() {
         tap("more")
+        tapScrolled("section-appearance")
         tapScrolled("open-navbar-settings")
         check("nav", "charts") // hide Charts
         tap("nav-down-home") // Home after History
@@ -240,6 +242,7 @@ class PhoneScreenFlowTest {
     @Test
     fun navbar_keepsAtLeastTwoTabs() {
         tap("more")
+        tapScrolled("section-appearance")
         tapScrolled("open-navbar-settings")
         listOf("history", "charts", "accounts", "home").forEach { check("nav", it) } // the last uncheck must be refused
         assertEquals(2, container.settings.navTabs.value.size)
@@ -253,7 +256,8 @@ class PhoneScreenFlowTest {
         compose.onNodeWithTag("home-balance").assertExists()
 
         tap("more")
-        tap("open-home-settings")
+        tapScrolled("section-appearance")
+        tapScrolled("open-home-settings")
         check("home", "balance") // hide Balance
         check("home", "recent") // show Latest entries
         tap("home-period-Week")
@@ -287,6 +291,7 @@ class PhoneScreenFlowTest {
     @Test
     fun iconStyleIsChosenInMore_withOneSetOfLooksForGlassAndAnotherForNot() {
         tap("more")
+        tapScrolled("section-appearance")
         compose.onNodeWithTag("open-icon-style").performScrollTo().performClick()
         waitForText("Solid")
         compose.onNodeWithTag("icon-style-Crystal").assertDoesNotExist() // glass looks are not offered while glass is off
