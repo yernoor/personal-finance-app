@@ -54,3 +54,15 @@ Try the Nothing launcher and the emulator's launcher: a bug seen only on one is 
 | `dumpsys` shows the wrong provider for the id | H2, launcher or system | Remove and re-place the widget; test on another launcher |
 | Wrong content right after install, no ledger change | H3 | Trigger `updateAllWidgets` at app start after an update |
 | None of these | Cause is in our `provideGlance` or the 2x1 size | Reproduce on the emulator with `provideGlance` logging |
+
+## Replay on the emulator, 2026-11-12 (not reproduced)
+Emulator `moneytracker` (Android 16, Pixel launcher), a Month, a Budget and a Quick add (2x1, Expense) widget placed, debug build of 0.6.4. After each step the screen was compared
+with `dumpsys appwidget` (each id kept its own provider throughout; ids were renumbered by the reboot, providers followed):
+- Saved an expense from the Add screen (opened from the Quick add widget): all widgets redrawn correctly, Quick add still "Add expense".
+- Saved an expense from the Wallet notification's category button (`walletstub/`, app process cold, no activity): same, Month total updated.
+- `adb install -r` of the same build, app force-stop plus launcher force-stop, and a full emulator reboot: no content swap.
+- The pre-0.6.4 `updateAllWidgets` (`updateAll` on fresh instances), put back temporarily, then a Wallet save: still no swap. So on this emulator the old code did not show it either; H1 is not shown to be the cause, and the guard is not shown to be the fix.
+- Debug logging inside the guard: for every id Glance's list for each class matched what Android reports (no skip, in every run above).
+- Not done: resizing the placed widgets, the Nothing launcher, and a real phone.
+Left in code: a debug-only `WidgetGuard` warning (logcat tag) when the guard skips an id, as the plan's Diagnostics section asked. If the owner sees the swap again, `adb logcat -s WidgetGuard`
+plus `adb shell dumpsys appwidget` taken before touching anything settles H1 vs H2.

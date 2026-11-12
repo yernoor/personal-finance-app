@@ -1,6 +1,8 @@
 package dev.yernur.moneytracker.widget
 
 import android.appwidget.AppWidgetManager
+import android.content.pm.ApplicationInfo
+import android.util.Log
 import android.content.Context
 import android.os.Build
 import androidx.compose.runtime.Composable
@@ -194,9 +196,15 @@ suspend fun updateAllWidgets(context: Context) {
     WIDGETS.forEach { (widget, receiver) ->
         glance.getGlanceIds(widget.javaClass).forEach { id ->
             val provider = system.getAppWidgetInfo(glance.getAppWidgetId(id))?.provider?.className
-            if (provider == receiver.name) widget.update(context, id)
+            if (provider == receiver.name) widget.update(context, id) else logSkippedWidget(context, glance.getAppWidgetId(id), widget, provider)
         }
     }
+}
+
+/** Debug builds only: a skipped id is the swap the guard above exists to stop, so say which one (see docs/QUICK_ADD_BUG_PLAN.md). */
+private fun logSkippedWidget(context: Context, appWidgetId: Int, widget: MoneyWidget, provider: String?) {
+    if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
+    Log.w("WidgetGuard", "skipped id=$appWidgetId: Glance listed it for ${widget.javaClass.simpleName}, Android says provider=$provider")
 }
 
 /** Fills the picker with the Android 15+ generated previews; the system rate-limits this, so call it at launch and when the look changes only. */
