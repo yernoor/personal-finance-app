@@ -38,7 +38,7 @@ Not known: reports/charts, budgets UI, recurring items, widgets, search, filters
   into FKs. Keep the three amount fields (default / real / account currency) per transaction.
 - Importer (`.mmbackup` -> Room) is pure and unit-tested against `data/extracted/snapshot.json`.
 - No analytics SDKs, no ads, no network calls except Google auth + Sheets/Drive, the daily GitHub update check, and one National Bank of Kazakhstan
-  exchange-rate request per day (cached; owner-approved 2026-11-04).
+  exchange-rate request per day (cached; owner-approved 2026-11-04), plus a manual refresh from the Rates widget at most once an hour (owner-approved 2026-11-12).
 - Secrets: no keystore, OAuth client IDs with secrets, or tokens in git. Use `local.properties`.
 
 ## Milestones (finish and verify each before the next)

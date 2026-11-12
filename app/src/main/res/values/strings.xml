@@ -2,8 +2,7 @@
     <string name="widget_month">Spent this month</string>
     <string name="widget_today">Spent today</string>
     <string name="widget_quick_add">Quick add</string>
-    <string name="widget_limits">Category limits</string>
+    <string name="widget_rates">Currency rates</string>
     <string name="widget_budget">Month by category</string>
-    <string name="widget_recent">Recent operations</string>
     <string name="widget_dashboard">Month dashboard</string>
 </resources>

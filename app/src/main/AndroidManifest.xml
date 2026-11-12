@@ -46,22 +46,24 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_quick_add_info" />
         </receiver>
-        <receiver android:name=".widget.LimitsWidgetReceiver" android:exported="true" android:label="@string/widget_limits">
+        <receiver android:name=".widget.RatesWidgetReceiver" android:exported="true" android:label="@string/widget_rates">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_limits_info" />
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_rates_info" />
         </receiver>
+        <activity android:name=".widget.RatesConfigActivity" android:exported="true" android:theme="@android:style/Theme.Translucent.NoTitleBar" android:excludeFromRecents="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" /></intent-filter>
+        </activity>
         <receiver android:name=".widget.BudgetWidgetReceiver" android:exported="true" android:label="@string/widget_budget">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_budget_info" />
-        </receiver>
-        <receiver android:name=".widget.RecentWidgetReceiver" android:exported="true" android:label="@string/widget_recent">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_recent_info" />
         </receiver>
         <receiver android:name=".widget.DashboardWidgetReceiver" android:exported="true" android:label="@string/widget_dashboard">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_dashboard_info" />
         </receiver>
+        <activity android:name=".widget.QuickAddConfigActivity" android:exported="true" android:theme="@android:style/Theme.Translucent.NoTitleBar" android:excludeFromRecents="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" /></intent-filter>
+        </activity>
         <receiver android:name=".data.update.InstallResultReceiver" android:exported="false" />
         <!-- Wallet payment capture (More -> Automation): reads Google Wallet's notifications only, with the owner's consent. -->
         <service

@@ -74,19 +74,24 @@ fun WidgetCard(palette: WidgetPalette, onClick: androidx.glance.action.Action, c
 }
 
 @Composable
-fun Label(text: String, palette: WidgetPalette, bold: Boolean = false, size: Int = 12, warn: Boolean = false, accent: Boolean = false) =
-    Text(text, style = TextStyle(color = if (warn) palette.warning else if (accent) palette.accent else palette.secondary.takeUnless { bold } ?: palette.primary, fontSize = size.sp, fontWeight = if (bold) FontWeight.Medium else FontWeight.Normal), maxLines = 1)
+fun Label(text: String, palette: WidgetPalette, bold: Boolean = false, size: Int = 12, warn: Boolean = false, accent: Boolean = false, maxLines: Int = 1) =
+    Text(text, style = TextStyle(color = if (warn) palette.warning else if (accent) palette.accent else palette.secondary.takeUnless { bold } ?: palette.primary, fontSize = size.sp, fontWeight = if (bold) FontWeight.Medium else FontWeight.Normal), maxLines = maxLines)
 
-/** The big number: Doto bitmap when enabled (never below 16 sp), otherwise the system font. */
+/**
+ * The big number: Doto bitmap when enabled (never below 16 sp unless [maxWidthDp] forces it), otherwise the system font.
+ * [maxWidthDp] fits the number into a narrow widget (the system-font width is an estimate: digits are about 0.55 em wide).
+ */
 @Composable
-fun BigNumber(context: Context, text: String, palette: WidgetPalette, dot: Boolean, sizeDp: Int = 34) {
+fun BigNumber(context: Context, text: String, palette: WidgetPalette, dot: Boolean, sizeDp: Int = 34, maxWidthDp: Float? = null) {
     if (dot) {
+        val bitmap = WidgetBitmaps.dotText(context, text, sizeDp.toFloat(), 0xFFFFFFFF.toInt(), maxWidthDp)
         Image( // drawn white, tinted by the launcher so it follows light/dark mode
-            ImageProvider(WidgetBitmaps.dotText(context, text, sizeDp.toFloat(), 0xFFFFFFFF.toInt())), text, GlanceModifier.height((sizeDp * 1.25f).dp),
+            ImageProvider(bitmap), text, GlanceModifier.height((bitmap.height / context.resources.displayMetrics.density).dp),
             colorFilter = ColorFilter.tint(palette.primary),
         )
     } else {
-        Text(text, style = TextStyle(color = palette.primary, fontSize = (sizeDp - 4).sp, fontWeight = FontWeight.Medium), maxLines = 1)
+        val fitted = if (maxWidthDp != null) minOf(sizeDp - 4f, maxWidthDp / (text.length * 0.55f)) else sizeDp - 4f
+        Text(text, style = TextStyle(color = palette.primary, fontSize = fitted.sp, fontWeight = FontWeight.Medium), maxLines = 1)
     }
 }
 
