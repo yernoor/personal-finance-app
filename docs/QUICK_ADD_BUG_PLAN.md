@@ -63,6 +63,7 @@ with `dumpsys appwidget` (each id kept its own provider throughout; ids were ren
 - `adb install -r` of the same build, app force-stop plus launcher force-stop, and a full emulator reboot: no content swap.
 - The pre-0.6.4 `updateAllWidgets` (`updateAll` on fresh instances), put back temporarily, then a Wallet save: still no swap. So on this emulator the old code did not show it either; H1 is not shown to be the cause, and the guard is not shown to be the fix.
 - Debug logging inside the guard: for every id Glance's list for each class matched what Android reports (no skip, in every run above).
-- Not done: resizing the placed widgets, the Nothing launcher, and a real phone.
+- Resized the Quick add widget on the home screen (wider, narrower, back to 2x1, several times; vertical drags did not register with `adb input`), then saved via Wallet: still Quick add, `WidgetGuard` silent.
+- Not done: vertical resize, the Nothing launcher, and a real phone.
 Left in code: a debug-only `WidgetGuard` warning (logcat tag) when the guard skips an id, as the plan's Diagnostics section asked. If the owner sees the swap again, `adb logcat -s WidgetGuard`
 plus `adb shell dumpsys appwidget` taken before touching anything settles H1 vs H2.
