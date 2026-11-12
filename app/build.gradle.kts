@@ -12,8 +12,8 @@ android {
         applicationId = "dev.yernur.moneytracker"
         minSdk = 36
         targetSdk = 36
-        versionCode = 15
-        versionName = "0.6.5"
+        versionCode = 16
+        versionName = "0.7.0"
     }
 
     // Release signing comes from the environment (CI secrets, or exported locally); nothing about the key is in git.
