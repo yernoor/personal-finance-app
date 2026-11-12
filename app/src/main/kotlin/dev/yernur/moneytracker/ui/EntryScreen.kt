@@ -417,7 +417,7 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
                 AccountStrip(options.accounts, balances, vm.accountUid, "from", blockedUid = vm.toAccountUid, rejection = vm.rejection?.takeIf { it.side == "from" }, onPick = vm::pickAccount)
             } else {
                 Text("Account", style = MaterialTheme.typography.labelLarge)
-                AccountPicker(options.accounts, balances, vm.accountUid, "account", vm::pickAccount)
+                AccountPicker(options.accounts, balances, vm.accountUid, "account", onPick = vm::pickAccount)
             }
             if (isTransfer) {
                 SwapDivider(swaps, enabled = vm.accountUid != null && vm.toAccountUid != null) { swaps++; vm.swapAccounts() }

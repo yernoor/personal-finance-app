@@ -9,6 +9,7 @@ import dev.yernur.moneytracker.data.ForecastRepository
 import dev.yernur.moneytracker.data.LedgerRepository
 import dev.yernur.moneytracker.data.WarningNotifier
 import dev.yernur.moneytracker.data.backup.DbBackup
+import dev.yernur.moneytracker.data.demo.DemoData
 import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.db.DB_VERSION
 import dev.yernur.moneytracker.data.db.MIGRATION_1_2
@@ -52,6 +53,10 @@ class AppContainer(
     private val widgetsChanged: suspend () -> Unit = {},
     /** Null in tests: the last crash, kept so the next launch can offer to report it. */
     val crashes: CrashLog? = null,
+    /** Demo mode: [db] is the made-up demo database, the owner's real one is not open. Nothing syncs with Google. */
+    val demoMode: Boolean = false,
+    /** Turns demo mode on or off; the app restarts on the other database. A no-op in tests. */
+    val switchDemoMode: (Boolean) -> Unit = {},
 ) {
     /** The period History is showing; a new entry defaults to its date. Null until History has been opened. */
     val historyRange = kotlinx.coroutines.flow.MutableStateFlow<dev.yernur.moneytracker.data.DateRange?>(null)
@@ -116,20 +121,39 @@ class MoneyApp : Application() {
 
     val container by lazy {
         val version = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
-        val db = Room.databaseBuilder(this, AppDatabase::class.java, DB_NAME).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build()
+        val demo = getSharedPreferences(MODE_PREFS, MODE_PRIVATE).getBoolean(DEMO_KEY, false)
+        val dbName = if (demo) DEMO_DB_NAME else DB_NAME
+        val db = Room.databaseBuilder(this, AppDatabase::class.java, dbName).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build()
         AppContainer(
             db,
             AppSettings(getSharedPreferences("settings", MODE_PRIVATE)),
             { db, settings, forecasts -> WarningNotifier(this, db, settings, forecasts) },
             UpdateChecker(UrlConnectionTransport(), version), ApkInstaller(this), WorkDownloads(this), version,
             fxClient = NbkRatesClient(UrlConnectionTransport()),
-            backups = DbBackup(db, getDatabasePath(DB_NAME), java.io.File(filesDir, "backups"), DB_VERSION),
+            backups = DbBackup(db, getDatabasePath(dbName), java.io.File(filesDir, if (demo) "demo-backups" else "backups"), DB_VERSION),
             widgetsChanged = { dev.yernur.moneytracker.widget.updateAllWidgets(this) },
             crashes = CrashLog(java.io.File(filesDir, "crash/last-crash.txt")),
-        )
+            demoMode = demo,
+            switchDemoMode = ::switchDemoMode,
+        ).also { if (demo) kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch { DemoData.seedIfEmpty(db) } }
+    }
+
+    /**
+     * Records the choice, then restarts into the other database. Turning demo on starts from a fresh demo database (the last demo's is
+     * deleted first); the real database file is never opened, changed or deleted by any of this.
+     */
+    private fun switchDemoMode(on: Boolean) {
+        getSharedPreferences(MODE_PREFS, MODE_PRIVATE).edit().putBoolean(DEMO_KEY, on).commit() // commit: it must be on disk before the process ends
+        if (on) deleteDatabase(DEMO_DB_NAME) // not open: the app is on the real database right now
+        val launch = packageManager.getLaunchIntentForPackage(packageName)!!.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        startActivity(launch)
+        android.os.Process.killProcess(android.os.Process.myPid())
     }
 
     private companion object {
         const val DB_NAME = "moneytracker.db"
+        const val DEMO_DB_NAME = "demo.db"
+        const val MODE_PREFS = "mode"
+        const val DEMO_KEY = "demo"
     }
 }

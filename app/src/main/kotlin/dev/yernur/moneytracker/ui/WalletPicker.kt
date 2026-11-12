@@ -34,6 +34,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import kotlinx.coroutines.flow.map
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -80,11 +81,13 @@ fun WalletPickerDialog(pending: PendingPayment, onClose: () -> Unit) {
     val glassIconStyle by container.settings.glassIconStyle.collectAsStateWithLifecycle()
     val primary = MaterialTheme.colorScheme.primary
     val accentHue = remember(primary) { Oklch.hueOf(primary.toArgb()) }
-    CompositionLocalProvider(LocalIconStyle provides if (glass) glassIconStyle else iconStyle, LocalAccentHue provides accentHue) {
+    // Shown over the app from outside AppRoot, so it must say itself that glass is on: without it the sheet was opaque and nothing blurred.
+    CompositionLocalProvider(LocalGlass provides glass, LocalIconStyle provides if (glass) glassIconStyle else iconStyle, LocalAccentHue provides accentHue) {
         val scope = rememberCoroutineScope()
         val accounts by remember { container.db.accountDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
         val categories by remember { container.db.categoryDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
         val defaultUid by container.settings.walletAccountUid.collectAsStateWithLifecycle()
+        val balances by remember { container.db.accountDao().observeBalances().map { list -> list.associate { it.uid to it.balance } } }.collectAsStateWithLifecycle(emptyMap())
         var otherUid by rememberSaveable { mutableStateOf<String?>(null) } // an account picked for this payment only
         var selectedUid by rememberSaveable { mutableStateOf<String?>(null) } // a tap only selects: nothing is saved until Add
         var saving by remember { mutableStateOf(false) }
@@ -116,9 +119,8 @@ fun WalletPickerDialog(pending: PendingPayment, onClose: () -> Unit) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (asking) AccountQuestion(choosable) { container.settings.setWalletAccount(it.uid) } else if (account != null) {
                     Text("Account", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        choosable.forEach { FilterChip(it.uid == account.uid, { otherUid = it.uid }, label = { Text(it.title) }, modifier = Modifier.testTag("wallet-account-${it.uid}")) }
-                    }
+                    // The add screen's account picker in its one-line form: the chosen account, a tap opens the tiles of every account.
+                    AccountPicker(choosable, balances, account.uid, "wallet-account", compact = true) { otherUid = it }
                     Text("Category", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     val all = WalletPlan.expenseCategories(categories)
                     var expanded by rememberSaveable { mutableStateOf(false) }

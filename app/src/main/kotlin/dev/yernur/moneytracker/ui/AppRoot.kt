@@ -58,6 +58,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.Color
@@ -209,6 +213,16 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = if (glass) Color.Transparent else Color.Unspecified),
                     actions = {
                         if (lastTab.id == "wealth") WealthCurrencyAction() // next to the heading, like Compound interest
+                        if (container.demoMode) {
+                            var exitDemo by remember { mutableStateOf(false) }
+                            // The label is the way out too: a tap asks whether to go back to the real data.
+                            Text(
+                                "Demo", Modifier.clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button) { exitDemo = true }
+                                    .background(MaterialTheme.colorScheme.tertiaryContainer).padding(horizontal = 10.dp, vertical = 6.dp).testTag("demo-badge"),
+                                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                            if (exitDemo) DemoExitPrompt { exitDemo = false }
+                        }
                         IconButton({ nav.navigate("more") }, modifier = Modifier.testTag("more")) { Icon(Icons.Outlined.MoreVert, "More") }
                     },
                 )
@@ -375,10 +389,16 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 enter = slideInVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeIn(tween(FADE_MS)),
                 exit = slideOutVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeOut(tween(FADE_MS)),
             ) { FloatingTabBar(tabs, lastTab, onSelect = { nav.navigateTop(it.id) }, backdrop = backdrop) }
+            val addMenu = remember { mutableStateOf(false) }
+            val addShown = tab?.id == "home" || tab?.id == "history"
+            if (addMenu.value && addShown) GlassAddMenu(backdrop, bottom = navInset + 88.dp + 60.dp + 12.dp, end = 16.dp, onDismiss = { addMenu.value = false }) {
+                addMenu.value = false
+                nav.navigate(entryRoute(kind = it))
+            }
             AnimatedVisibility(
-                tab?.id == "home" || tab?.id == "history", Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = navInset + 88.dp),
+                addShown, Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = navInset + 88.dp),
                 enter = scaleIn(tween(FADE_MS)) + fadeIn(tween(FADE_MS)), exit = scaleOut(tween(FADE_MS)) + fadeOut(tween(FADE_MS)),
-            ) { AddButton({ nav.navigate(entryRoute()) }, backdrop = backdrop, onPickKind = { nav.navigate(entryRoute(kind = it)) }) }
+            ) { AddButton({ nav.navigate(entryRoute()) }, backdrop = backdrop, onPickKind = { nav.navigate(entryRoute(kind = it)) }, menu = addMenu) }
         }
       }
       }

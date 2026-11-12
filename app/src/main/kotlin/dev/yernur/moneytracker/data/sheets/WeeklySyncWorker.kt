@@ -19,7 +19,7 @@ class WeeklySyncWorker(context: Context, params: WorkerParameters) : CoroutineWo
     override suspend fun doWork(): Result {
         val container = (applicationContext as MoneyApp).container
         val settings = container.settings
-        if (settings.spreadsheetId.value == null || !settings.autoSync.value) return Result.success()
+        if (container.demoMode || settings.spreadsheetId.value == null || !settings.autoSync.value) return Result.success() // demo data never reaches the sheet
         return try {
             SyncRunner(container.db, settings, UrlConnectionTransport()).run(GoogleAuthorizer(applicationContext))
             Result.success()

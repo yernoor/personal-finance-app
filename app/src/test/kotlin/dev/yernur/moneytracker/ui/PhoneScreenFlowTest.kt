@@ -10,6 +10,8 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -206,19 +208,22 @@ class PhoneScreenFlowTest {
     }
 
     @Test
-    fun groupedHistoryAddsUpTransfersBetweenTheSameAccounts() {
+    fun groupedHistoryNetsTransfersBetweenTheSameAccounts_andOpensToEachOne() {
         runBlocking {
             val date = today.toString()
             container.ledger.saveTransfer(TransferDraft(null, "main", "dep", 100_000, null, date, null))
             container.ledger.saveTransfer(TransferDraft(null, "main", "dep", 250_000, null, date, null))
+            container.ledger.saveTransfer(TransferDraft(null, "dep", "main", 50_000, null, date, null)) // back the other way
             container.ledger.saveTransfer(TransferDraft(null, "main", "usd", 450_000, 1_000, date, null)) // 4,500 KZT -> $10
         }
         tap("tab-history")
-        waitForText("Main → Deposit")
-        waitForText("2 transfers")
-        waitForText("₸3,500") // 1,000 + 2,500, both sides the same currency
-        waitForText("₸4,500 → $10") // cross-currency: sent and received sums
-        compose.onNodeWithTag("transfer-child-placeholder").assertDoesNotExist()
+        waitForText("₸3,000") // 1,000 + 2,500 - 500, one line for both directions
+        waitForText("₸4,500") // cross-currency: sent over the arrow...
+        waitForText("$10") // ...received under it
+        assertEquals(0, compose.onAllNodesWithText("₸500").fetchSemanticsNodes().size) // the single transfers stay folded
+        compose.onNodeWithTag("transfer-group-dep-main").performScrollTo().performClick()
+        waitForText("₸500")
+        waitForText("₸2,500")
     }
 
     private fun check(prefix: String, id: String) = tap("$prefix-check-$id")
@@ -311,5 +316,19 @@ class PhoneScreenFlowTest {
         tap("icon-style-Frost")
         assertEquals(IconStyle.Frost, container.settings.glassIconStyle.value)
         assertEquals(IconStyle.Tonal, container.settings.iconStyle.value) // the everyday choice is kept for when glass is off again
+    }
+
+    @Test
+    fun glassAddMenu_opensOnHold_closesOnTheScrim_andPicksAKind() {
+        container.settings.setGlass(true)
+        compose.waitForIdle()
+        compose.onNodeWithTag("add").performTouchInput { longClick() }
+        compose.onNodeWithTag("add-menu-scrim").assertExists() // drawn in the app's window (blurred screen behind), not a popup
+        tap("add-menu-scrim")
+        compose.onNodeWithTag("add-menu-scrim").assertDoesNotExist()
+        compose.onNodeWithTag("add").performTouchInput { longClick() }
+        tap("add-Income")
+        eventually { compose.onAllNodesWithTag("amount").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("kind-Income").assertIsSelected()
     }
 }
