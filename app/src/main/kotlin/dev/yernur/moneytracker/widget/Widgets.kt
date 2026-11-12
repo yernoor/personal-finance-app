@@ -1,8 +1,7 @@
 package dev.yernur.moneytracker.widget
 
 import android.appwidget.AppWidgetManager
-import android.content.pm.ApplicationInfo
-import android.util.Log
+import android.content.ComponentName
 import android.content.Context
 import android.os.Build
 import androidx.compose.runtime.Composable
@@ -187,24 +186,15 @@ private val WIDGETS: List<Pair<MoneyWidget, Class<*>>> = listOf(
 
 /**
  * Redraws every placed widget; call after anything that changes spending or the widget look.
- * Each id is checked against the provider Android says it belongs to, so a widget can never be drawn with another widget's content
- * (a Quick add widget was seen showing Spent this month; the cause was not found, this is a guard, not a confirmed fix).
+ * Ids come from Android, per receiver, not from Glance's `getGlanceIds` / `updateAll`: in a release build R8 merged all the widget classes into one,
+ * so Glance thought every placed widget belonged to every class and drew Month onto the Quick add widget (reproduced on the emulator, docs/QUICK_ADD_BUG_PLAN.md).
  */
 suspend fun updateAllWidgets(context: Context) {
     val glance = GlanceAppWidgetManager(context)
     val system = AppWidgetManager.getInstance(context)
     WIDGETS.forEach { (widget, receiver) ->
-        glance.getGlanceIds(widget.javaClass).forEach { id ->
-            val provider = system.getAppWidgetInfo(glance.getAppWidgetId(id))?.provider?.className
-            if (provider == receiver.name) widget.update(context, id) else logSkippedWidget(context, glance.getAppWidgetId(id), widget, provider)
-        }
+        system.getAppWidgetIds(ComponentName(context, receiver)).forEach { widget.update(context, glance.getGlanceIdBy(it)) }
     }
-}
-
-/** Debug builds only: a skipped id is the swap the guard above exists to stop, so say which one (see docs/QUICK_ADD_BUG_PLAN.md). */
-private fun logSkippedWidget(context: Context, appWidgetId: Int, widget: MoneyWidget, provider: String?) {
-    if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
-    Log.w("WidgetGuard", "skipped id=$appWidgetId: Glance listed it for ${widget.javaClass.simpleName}, Android says provider=$provider")
 }
 
 /** Fills the picker with the Android 15+ generated previews; the system rate-limits this, so call it at launch and when the look changes only. */
