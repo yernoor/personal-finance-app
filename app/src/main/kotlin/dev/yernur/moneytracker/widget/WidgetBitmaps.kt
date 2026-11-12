@@ -19,10 +19,18 @@ object WidgetBitmaps {
         runCatching { Typeface.Builder(context.assets, "fonts/doto.ttf").setFontVariationSettings("'wght' 900").build() }
             .getOrNull() ?: Typeface.DEFAULT_BOLD
 
-    /** [text] in Doto at [sizeDp] (always 16 or more: it is a display face), as a bitmap tightly cropped to the text. */
-    fun dotText(context: Context, text: String, sizeDp: Float, color: Int): Bitmap {
+    /**
+     * [text] in Doto at [sizeDp] (16 or more: it is a display face), as a bitmap tightly cropped to the text.
+     * With [maxWidthDp] the text shrinks to fit that width, down to 12 dp, which is the one case below 16.
+     */
+    fun dotText(context: Context, text: String, sizeDp: Float, color: Int, maxWidthDp: Float? = null): Bitmap {
         val density = context.resources.displayMetrics.density
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; typeface = dotTypeface(context); textSize = sizeDp.coerceAtLeast(16f) * density }
+        if (maxWidthDp != null) {
+            val limit = maxWidthDp * density
+            val natural = paint.measureText(text)
+            if (natural > limit) paint.textSize = (paint.textSize * limit / natural).coerceAtLeast(12f * density)
+        }
         val width = paint.measureText(text).toInt().coerceAtLeast(1) + 2
         val metrics = paint.fontMetrics
         val bitmap = Bitmap.createBitmap(width, (metrics.descent - metrics.ascent).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)

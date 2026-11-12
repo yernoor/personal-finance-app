@@ -65,6 +65,9 @@ abstract class MoneyWidget(private val cellsWide: Int, private val cellsHigh: In
 
 private fun WidgetData.monthName() = month.month.getDisplayName(DateTextStyle.FULL, Locale.getDefault())
 
+/** The 2x2 minimum (70n - 30 dp) less the 14 dp card padding on each side. */
+private const val MONTH_CONTENT_WIDTH_DP = 110f - 28f
+
 class MonthWidget : MoneyWidget(2, 2) {
     @Composable
     override fun Content(context: Context, data: WidgetData, palette: WidgetPalette, dot: Boolean) {
@@ -72,8 +75,8 @@ class MonthWidget : MoneyWidget(2, 2) {
             Column(GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.Vertical.Bottom) {
                 Label("Spent in ${data.monthName()}", palette)
                 Spacer(GlanceModifier.defaultWeight())
-                BigNumber(context, wholeUnits(data.monthSpent), palette, dot)
-                Label("₸ · on pace for ${wholeUnits(data.projected)}", palette, accent = true)
+                BigNumber(context, wholeUnits(data.monthSpent), palette, dot, sizeDp = 24, maxWidthDp = MONTH_CONTENT_WIDTH_DP)
+                Label("₸ · on pace for ${wholeUnits(data.projected)}", palette, accent = true, maxLines = 2)
             }
         }
     }
