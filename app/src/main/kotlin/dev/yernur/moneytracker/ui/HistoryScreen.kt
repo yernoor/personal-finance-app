@@ -320,10 +320,7 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
             listOf("Expenses", "Income"), if (chartIncome) 1 else 0, listOf("chart-expenses", "chart-income"), { chartIncome = it == 1 },
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            RollingMoney(state.income, { "+${Money.format(it, DEFAULT_CURRENCY)}" }, changeKind = AnimationKind.PeriodSwitch)
-            RollingMoney(state.expense, { "-${Money.format(it, DEFAULT_CURRENCY)}" }, changeKind = AnimationKind.PeriodSwitch)
-        }
+        // No +income / -expense line here (owner request 2026-11-13): the ring below already shows the chosen side's total.
         // Pinned above the list: scrolling the list shrinks the ring into the bar first (nestedScroll), so there is no toggle button.
         HistoryChart(slices, chartIncome, collapse, cues, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
         // Bottom padding keeps the last row's amount clear of the add button.
