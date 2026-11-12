@@ -426,12 +426,12 @@ fun CreateTile(label: String, modifier: Modifier = Modifier, onClick: () -> Unit
 /** Category lists start collapsed to this many icons, followed by an expand tile. */
 const val COLLAPSED_CATEGORIES = 7
 
-/** The categories to draw: all when [expanded], else the first [COLLAPSED_CATEGORIES] (a selected one beyond them replaces the last, so it stays visible). */
+/** The categories to draw: all when [expanded], else the first [COLLAPSED_CATEGORIES] (a selected one beyond them goes first and the rest shift right, so it stays visible). */
 fun visibleCategories(all: List<CategoryEntity>, expanded: Boolean, selectedUid: String?): List<CategoryEntity> {
     if (expanded || all.size <= COLLAPSED_CATEGORIES) return all
     val head = all.take(COLLAPSED_CATEGORIES)
     val selected = all.firstOrNull { it.uid == selectedUid }
-    return if (selected == null || selected in head) head else head.dropLast(1) + selected
+    return if (selected == null || selected in head) head else listOf(selected) + head.dropLast(1)
 }
 
 /** The tile after the collapsed categories: expands the list, or collapses it again. */
