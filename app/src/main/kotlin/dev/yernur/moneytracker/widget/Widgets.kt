@@ -169,6 +169,7 @@ class DashboardWidget : MoneyWidget(4, 6) {
 class MonthWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = MonthWidget() }
 class TodayWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = TodayWidget() }
 class QuickAddWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = QuickAddWidget() }
+class RatesWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = RatesWidget() }
 class BudgetWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = BudgetWidget() }
 class DashboardWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = DashboardWidget() }
 
@@ -177,6 +178,7 @@ private val WIDGETS: List<Pair<MoneyWidget, Class<*>>> = listOf(
     MonthWidget() to MonthWidgetReceiver::class.java,
     TodayWidget() to TodayWidgetReceiver::class.java,
     QuickAddWidget() to QuickAddWidgetReceiver::class.java,
+    RatesWidget() to RatesWidgetReceiver::class.java,
     BudgetWidget() to BudgetWidgetReceiver::class.java,
     DashboardWidget() to DashboardWidgetReceiver::class.java,
 )
@@ -206,7 +208,7 @@ suspend fun updateWidgetPreviews(context: Context) {
 
 private suspend fun setAllPreviews(manager: GlanceAppWidgetManager) {
     listOf(
-        MonthWidgetReceiver::class, TodayWidgetReceiver::class, QuickAddWidgetReceiver::class,
+        MonthWidgetReceiver::class, TodayWidgetReceiver::class, QuickAddWidgetReceiver::class, RatesWidgetReceiver::class,
         BudgetWidgetReceiver::class, DashboardWidgetReceiver::class,
     ).forEach { manager.setWidgetPreviews(it) }
 }
