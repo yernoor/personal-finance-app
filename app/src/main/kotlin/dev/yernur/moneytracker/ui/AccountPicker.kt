@@ -121,16 +121,21 @@ fun AccountStrip(
 }
 
 /**
- * The account of an expense or income. With at most one visible account (the others hidden from the total) it is one line showing the
+ * The account of an expense or income. With at most one visible account (or [compact]) (the others hidden from the total) it is one line showing the
  * chosen account, and a tap on it opens every account; picking one closes it again. With several visible accounts it is their row of
  * tiles, plus one tile that reveals the hidden ones.
  */
 @Composable
-fun AccountPicker(accounts: List<AccountEntity>, balances: Map<String, Long>, selected: String?, tagPrefix: String, onPick: (String) -> Unit) {
+fun AccountPicker(
+    accounts: List<AccountEntity>, balances: Map<String, Long>, selected: String?, tagPrefix: String,
+    /** Always the one-line form, however many accounts are visible (the Wallet payment sheet, where room is short). */
+    compact: Boolean = false,
+    onPick: (String) -> Unit,
+) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val visible = accounts.filter { !it.ignoreInBalance }
     val chosen = accounts.firstOrNull { it.uid == selected }
-    if (visible.size <= 1) {
+    if (compact || visible.size <= 1) {
         val turn by animateFloatAsState(if (expanded) 180f else 0f, tween(350), label = "account-chevron")
         Column {
             Row(
