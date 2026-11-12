@@ -396,8 +396,6 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
                 Text("Account", style = MaterialTheme.typography.labelLarge)
                 AccountPicker(options.accounts, balances, vm.accountUid, "account", vm::pickAccount)
             }
-            val sign = if (vm.kind == EntryKind.Income) 1 else -1 // an expense and a transfer both take money out of this account
-            BalanceLine(balances[vm.accountUid], vm.currencyOf(vm.accountUid), Money.parseMinor(vm.amount)?.takeIf { it > 0 && !vm.isEditing }?.times(sign), "account-balance")
             if (isTransfer) {
                 val turn by animateFloatAsState(swaps * 180f, tween(350), label = "swap-turn")
                 AccountLabel("To account", vm.toAccountUid != null, "clear-to", vm::clearToAccount) {
@@ -406,8 +404,6 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
                     }
                 }
                 AccountStrip(options.accounts, balances, vm.toAccountUid, "to", blockedUid = vm.accountUid, rejection = vm.rejection?.takeIf { it.side == "to" }, onPick = vm::pickToAccount)
-                val received = if (vm.needsToAmount()) Money.parseMinor(vm.toAmount) else Money.parseMinor(vm.amount)
-                BalanceLine(balances[vm.toAccountUid], vm.currencyOf(vm.toAccountUid), received?.takeIf { it > 0 && !vm.isEditing }, "to-balance")
                 if (vm.needsToAmount()) {
                     AmountField(vm.toAmount, vm::changeToAmount, "Amount received", vm.currencyOf(vm.toAccountUid).orEmpty(), "to-amount")
                     if (vm.rateNote.isNotEmpty()) {
@@ -458,17 +454,6 @@ private fun AccountLabel(text: String, hasAccount: Boolean, clearTag: String, on
             IconButton(onClear, modifier = Modifier.testTag(clearTag)) { Icon(Icons.Outlined.Close, "Clear $text", Modifier.size(20.dp)) }
         }
     }
-}
-
-/**
- * The balance of the selected account only, in its currency. For a new entry it also shows what it would be after
- * the typed amount ([change] is signed); an edited entry is already part of the balance, so no preview then.
- */
-@Composable
-private fun BalanceLine(balance: Long?, currency: String?, change: Long?, tag: String) {
-    if (balance == null || currency == null) return
-    val text = "Balance ${Money.format(balance, currency)}" + (change?.let { " · after ${Money.format(balance + it, currency)}" } ?: "")
-    Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag(tag))
 }
 
 /** Decimal field with a calculator button (tags: `<tag>` for the field, `<tag>-calc` for the button). */
