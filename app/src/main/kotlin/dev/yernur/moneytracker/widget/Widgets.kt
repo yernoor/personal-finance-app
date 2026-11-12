@@ -5,6 +5,9 @@ import android.content.ComponentName
 import android.content.Context
 import android.os.Build
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
@@ -103,9 +106,13 @@ class QuickAddWidget : MoneyWidget(2, 1) {
     override fun Content(context: Context, data: WidgetData, palette: WidgetPalette, dot: Boolean) = QuickAddButton(context, QuickAddKind.Expense, palette)
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val kind = QuickAddKinds.of(context).get(GlanceAppWidgetManager(context).getAppWidgetId(id))
+        val kinds = QuickAddKinds.of(context)
+        val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
         val style = (context.applicationContext as MoneyApp).container.settings.widgetStyle.value
-        provideContent { GlanceTheme { QuickAddButton(context, kind, widgetPalette(context, style)) } }
+        provideContent {
+            val kind by remember { kinds.changes(appWidgetId) }.collectAsState(kinds.get(appWidgetId))
+            GlanceTheme { QuickAddButton(context, kind, widgetPalette(context, style)) }
+        }
     }
 
     override suspend fun onDelete(context: Context, glanceId: GlanceId) {
