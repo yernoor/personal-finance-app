@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.Slideshow
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
@@ -114,6 +116,8 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
     var showIconStyle by remember { mutableStateOf(false) }
     var showWidgetStyle by remember { mutableStateOf(false) }
     var pinDialog by remember { mutableStateOf<PinDialog?>(null) }
+    var demoConfirm by remember { mutableStateOf(false) }
+    var demoPin by remember { mutableStateOf(false) }
     var showAutoLock by remember { mutableStateOf(false) }
     var showRecents by remember { mutableStateOf(false) }
     val container = dev.yernur.moneytracker.LocalAppContainer.current
@@ -384,7 +388,7 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
                 modifier = Modifier.clickable(onClick = onSync).testTag("open-sync"),
                 leadingContent = { Icon(Icons.Outlined.CloudSync, null) }, headlineContent = { Text("Google Sheets") },
-                supportingContent = { Text(if (sheetUrl == null) "Not connected" else "Connected") },
+                supportingContent = { Text(if (container.demoMode) "Demo mode: sync is off" else if (sheetUrl == null) "Not connected" else "Connected") },
             )
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
@@ -424,6 +428,18 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
                 leadingContent = { Icon(Icons.Outlined.BugReport, null) }, headlineContent = { Text("Report a bug or suggest a feature") },
                 supportingContent = { Text("Opens a GitHub issue") },
             )
+            val pinSet = container.settings.pin.collectAsStateWithLifecycle().value != null
+            if (!container.demoMode) ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable { demoConfirm = true }.testTag("demo-on"),
+                leadingContent = { Icon(Icons.Outlined.Slideshow, null) }, headlineContent = { Text("Demo mode") },
+                supportingContent = { Text("Shows made-up data. Your own data stays on the phone unchanged, and nothing syncs with Google") },
+            ) else ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable { if (pinSet) demoPin = true else container.switchDemoMode(false) }.testTag("demo-off"),
+                leadingContent = { Icon(Icons.AutoMirrored.Outlined.Logout, null) }, headlineContent = { Text("Return to my data") },
+                supportingContent = { Text(if (pinSet) "Demo mode is on. Asks for your PIN" else "Demo mode is on") },
+            )
         }
     }
     when (pinDialog) {
@@ -435,6 +451,24 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
             dismissButton = { TextButton({ container.lock.removePin(); pinDialog = null }, modifier = Modifier.testTag("remove-pin")) { Text("Remove PIN") } },
         )
         null -> Unit
+    }
+    if (demoConfirm) AlertDialog(
+        onDismissRequest = { demoConfirm = false }, containerColor = glassContainer(AlertDialogDefaults.containerColor),
+        title = { Text("Open the demo?") },
+        text = {
+            GlassWindowBlur()
+            Text(
+                "The app restarts on made-up data. Your own data stays on the phone untouched; About -> Return to my data brings it back" +
+                    (if (container.settings.pin.value != null) " (after your PIN)." else ".") +
+                    " Nothing syncs with Google in the demo. Wallet payments caught during the demo go into the demo data.",
+            )
+        },
+        confirmButton = { TextButton({ demoConfirm = false; container.switchDemoMode(true) }, modifier = Modifier.testTag("confirm-demo")) { Text("Open the demo") } },
+        dismissButton = { TextButton({ demoConfirm = false }) { Text("Cancel") } },
+    )
+    if (demoPin) PinCheckDialog(container.lock, container.settings.pin.value?.length ?: 4, { demoPin = false }) {
+        demoPin = false
+        container.switchDemoMode(false)
     }
     if (showAutoLock) ChoiceDialog("Lock after", AUTO_LOCK_CHOICES.map { it to autoLockLabel(it) }, container.settings.autoLockSeconds.value, { container.settings.setAutoLockSeconds(it) }) { showAutoLock = false }
     if (showRecents) ChoiceDialog("In the recent apps list", RecentsMode.entries.map { it to it.label }, container.settings.recentsMode.value, { container.settings.setRecentsMode(it) }) { showRecents = false }

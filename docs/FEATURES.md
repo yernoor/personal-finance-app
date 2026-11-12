@@ -395,3 +395,13 @@ BUILT and unit-tested; looked at on the emulator, not yet on the phone.
 - Add screen: the keyboard closes in the same moment the screen shrinks away; the bottom bar keeps its height meanwhile.
 - Period switch (History ring and collapsed bar, Charts bars): slices and bars glide to the new shares, totals roll, a bigger unit pulls the chart back, a smaller one pushes in, the arrows nudge it sideways. Not checked frame by frame; only a mid-motion screenshot of the totals was taken.
 - These three changes were committed one each, but the docs for all three are in the last one.
+
+## Demo mode (owner request 2026-11-13). BUILT, checked on the emulator
+- More -> About -> Demo mode (after a confirmation) restarts the app on `demo.db`, a separate database filled with made-up data
+  (`DemoData`: four months of spending, salaries, transfers both ways and a dollar account; nothing from the owner's backup).
+  The real `moneytracker.db` is never opened in demo mode: its checksum was the same before, during and after a demo on the emulator.
+- A "Demo" label sits in the top bar. Each new demo starts fresh (the last `demo.db` is deleted on the way in).
+- No Google sync: the weekly job skips, and the Sheets screen shows stub buttons only. Import, backup and restore stay as they are
+  and act on the demo database (its pre-update copy goes to `demo-backups/`).
+- More -> About -> Return to my data asks for the PIN when app lock is set, then restarts on the real database.
+- Shared with the real data: all settings (theme, PIN, Wallet capture). A Wallet payment caught during a demo goes into the demo data.

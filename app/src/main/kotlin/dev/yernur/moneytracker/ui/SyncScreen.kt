@@ -200,6 +200,10 @@ fun SyncScreen(onBack: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
             )
             val idle = state !is SyncState.Working
+            if (container.demoMode) {
+                DemoSyncStub()
+                return@Column
+            }
             if (spreadsheetUrl == null) {
                 if (!googleConnected) {
                     Text("Step 1 of 2", style = MaterialTheme.typography.labelLarge)
@@ -244,6 +248,21 @@ fun SyncScreen(onBack: () -> Unit) {
                 is SyncState.Failed -> Text(state.message, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("sync-error"))
                 else -> Unit
             }
+        }
+    }
+}
+
+/** Demo mode: the usual buttons, but none of them reaches Google, so made-up data can never land in the owner's sheet. */
+@Composable
+private fun DemoSyncStub() {
+    var tapped by remember { mutableStateOf(false) }
+    AppCard(Modifier.fillMaxWidth().testTag("sync-demo")) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Demo mode", style = MaterialTheme.typography.titleMedium)
+            Text("These buttons are for show: demo data is never sent to Google, and your real sheet is not touched.", style = MaterialTheme.typography.bodySmall)
+            Button({ tapped = true }, Modifier.fillMaxWidth().testTag("sync-demo-now")) { Text("Sync now") }
+            OutlinedButton({ tapped = true }, Modifier.fillMaxWidth()) { Text("Open the sheet") }
+            if (tapped) Text("Demo: nothing was sent.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("sync-demo-note"))
         }
     }
 }
