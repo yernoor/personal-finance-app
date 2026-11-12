@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
@@ -23,6 +24,7 @@ import dev.yernur.moneytracker.data.wealth.updatedLabel
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -132,5 +134,19 @@ class TransferAutofillTest {
 
     private companion object {
         const val UPDATED_AT = 1_793_700_000_000L
+    }
+
+    @Test
+    fun receivedAmount_sitsRightUnderTheSentAmount_aboveTheAccounts() {
+        waitForTag("from-main")
+        assertEquals(0, compose.onAllNodesWithTag("to-amount").fetchSemanticsNodes().size) // same currency on both sides: no received field
+        pick("from-main")
+        pick("to-usd")
+        waitForTag("to-amount")
+        compose.waitForIdle() // the slide-in has finished
+        val sent = compose.onNodeWithTag("amount").fetchSemanticsNode().boundsInRoot
+        val received = compose.onNodeWithTag("to-amount").fetchSemanticsNode().boundsInRoot
+        val firstAccount = compose.onNodeWithText("From account").fetchSemanticsNode().boundsInRoot // the accounts block starts below the amounts
+        assertTrue(received.top >= sent.bottom && received.bottom <= firstAccount.top)
     }
 }

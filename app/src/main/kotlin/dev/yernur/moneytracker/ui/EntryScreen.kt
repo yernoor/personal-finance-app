@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.Role
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -390,10 +392,25 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
             }
             if (kinds.size > 1) SlidingSegmented(kinds.map { it.name }, kinds.indexOf(vm.kind), kinds.map { "kind-$it" }, { vm.kind = kinds[it] }) // a transfer being edited has nothing to switch to
 
-            AmountField(
-                vm.amount, vm::changeAmount, if (isTransfer) "Amount sent" else "Amount", vm.currencyOf(vm.accountUid).orEmpty(), "amount",
-                Modifier.focusRequester(amountFocus),
-            )
+            // The received amount of a transfer between currencies sits right under the sent one and slides down out of it.
+            Column {
+                AmountField(
+                    vm.amount, vm::changeAmount, if (isTransfer) "Amount sent" else "Amount", vm.currencyOf(vm.accountUid).orEmpty(), "amount",
+                    Modifier.focusRequester(amountFocus),
+                )
+                AnimatedVisibility(
+                    isTransfer && vm.needsToAmount(),
+                    enter = expandVertically(tween(350)) + slideInVertically(tween(350)) { -it / 2 } + fadeIn(tween(300)),
+                    exit = shrinkVertically(tween(250)) + slideOutVertically(tween(250)) { -it / 2 } + fadeOut(tween(200)),
+                ) {
+                    Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AmountField(vm.toAmount, vm::changeToAmount, "Amount received", vm.currencyOf(vm.toAccountUid).orEmpty(), "to-amount")
+                        if (vm.rateNote.isNotEmpty()) {
+                            Text(vm.rateNote, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("to-amount-rate"))
+                        }
+                    }
+                }
+            }
 
             if (isTransfer) {
                 AccountLabel("From account", vm.accountUid != null, "clear-from", vm::clearAccount)
@@ -406,12 +423,6 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
                 SwapDivider(swaps, enabled = vm.accountUid != null && vm.toAccountUid != null) { swaps++; vm.swapAccounts() }
                 AccountLabel("To account", vm.toAccountUid != null, "clear-to", vm::clearToAccount)
                 AccountStrip(options.accounts, balances, vm.toAccountUid, "to", blockedUid = vm.accountUid, rejection = vm.rejection?.takeIf { it.side == "to" }, onPick = vm::pickToAccount)
-                if (vm.needsToAmount()) {
-                    AmountField(vm.toAmount, vm::changeToAmount, "Amount received", vm.currencyOf(vm.toAccountUid).orEmpty(), "to-amount")
-                    if (vm.rateNote.isNotEmpty()) {
-                        Text(vm.rateNote, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("to-amount-rate"))
-                    }
-                }
             } else {
                 val type = if (vm.kind == EntryKind.Income) TransactionType.Income else TransactionType.Expense
                 Text("Category", style = MaterialTheme.typography.labelLarge)
