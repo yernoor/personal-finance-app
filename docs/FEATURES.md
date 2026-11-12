@@ -400,7 +400,7 @@ BUILT and unit-tested; looked at on the emulator, not yet on the phone.
 - More -> About -> Demo mode (after a confirmation) restarts the app on `demo.db`, a separate database filled with made-up data
   (`DemoData`: four months of spending, salaries, transfers both ways and a dollar account; nothing from the owner's backup).
   The real `moneytracker.db` is never opened in demo mode: its checksum was the same before, during and after a demo on the emulator.
-- A "Demo" label sits in the top bar. Each new demo starts fresh (the last `demo.db` is deleted on the way in).
+- A "Demo" label sits in the top bar; tapping it asks "Return to your data?" (then the PIN, if set). Each new demo starts fresh (the last `demo.db` is deleted on the way in).
 - No Google sync: the weekly job skips, and the Sheets screen shows stub buttons only. Import, backup and restore stay as they are
   and act on the demo database (its pre-update copy goes to `demo-backups/`).
 - More -> About -> Return to my data asks for the PIN when app lock is set, then restarts on the real database.

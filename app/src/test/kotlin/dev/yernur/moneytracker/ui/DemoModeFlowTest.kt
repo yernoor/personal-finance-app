@@ -95,4 +95,25 @@ class DemoModeFlowTest {
         compose.onNodeWithTag("sync-demo-now").performClick()
         compose.onNodeWithTag("sync-demo-note").assertExists()
     }
+
+    @Test
+    fun theDemoLabel_asksToReturn_thenNeedsThePin() {
+        start(demo = true, pin = "2468")
+        compose.onNodeWithTag("demo-badge").performClick()
+        compose.onNodeWithText("Stay in the demo").performClick()
+        assertEquals(emptyList<Boolean>(), switches)
+        compose.onNodeWithTag("demo-badge").performClick()
+        compose.onNodeWithTag("confirm-demo-exit").performClick()
+        "2468".forEach { compose.onNodeWithTag("pin-$it").performClick() }
+        awaitBackground { switches.isNotEmpty() }
+        assertEquals(listOf(false), switches)
+    }
+
+    @Test
+    fun theDemoLabel_withoutAPin_returnsAfterTheQuestion() {
+        start(demo = true)
+        compose.onNodeWithTag("demo-badge").performClick()
+        compose.onNodeWithTag("confirm-demo-exit").performClick()
+        assertEquals(listOf(false), switches)
+    }
 }
