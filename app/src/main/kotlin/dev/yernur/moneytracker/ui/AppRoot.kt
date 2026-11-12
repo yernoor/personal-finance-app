@@ -233,7 +233,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 (tab?.id == "home" || tab?.id == "history") && !glass,
                 enter = scaleIn(tween(FADE_MS)) + fadeIn(tween(FADE_MS)), exit = scaleOut(tween(FADE_MS)) + fadeOut(tween(FADE_MS)),
             ) {
-                AddButton({ nav.navigate(entryRoute()) }, Modifier.padding(bottom = 4.dp))
+                AddButton({ nav.navigate(entryRoute()) }, Modifier.padding(bottom = 4.dp), onPickKind = { nav.navigate(entryRoute(kind = it)) })
             }
         },
     ) { padding ->
@@ -377,7 +377,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             AnimatedVisibility(
                 tab?.id == "home" || tab?.id == "history", Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = navInset + 88.dp),
                 enter = scaleIn(tween(FADE_MS)) + fadeIn(tween(FADE_MS)), exit = scaleOut(tween(FADE_MS)) + fadeOut(tween(FADE_MS)),
-            ) { AddButton({ nav.navigate(entryRoute()) }, backdrop = backdrop) }
+            ) { AddButton({ nav.navigate(entryRoute()) }, backdrop = backdrop, onPickKind = { nav.navigate(entryRoute(kind = it)) }) }
         }
       }
       }
