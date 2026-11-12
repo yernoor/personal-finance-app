@@ -92,6 +92,37 @@ class FxTest {
     }
 
     @Test
+    fun refreshNow_asksAgainOnTheSameDay_butNotWithinTheCooldown() = runBlocking {
+        var clock = 1_000_000L
+        val transport = FakeTransport { ok(feed) }
+        val repo = FxRepository(db, AppSettings(), NbkRatesClient(transport), now = { clock })
+        assertTrue(repo.refreshDaily(day)) // the daily fetch starts the cooldown
+        assertFalse(repo.refreshNow(day))
+        clock += 59 * 60 * 1000L
+        assertFalse(repo.refreshNow(day))
+        assertEquals(1, transport.requests.size)
+        clock += 2 * 60 * 1000L // 61 minutes after the daily fetch
+        assertTrue(repo.refreshNow(day)) // same day, so refreshDaily would have said no
+        assertEquals(2, transport.requests.size)
+        assertFalse(repo.refreshNow(day)) // and the cooldown starts over
+    }
+
+    @Test
+    fun refreshNow_offlineDoesNotStartTheCooldown_aBadAnswerDoes_andKeepsTheCache() = runBlocking {
+        var offline = true
+        val transport = FakeTransport { if (offline) throw IOException("no network") else HttpResponse(500, "") }
+        val repo = FxRepository(db, AppSettings(), NbkRatesClient(transport), now = { 5_000_000L })
+        assertFalse(repo.refreshNow(day))
+        assertFalse(repo.refreshNow(day)) // offline twice: both really tried
+        assertEquals(2, transport.requests.size)
+        offline = false
+        assertFalse(repo.refreshNow(day)) // HTTP 500: stored nothing...
+        assertFalse(repo.refreshNow(day)) // ...and now the hour applies
+        assertEquals(3, transport.requests.size)
+        assertTrue(db.fxRateDao().getAll().isEmpty())
+    }
+
+    @Test
     fun aBodyThatIsNotTheFeed_usesUpTheDay_withoutThrowing() = runBlocking {
         val transport = FakeTransport { ok("<html><body>Service unavailable</body>") } // status 200, not even well-formed XML
         val repo = repo(transport)

@@ -155,7 +155,7 @@ network call is the daily rate fetch.
 4. **Financial health summary.** Monthly income and obligations (mortgage, loans, subscriptions) entered by hand; shows what is left to save/invest, savings rate, months of expenses covered.
 5. **Investment portfolio.** Owner holds one broker account, 100% bonds: each bond has face value, price paid, coupon rate and frequency, maturity, currency. Coupon schedule, income per year, maturity ladder. Prices are entered by hand (no live quotes).
 6. **Currency converter.** Rates from the National Bank of Kazakhstan feed (`nationalbank.kz/rss/get_rates.cfm?fdate=DD.MM.YYYY`, verified 2026-11-04: returns KZT per `quant` units).
-   The owner allows **one request per day**, cached; the converter works offline on the cached rates. The backup's `rate` table is not used.
+   The owner allows **one request per day**, cached, plus (2026-11-12) a manual refresh from the Rates widget, at most one an hour (`FxRepository.refreshNow`; the daily fetch also starts that hour; offline does not); the converter works offline on the cached rates. The backup's `rate` table is not used.
 
 ### Wealth backend as built (2026-11-04; unit-tested on Robolectric)
 Code in `data/wealth/`, schema 2 -> 6 (one migration per step, each tested). All money is `Long` minor units in KZT unless a row names its currency.

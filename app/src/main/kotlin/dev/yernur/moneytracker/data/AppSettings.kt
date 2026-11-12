@@ -50,6 +50,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _ratesUpdatedAt = MutableStateFlow(prefs?.getLong(RATES_UPDATED_AT, 0L)?.takeIf { it > 0 })
     private val _wealthCurrency = MutableStateFlow(prefs?.getString(WEALTH_CURRENCY, null) ?: DEFAULT_CURRENCY)
     private val _lastRatesDate = MutableStateFlow(prefs?.getString(LAST_RATES_DATE, null))
+    private val _ratesAttemptAt = MutableStateFlow(prefs?.getLong(RATES_ATTEMPT_AT, 0L)?.takeIf { it > 0 })
     private val _availableUpdate = MutableStateFlow(prefs?.getString(AVAILABLE_UPDATE, null))
     private val _googleConnected = MutableStateFlow(prefs?.getBoolean(GOOGLE_CONNECTED, false) ?: false)
     private val _animationsOff = MutableStateFlow(
@@ -89,6 +90,14 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     fun setRatesUpdatedAt(millis: Long) {
         _ratesUpdatedAt.value = millis
         prefs?.edit()?.putLong(RATES_UPDATED_AT, millis)?.apply()
+    }
+
+    /** When (epoch millis) the bank last answered a rates request, good or bad: the Rates widget's refresh button waits an hour after it. Null before the first. */
+    val ratesAttemptAt: StateFlow<Long?> = _ratesAttemptAt
+
+    fun setRatesAttemptAt(millis: Long) {
+        _ratesAttemptAt.value = millis
+        prefs?.edit()?.putLong(RATES_ATTEMPT_AT, millis)?.apply()
     }
 
     /** The currency the Wealth and Compound interest screens show (the owner's switch); stored amounts stay in [DEFAULT_CURRENCY]. */
@@ -383,6 +392,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val LAST_RATES_DATE = "lastRatesDate"
         private const val WEALTH_CURRENCY = "wealthCurrency"
         private const val RATES_UPDATED_AT = "ratesUpdatedAt"
+        private const val RATES_ATTEMPT_AT = "ratesAttemptAt"
         private const val AVAILABLE_UPDATE = "availableUpdate"
         private const val PENDING_SPREADSHEET_ID = "pendingSpreadsheetId"
         private const val SPREADSHEET_ID = "spreadsheetId"
