@@ -35,6 +35,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.draw.clip
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
@@ -95,24 +106,54 @@ data class TransferSides(
     /** Null for same-currency transfers (the backup leaves the received side empty then). */
     val received: Long?,
     val receivedCurrency: String?,
-)
+    val fromIcon: String? = null,
+    val fromColor: Int? = null,
+    val toIcon: String? = null,
+    val toColor: Int? = null,
+) {
+    val from get() = TransferEnd(fromUid, fromTitle, sentCurrency, fromIcon, fromColor)
+    val to get() = TransferEnd(toUid, toTitle, receivedCurrency ?: sentCurrency, toIcon, toColor)
+}
 
-/** All transfers from one account to another in the shown period; both sides are summed. */
-data class TransferGroup(val key: String, val title: String, val sent: String, val received: String?, val rows: List<HistoryRow>) {
+/** One account at an end of a transfer, as its tile shows it. */
+data class TransferEnd(val uid: String, val title: String, val currency: String?, val icon: String?, val color: Int?)
+
+/**
+ * All transfers between two accounts in the shown period, both directions netted into one: [from] is the side more money left,
+ * [sent] what left it on balance (its currency), [received] what reached [to] on balance (only when the two currencies differ).
+ */
+data class TransferGroup(val key: String, val from: TransferEnd, val to: TransferEnd, val sent: String, val received: String?, val rows: List<HistoryRow>) {
+    val title get() = "${from.title} → ${to.title}"
     /** "₸3,500" or, across currencies, "₸4,500 → $10". */
     val amount get() = if (received == null) sent else "$sent → $received"
 }
 
 fun groupTransfers(rows: List<HistoryRow>): List<TransferGroup> =
-    rows.mapNotNull { row -> row.transfer?.let { row to it } }.groupBy { (_, sides) -> sides.fromUid to sides.toUid }.map { (key, pairs) ->
-        val first = pairs.first().second
-        TransferGroup(
-            "${key.first}-${key.second}", "${first.fromTitle} → ${first.toTitle}",
-            Money.format(pairs.sumOf { it.second.sent }, first.sentCurrency),
-            first.received?.let { Money.format(pairs.sumOf { (_, sides) -> sides.received ?: 0L }, first.receivedCurrency) },
-            pairs.map { it.first },
-        )
-    }.sortedByDescending { it.rows.size }
+    rows.mapNotNull { row -> row.transfer?.let { row to it } }
+        .groupBy { (_, sides) -> listOf(sides.fromUid, sides.toUid).sorted().let { it[0] to it[1] } }
+        .map { (pair, pairs) ->
+            val (a, b) = pair
+            // In each account's own currency: what left a, less what came back to it; what reached b, less what b sent back.
+            var outOfA = 0L
+            var intoB = 0L
+            pairs.forEach { (_, sides) ->
+                val arrived = sides.received ?: sides.sent
+                if (sides.fromUid == a) { outOfA += sides.sent; intoB += arrived } else { outOfA -= arrived; intoB -= sides.sent }
+            }
+            val sample = pairs.first().second
+            val endA = if (sample.fromUid == a) sample.from else sample.to
+            val endB = if (sample.fromUid == a) sample.to else sample.from
+            val forward = outOfA >= 0
+            val from = if (forward) endA else endB
+            val to = if (forward) endB else endA
+            val sent = if (forward) outOfA else -intoB
+            val received = if (forward) intoB else -outOfA
+            TransferGroup(
+                "$a-$b", from, to, Money.format(sent, from.currency),
+                if (from.currency != to.currency) Money.format(received, to.currency) else null,
+                pairs.map { it.first },
+            )
+        }.sortedByDescending { it.rows.size }
 
 /** All transactions of one category (and direction) in the shown period, added up. */
 data class HistoryGroup(
@@ -197,12 +238,13 @@ class HistoryViewModel(
                 val sent = Money.format(t.fromAmount, from?.currencyCode)
                 HistoryRow(
                     t.uid, true, t.date, t.created, "${from?.title?.ifBlank { "Main" }} → ${to?.title?.ifBlank { "Main" }}",
-                    t.comment.orEmpty(), if (t.toAmount != null) "$sent → ${Money.format(t.toAmount, to?.currencyCode)}" else sent,
+                    t.comment.orEmpty(), if (t.toAmount != null && to?.currencyCode != from?.currencyCode) "$sent → ${Money.format(t.toAmount, to?.currencyCode)}" else sent,
                     null, null,
                     listOfNotNull(from?.title, to?.title, t.comment).joinToString(" ").lowercase(),
                     transfer = TransferSides(
                         t.fromAccountUid, t.toAccountUid, from?.title?.ifBlank { "Main" } ?: "?", to?.title?.ifBlank { "Main" } ?: "?",
                         t.fromAmount, from?.currencyCode, t.toAmount, to?.currencyCode,
+                        from?.icon, from?.color, to?.icon, to?.color,
                     ),
                 )
             }
@@ -323,16 +365,12 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
                     state.transferGroups.forEach { group ->
                         val open = group.key in expanded
                         item(key = "transfer-group-${group.key}") {
-                            ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-                                modifier = Modifier.clickable { if (open) expanded.remove(group.key) else expanded.add(group.key) }.testTag("transfer-group-${group.key}"),
-                                leadingContent = { Icon(Icons.Outlined.SwapHoriz, null) },
-                                headlineContent = { Text(group.title) },
-                                supportingContent = { Text(if (group.rows.size == 1) "1 transfer" else "${group.rows.size} transfers") },
-                                trailingContent = { Text(group.amount) },
+                            TransferPairRow(
+                                group.from, group.to, group.sent, group.received,
+                                Modifier.clickable { if (open) expanded.remove(group.key) else expanded.add(group.key) }.testTag("transfer-group-${group.key}"),
                             )
                         }
-                        if (open) items(group.rows, key = { "transfer-child-${it.uid}" }) { row -> HistoryItem(row, onOpen, Modifier.padding(start = 24.dp)) }
+                        if (open) items(group.rows, key = { "transfer-child-${it.uid}" }) { row -> TransferLine(row, onOpen, Modifier.padding(start = 24.dp)) }
                     }
                 }
                 return@LazyColumn
@@ -356,6 +394,14 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
 
 @Composable
 private fun HistoryItem(row: HistoryRow, onOpen: (uid: String, isTransfer: Boolean) -> Unit, modifier: Modifier = Modifier) {
+    val sides = row.transfer
+    if (sides != null) {
+        val received = sides.received?.takeIf { sides.receivedCurrency != sides.sentCurrency }?.let { Money.format(it, sides.receivedCurrency) }
+        return TransferPairRow(
+            sides.from, sides.to, Money.format(sides.sent, sides.sentCurrency), received,
+            modifier.clickable { onOpen(row.uid, true) }.testTag("row-${row.uid}"), row.subtitle,
+        )
+    }
     ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
         modifier = modifier.clickable { onOpen(row.uid, row.isTransfer) }.testTag("row-${row.uid}"),
@@ -366,4 +412,56 @@ private fun HistoryItem(row: HistoryRow, onOpen: (uid: String, isTransfer: Boole
         supportingContent = { if (row.subtitle.isNotBlank()) Text(row.subtitle, maxLines = 1) },
         trailingContent = { Text(row.amount) },
     )
+}
+
+private val END_SHAPE = RoundedCornerShape(16.dp)
+
+/** A transfer as the add-transfer screen draws it: the From tile, the amount over an arrow, the To tile. */
+@Composable
+private fun TransferPairRow(from: TransferEnd, to: TransferEnd, sent: String, received: String?, modifier: Modifier = Modifier, note: String = "") {
+    val scheme = MaterialTheme.colorScheme
+    Row(modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        TransferEndTile(from)
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(sent, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+            Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f).height(2.dp).clip(RoundedCornerShape(1.dp)).background(scheme.primary))
+                Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(14.dp), tint = scheme.primary)
+            }
+            if (received != null) Text(received, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+            if (note.isNotBlank()) Text(note, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        TransferEndTile(to)
+    }
+}
+
+@Composable
+private fun TransferEndTile(end: TransferEnd) {
+    val scheme = MaterialTheme.colorScheme
+    Column(
+        Modifier.width(104.dp).clip(END_SHAPE).background(scheme.surface.copy(alpha = if (LocalGlass.current) 0.6f else 1f))
+            .border(1.dp, scheme.outlineVariant, END_SHAPE).padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        IconBadge(end.icon, end.color, size = 32.dp)
+        Text(end.title, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** One transfer inside an opened pair: its day, From -> To, and what was sent (and received, across currencies). */
+@Composable
+private fun TransferLine(row: HistoryRow, onOpen: (uid: String, isTransfer: Boolean) -> Unit, modifier: Modifier = Modifier) {
+    val sides = row.transfer ?: return
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        modifier.fillMaxWidth().clickable { onOpen(row.uid, true) }.testTag("row-${row.uid}").padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(LocalDate.parse(row.date).format(DateTimeFormatter.ofPattern("MMM d")), Modifier.width(48.dp), style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant)
+        Text(sides.fromTitle, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(16.dp), tint = scheme.onSurfaceVariant)
+        Text(sides.toTitle, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.weight(1f))
+        Text(row.amount, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+    }
 }

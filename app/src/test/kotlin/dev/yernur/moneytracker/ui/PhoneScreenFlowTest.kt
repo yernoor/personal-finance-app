@@ -208,19 +208,22 @@ class PhoneScreenFlowTest {
     }
 
     @Test
-    fun groupedHistoryAddsUpTransfersBetweenTheSameAccounts() {
+    fun groupedHistoryNetsTransfersBetweenTheSameAccounts_andOpensToEachOne() {
         runBlocking {
             val date = today.toString()
             container.ledger.saveTransfer(TransferDraft(null, "main", "dep", 100_000, null, date, null))
             container.ledger.saveTransfer(TransferDraft(null, "main", "dep", 250_000, null, date, null))
+            container.ledger.saveTransfer(TransferDraft(null, "dep", "main", 50_000, null, date, null)) // back the other way
             container.ledger.saveTransfer(TransferDraft(null, "main", "usd", 450_000, 1_000, date, null)) // 4,500 KZT -> $10
         }
         tap("tab-history")
-        waitForText("Main → Deposit")
-        waitForText("2 transfers")
-        waitForText("₸3,500") // 1,000 + 2,500, both sides the same currency
-        waitForText("₸4,500 → $10") // cross-currency: sent and received sums
-        compose.onNodeWithTag("transfer-child-placeholder").assertDoesNotExist()
+        waitForText("₸3,000") // 1,000 + 2,500 - 500, one line for both directions
+        waitForText("₸4,500") // cross-currency: sent over the arrow...
+        waitForText("$10") // ...received under it
+        assertEquals(0, compose.onAllNodesWithText("₸500").fetchSemanticsNodes().size) // the single transfers stay folded
+        compose.onNodeWithTag("transfer-group-dep-main").performScrollTo().performClick()
+        waitForText("₸500")
+        waitForText("₸2,500")
     }
 
     private fun check(prefix: String, id: String) = tap("$prefix-check-$id")

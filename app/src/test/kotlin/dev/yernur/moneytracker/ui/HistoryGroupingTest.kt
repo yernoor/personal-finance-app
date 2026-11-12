@@ -28,27 +28,47 @@ class HistoryGroupingTest {
         assertEquals(2, groups.size)
     }
 
-    private fun transfer(uid: String, from: String, to: String, sent: Long, received: Long? = null, receivedCurrency: String? = null) = HistoryRow(
+    private fun transfer(
+        uid: String, from: String, to: String, sent: Long, received: Long? = null,
+        sentCurrency: String = "KZT", receivedCurrency: String? = null,
+    ) = HistoryRow(
         uid, true, "2026-10-25", uid, "$from → $to", "", "", null, null, "",
-        transfer = TransferSides(from, to, from, to, sent, "KZT", received, receivedCurrency),
+        transfer = TransferSides(from, to, from, to, sent, sentCurrency, received, receivedCurrency),
     )
 
     @Test
-    fun transfersBetweenTheSameAccounts_areAddedUp_onBothSides() {
+    fun transfersBothWaysBetweenTwoAccounts_areNettedIntoOneLine() {
         val groups = groupTransfers(
             listOf(
                 transfer("a", "Main", "Deposit", 100_000), transfer("b", "Main", "Deposit", 250_000),
-                transfer("c", "Main", "USD", 450_000, received = 1_000, receivedCurrency = "USD"),
-                transfer("d", "Main", "USD", 225_000, received = 500, receivedCurrency = "USD"),
-                transfer("e", "Deposit", "Main", 7_000), // the reverse direction is its own flow
+                transfer("e", "Deposit", "Main", 7_000), // back the other way: taken off, not a line of its own
                 row("x", "cafe", false, 5_000), // not a transfer
             )
         )
-        assertEquals(listOf("Main-Deposit", "Main-USD", "Deposit-Main"), groups.map { it.key })
-        assertEquals("₸3,500", groups[0].amount) // 1,000 + 2,500 sent; same currency: no received side
-        assertEquals("₸6,750 → $15", groups[1].amount) // 4,500 + 2,250 sent, $10 + $5 received
-        assertEquals(2, groups[1].rows.size)
+        assertEquals(1, groups.size)
         assertEquals("Main → Deposit", groups[0].title)
+        assertEquals("₸3,430", groups[0].amount) // 1,000 + 2,500 - 70; same currency: no received side
+        assertEquals(listOf("a", "b", "e"), groups[0].rows.map { it.uid }) // tapping the line still lists every transfer
+    }
+
+    @Test
+    fun whenMoreCameBack_theDirectionFlips() {
+        val group = groupTransfers(listOf(transfer("a", "Main", "Deposit", 10_000), transfer("b", "Deposit", "Main", 40_000))).single()
+        assertEquals("Deposit → Main", group.title)
+        assertEquals("₸300", group.amount)
+    }
+
+    @Test
+    fun acrossCurrencies_eachSideIsNettedInItsOwnCurrency() {
+        val group = groupTransfers(
+            listOf(
+                transfer("a", "Main", "USD", 9_700_000, received = 20_000, receivedCurrency = "USD"), // ₸97,000 -> $200
+                transfer("b", "USD", "Main", 5_000, received = 2_400_000, sentCurrency = "USD", receivedCurrency = "KZT"), // $50 -> ₸24,000
+            )
+        ).single()
+        assertEquals("Main → USD", group.title)
+        assertEquals("₸73,000 → $150", group.amount)
+        assertEquals(2, group.rows.size)
     }
 
     @Test
