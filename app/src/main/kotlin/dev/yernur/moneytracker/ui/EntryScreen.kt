@@ -6,6 +6,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.ui.draw.rotate
+import androidx.compose.animation.core.Animatable
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -101,6 +103,9 @@ import kotlinx.coroutines.launch
 
 enum class EntryKind { Expense, Income, Transfer }
 
+/** A refused account pick: [side] is "from" or "to"; [count] makes a repeated tap on the same chip a new event. */
+data class Rejection(val side: String, val uid: String, val count: Int)
+
 data class EntryOptions(
     val accounts: List<AccountEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
@@ -191,9 +196,21 @@ class EntryViewModel(
     fun changeToAmount(text: String) { toAmount = text; toAmountTyped = text.isNotBlank(); fillReceived() }
 
     /** A different account means a different currency pair, so an earlier typed figure no longer applies. */
-    fun pickAccount(uid: String) { accountUid = uid; toAmountTyped = false; fillReceived() }
+    fun pickAccount(uid: String) {
+        if (kind == EntryKind.Transfer && uid == toAccountUid) return reject("from", uid)
+        accountUid = uid; toAmountTyped = false; fillReceived()
+    }
 
-    fun pickToAccount(uid: String) { toAccountUid = uid; toAmountTyped = false; fillReceived() }
+    fun pickToAccount(uid: String) {
+        if (uid == accountUid) return reject("to", uid)
+        toAccountUid = uid; toAmountTyped = false; fillReceived()
+    }
+
+    /** A transfer cannot start and end at the same account: the tapped chip shakes instead of being selected. */
+    var rejection by mutableStateOf<Rejection?>(null)
+        private set
+
+    private fun reject(side: String, uid: String) { rejection = Rejection(side, uid, (rejection?.count ?: 0) + 1) }
 
     /** Turns the transfer around: the accounts trade places, and so do the amounts when the currencies differ (each figure stays with its own currency). */
     fun swapAccounts() {
@@ -348,7 +365,7 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
             )
 
             Text(if (isTransfer) "From account" else "Account", style = MaterialTheme.typography.labelLarge)
-            AccountChips(options.accounts, vm.accountUid, tagPrefix = if (isTransfer) "from" else "account", onPick = vm::pickAccount)
+            AccountChips(options.accounts, vm.accountUid, tagPrefix = if (isTransfer) "from" else "account", rejection = vm.rejection?.takeIf { it.side == "from" }, onPick = vm::pickAccount)
             val sign = if (vm.kind == EntryKind.Income) 1 else -1 // an expense and a transfer both take money out of this account
             BalanceLine(balances[vm.accountUid], vm.currencyOf(vm.accountUid), Money.parseMinor(vm.amount)?.takeIf { it > 0 && !vm.isEditing }?.times(sign), "account-balance")
             if (isTransfer) {
@@ -359,7 +376,7 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
                         Icon(Icons.Outlined.SwapVert, "Swap accounts", Modifier.rotate(turn))
                     }
                 }
-                AccountChips(options.accounts, vm.toAccountUid, tagPrefix = "to", onPick = vm::pickToAccount)
+                AccountChips(options.accounts, vm.toAccountUid, tagPrefix = "to", rejection = vm.rejection?.takeIf { it.side == "to" }, onPick = vm::pickToAccount)
                 val received = if (vm.needsToAmount()) Money.parseMinor(vm.toAmount) else Money.parseMinor(vm.amount)
                 BalanceLine(balances[vm.toAccountUid], vm.currencyOf(vm.toAccountUid), received?.takeIf { it > 0 && !vm.isEditing }, "to-balance")
                 if (vm.needsToAmount()) {
@@ -404,13 +421,17 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AccountChips(accounts: List<AccountEntity>, selected: String?, tagPrefix: String, onPick: (String) -> Unit) {
+private fun AccountChips(accounts: List<AccountEntity>, selected: String?, tagPrefix: String, rejection: Rejection? = null, onPick: (String) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         accounts.forEach { account ->
+            val shake = remember { Animatable(0f) }
+            LaunchedEffect(rejection) {
+                if (rejection?.uid == account.uid) for (x in listOf(-14f, 12f, -8f, 5f, 0f)) shake.animateTo(x, tween(45))
+            }
             FilterChip(
                 account.uid == selected, { onPick(account.uid) },
                 label = { Text("${account.title.ifBlank { "Main" }} · ${account.currencyCode}") },
-                modifier = Modifier.testTag("$tagPrefix-${account.uid}"),
+                modifier = Modifier.graphicsLayer { translationX = shake.value }.testTag("$tagPrefix-${account.uid}"),
             )
         }
     }

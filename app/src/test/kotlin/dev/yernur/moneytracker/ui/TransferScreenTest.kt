@@ -75,4 +75,18 @@ class TransferScreenTest {
         compose.onNodeWithTag("from-sav").assertIsSelected()
         compose.onNodeWithTag("to-main").assertIsSelected()
     }
+
+    @Test
+    fun theSameAccountCannotBePickedOnBothSides_andTheTappedChipIsRefused() {
+        show(null, EntryKind.Transfer)
+        waitForTag("from-main")
+        compose.onNodeWithTag("from-main").performScrollTo().performClick()
+        compose.onNodeWithTag("to-sav").performScrollTo().performClick()
+        compose.onNodeWithTag("to-main").performScrollTo().performClick() // same as From: refused
+        compose.waitForIdle()
+        compose.onNodeWithTag("to-sav").assertIsSelected() // unchanged
+        compose.onNodeWithTag("from-sav").performScrollTo().performClick() // same as To: refused
+        compose.waitForIdle()
+        compose.onNodeWithTag("from-main").assertIsSelected()
+    }
 }
