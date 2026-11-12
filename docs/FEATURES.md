@@ -142,7 +142,7 @@ What the release added on top of 0.3.1; details are in the sections named in bra
 - **Cross-currency transfers**: "Amount received" is filled in from the rates and stays editable. [Wealth backend as built]
 - **App lock**: PIN (4-6 digits, back-off), optional fingerprint/face, auto-lock delay, recent-apps privacy. [item 1]
 - **Charts drill-down**: tap a category row to see its operations in the selected period, tap one to edit. [item 2]
-- **Home-screen widgets** (7, Glance): Month at a glance, Today, Quick add, Category limits, Month by category, Recent operations, Month dashboard; glass or solid look, optional dot-matrix numerals. Never show account balances. [item 3]
+- **Home-screen widgets** (5, Glance): Month at a glance, Today, Quick add, Month by category, Month dashboard; glass or solid look, optional dot-matrix numerals. Never show account balances. [item 3]
 - **Back up to a file / Restore from a backup file**, plus an automatic copy before an in-app update. [item 4]
 - Not covered by the Google Sheet: the wealth tables are phone-only (see the notes in "Wealth backend as built"); the file backup covers them.
 
@@ -196,7 +196,7 @@ Code in `data/wealth/`, schema 2 -> 6 (one migration per step, each tested). All
 - Tests: expanded totals equal the row amount to the cent (same invariant as `buckets`).
 
 ### 3. Home-screen widgets (Nothing Phone 3a, Nothing OS 5.0 = Android 17). BUILT (Glance 1.2.0)
-Built: Month at a glance 2x2, Today 2x2, Quick add 2x1, Limits 4x2, Month by category (Budget) 4x4, Recent operations 4x4, Month dashboard 4x6; More -> Widgets: glass or solid look, Doto numerals on/off; refreshed after every saved change and every 30 min.
+Built: Month at a glance 2x2, Today 2x2, Quick add 2x1, Month by category (Budget) 4x4, Month dashboard 4x6 (Category limits and Recent operations widgets removed 2026-11-12, owner request: unused); More -> Widgets: glass or solid look, Doto numerals on/off; refreshed after every saved change and every 30 min.
 Doto is drawn into a bitmap (Glance cannot set a custom font); the tenge sign and all small text stay in the system font. Seen working on an Android 16 emulator: only Month at a glance was placed and looked at (Doto digits render, glass card readable over a light and a dark wallpaper). **Not yet looked at**: the other six, the solid look, and everything on the Nothing 3a itself.
 Known gaps: the picker shows the app icon instead of a preview (no preview layout or generated preview yet); on the emulator's launcher the 4x6 dashboard is offered as 1x1 (its grid has no room for 6 rows: the Nothing launcher may differ); tapping an operation row is wired to open its edit screen but was never tried; no "hide when locked" (not needed: no balances are shown).
 
@@ -204,7 +204,7 @@ Known gaps: the picker shows the app icon instead of a preview (no preview layou
 Each widget now draws itself in the picker with fictional numbers (`sampleWidgetData`: no real amounts, no balances), in the glass or solid look and with the dot-matrix setting the owner chose.
 - Look update (2026-11-10, owner request): glass now follows light/dark mode too (light frosted fill by day, smoked dark fill by night, hairline edge), the "on pace for" line uses the system accent (Material You, via `GlanceTheme`) instead of the amber warning, and the dot numerals are drawn white and tinted by the launcher so they flip with the theme. Over-limit amber stays on limit rows and the Limits title. Not checked on the phone: the exact alpha is a guess matched to the owner's screenshots.
 - Widget style (2026-11-10, owner request): More -> Widget style picks one of three looks, all following light/dark mode: **Nothing OS** (lightest translucent fill, dot-matrix Doto numerals), **Glass** (frosted fill, system font) and **Usual** (opaque card, system font). The old Glass and Dot-matrix switches are gone; their stored values pick the style once (glass + dot -> Nothing OS, glass only -> Glass, glass off -> Usual). Fill alphas are guesses from the owner's screenshots, not measured on the phone.
-- How: `MoneyWidget.providePreview` draws the same `Content` composable as the real widget; `previewSizeMode` is `SizeMode.Responsive` at the default size (73 dp per column and 74 dp per row, minus 16; the docs' 118 dp rows drew the previews too tall). `updateWidgetPreviews` calls `GlanceAppWidgetManager.setWidgetPreviews` for all seven receivers at launch (`MoneyApp.onCreate`) and after the glass / dot-matrix switches in More. It does nothing below Android 15 and swallows failures (a missing preview only means the app icon shows).
+- How: `MoneyWidget.providePreview` draws the same `Content` composable as the real widget; `previewSizeMode` is `SizeMode.Responsive` at the default size (73 dp per column and 74 dp per row, minus 16; the docs' 118 dp rows drew the previews too tall). `updateWidgetPreviews` calls `GlanceAppWidgetManager.setWidgetPreviews` for all five receivers at launch (`MoneyApp.onCreate`) and after the glass / dot-matrix switches in More. It does nothing below Android 15 and swallows failures (a missing preview only means the app icon shows).
 - Verified on the emulator (Android 16, Glance 1.2.0 has both APIs): after the first install all seven previews were registered and the picker showed Month, Today, Quick add, Limits, Month by category and Recent with the sample numbers. Not verified: the 74 dp row height (the run after that change hit the rate limit: the system allows about two `setWidgetPreviews` calls an hour, so right after reinstalling several times the picker falls back to the app icon until the limit resets), the 4x6 dashboard (this emulator launcher offers it as 1x1), and the Nothing launcher.
 - Not built: a `previewImage` PNG per widget for Android 14 and lower and for the rate-limited gap. The owner's phone runs Android 16 and 17, so the generated previews are the target.
 - Test: `WidgetDataTest.sampleDataFillsEveryWidgetAndHasNoBalances`.
@@ -226,10 +226,10 @@ Sizes on a 5x4 grid are roughly 73n-16 by 118m-16 dp (Android docs, Pixel 4; the
 | Month at a glance | 2x2 | Spent this month, bar vs. projection, limit warning dot | Home |
 | ~~Total balance~~ | | Dropped (owner, 2026-11-04): account totals never appear on the home screen. | |
 | Today | 2x2 | Spent today, last 3 operations | History |
-| Limits | 4x2 | Top 3-4 categories as bars vs limit (+ projection tick) | Charts, forecast tab |
+| ~~Limits~~ (removed 2026-11-12) | 4x2 | Top 3-4 categories as bars vs limit (+ projection tick) | Charts, forecast tab |
 | Budget + chart | 4x4 | Month category stacked bar, top categories, projection line (the Home/Charts summary) | Charts |
 | ~~Accounts~~ | | Dropped for the same reason (balances). | |
-| Recent operations | 4x4 / 4x6 | Last 8-12 operations, per-row category icon, tap to edit | edit screen |
+| ~~Recent operations~~ (removed 2026-11-12) | 4x4 / 4x6 | Last 8-12 operations, per-row category icon, tap to edit | edit screen |
 | Month dashboard | 4x6 | Totals + chart + limits + recent in one tall card | Home |
 
 - **Wealth widgets: dropped** (owner, 2026-11-04). The wealth branch (`claude/finance-app-features-208bd5`) gets no widgets.

@@ -110,20 +110,6 @@ class QuickAddWidget : MoneyWidget(4, 1) {
     }
 }
 
-class LimitsWidget : MoneyWidget(4, 2) {
-    @Composable
-    override fun Content(context: Context, data: WidgetData, palette: WidgetPalette, dot: Boolean) {
-        WidgetCard(palette, openApp(context)) {
-            Column(GlanceModifier.fillMaxSize()) {
-                Label("Limits this month", palette, warn = data.overLimit)
-                Spacer(GlanceModifier.height(4.dp))
-                if (data.limits.isEmpty()) Label("No category has a limit yet", palette)
-                data.limits.take(3).forEach { LimitRow(it, palette) }
-            }
-        }
-    }
-}
-
 class BudgetWidget : MoneyWidget(4, 4) {
     @Composable
     override fun Content(context: Context, data: WidgetData, palette: WidgetPalette, dot: Boolean) {
@@ -143,20 +129,6 @@ class BudgetWidget : MoneyWidget(4, 4) {
                         Text(wholeUnits(c.spent), style = TextStyle(color = palette.primary, fontSize = 13.sp), maxLines = 1)
                     }
                 }
-            }
-        }
-    }
-}
-
-class RecentWidget : MoneyWidget(4, 4) {
-    @Composable
-    override fun Content(context: Context, data: WidgetData, palette: WidgetPalette, dot: Boolean) {
-        WidgetCard(palette, openApp(context)) {
-            Column(GlanceModifier.fillMaxSize()) {
-                Label("Recent operations", palette)
-                Spacer(GlanceModifier.height(4.dp))
-                if (data.recent.isEmpty()) Label("Nothing yet", palette)
-                data.recent.take(8).forEach { OperationRow(context, it, palette) }
             }
         }
     }
@@ -185,14 +157,12 @@ class DashboardWidget : MoneyWidget(4, 6) {
 class MonthWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = MonthWidget() }
 class TodayWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = TodayWidget() }
 class QuickAddWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = QuickAddWidget() }
-class LimitsWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = LimitsWidget() }
 class BudgetWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = BudgetWidget() }
-class RecentWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = RecentWidget() }
 class DashboardWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = DashboardWidget() }
 
 /** Redraws every placed widget; call after anything that changes spending or the widget look. */
 suspend fun updateAllWidgets(context: Context) {
-    listOf(MonthWidget(), TodayWidget(), QuickAddWidget(), LimitsWidget(), BudgetWidget(), RecentWidget(), DashboardWidget()).forEach { it.updateAll(context) }
+    listOf(MonthWidget(), TodayWidget(), QuickAddWidget(), BudgetWidget(), DashboardWidget()).forEach { it.updateAll(context) }
 }
 
 /** Fills the picker with the Android 15+ generated previews; the system rate-limits this, so call it at launch and when the look changes only. */
@@ -204,7 +174,7 @@ suspend fun updateWidgetPreviews(context: Context) {
 
 private suspend fun setAllPreviews(manager: GlanceAppWidgetManager) {
     listOf(
-        MonthWidgetReceiver::class, TodayWidgetReceiver::class, QuickAddWidgetReceiver::class, LimitsWidgetReceiver::class,
-        BudgetWidgetReceiver::class, RecentWidgetReceiver::class, DashboardWidgetReceiver::class,
+        MonthWidgetReceiver::class, TodayWidgetReceiver::class, QuickAddWidgetReceiver::class,
+        BudgetWidgetReceiver::class, DashboardWidgetReceiver::class,
     ).forEach { manager.setWidgetPreviews(it) }
 }
