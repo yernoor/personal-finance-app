@@ -54,6 +54,9 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_dashboard_info" />
         </receiver>
+        <activity android:name=".widget.QuickAddConfigActivity" android:exported="true" android:theme="@android:style/Theme.Translucent.NoTitleBar" android:excludeFromRecents="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" /></intent-filter>
+        </activity>
         <receiver android:name=".data.update.InstallResultReceiver" android:exported="false" />
         <!-- Wallet payment capture (More -> Automation): reads Google Wallet's notifications only, with the owner's consent. -->
         <service

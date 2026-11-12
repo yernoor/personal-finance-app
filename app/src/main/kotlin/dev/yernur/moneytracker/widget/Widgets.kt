@@ -1,5 +1,6 @@
 package dev.yernur.moneytracker.widget
 
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.os.Build
 import androidx.compose.runtime.Composable
@@ -17,7 +18,6 @@ import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
-import androidx.glance.appwidget.updateAll
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
@@ -96,20 +96,29 @@ class TodayWidget : MoneyWidget(2, 2) {
     }
 }
 
-class QuickAddWidget : MoneyWidget(4, 1) {
+/** One button that opens the add screen of the kind chosen when the widget was placed (stored per widget id in [QuickAddKinds]). */
+class QuickAddWidget : MoneyWidget(2, 1) {
     @Composable
-    override fun Content(context: Context, data: WidgetData, palette: WidgetPalette, dot: Boolean) {
-        Box(GlanceModifier.fillMaxSize().background(palette.background).cornerRadius(26.dp).padding(10.dp)) {
-            Row(GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
-                listOf("Expense" to "expense", "Income" to "income", "Transfer" to "transfer").forEachIndexed { i, (label, kind) ->
-                    if (i > 0) Spacer(GlanceModifier.width(8.dp))
-                    Box(
-                        GlanceModifier.defaultWeight().fillMaxSize().background(ImageProvider(R.drawable.widget_button)).cornerRadius(18.dp).clickable(openApp(context, kind = kind)),
-                        contentAlignment = Alignment.Center,
-                    ) { Text(label, style = TextStyle(color = palette.primary, fontSize = 12.sp, fontWeight = FontWeight.Medium), maxLines = 1) }
-                }
-            }
-        }
+    override fun Content(context: Context, data: WidgetData, palette: WidgetPalette, dot: Boolean) = QuickAddButton(context, QuickAddKind.Expense, palette)
+
+    override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val kind = QuickAddKinds.of(context).get(GlanceAppWidgetManager(context).getAppWidgetId(id))
+        val style = (context.applicationContext as MoneyApp).container.settings.widgetStyle.value
+        provideContent { GlanceTheme { QuickAddButton(context, kind, widgetPalette(context, style)) } }
+    }
+
+    override suspend fun onDelete(context: Context, glanceId: GlanceId) {
+        QuickAddKinds.of(context).remove(GlanceAppWidgetManager(context).getAppWidgetId(glanceId))
+    }
+}
+
+@Composable
+private fun QuickAddButton(context: Context, kind: QuickAddKind, palette: WidgetPalette) {
+    Box(GlanceModifier.fillMaxSize().background(palette.background).cornerRadius(26.dp).padding(8.dp)) {
+        Box(
+            GlanceModifier.fillMaxSize().background(ImageProvider(R.drawable.widget_button)).cornerRadius(18.dp).clickable(openApp(context, kind = kind.id)),
+            contentAlignment = Alignment.Center,
+        ) { Text(kind.button, style = TextStyle(color = palette.primary, fontSize = 14.sp, fontWeight = FontWeight.Medium), maxLines = 1) }
     }
 }
 
@@ -163,9 +172,29 @@ class QuickAddWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAp
 class BudgetWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = BudgetWidget() }
 class DashboardWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = DashboardWidget() }
 
-/** Redraws every placed widget; call after anything that changes spending or the widget look. */
+/** Every widget with the receiver that hosts it. */
+private val WIDGETS: List<Pair<MoneyWidget, Class<*>>> = listOf(
+    MonthWidget() to MonthWidgetReceiver::class.java,
+    TodayWidget() to TodayWidgetReceiver::class.java,
+    QuickAddWidget() to QuickAddWidgetReceiver::class.java,
+    BudgetWidget() to BudgetWidgetReceiver::class.java,
+    DashboardWidget() to DashboardWidgetReceiver::class.java,
+)
+
+/**
+ * Redraws every placed widget; call after anything that changes spending or the widget look.
+ * Each id is checked against the provider Android says it belongs to, so a widget can never be drawn with another widget's content
+ * (a Quick add widget was seen showing Spent this month; the cause was not found, this is a guard, not a confirmed fix).
+ */
 suspend fun updateAllWidgets(context: Context) {
-    listOf(MonthWidget(), TodayWidget(), QuickAddWidget(), BudgetWidget(), DashboardWidget()).forEach { it.updateAll(context) }
+    val glance = GlanceAppWidgetManager(context)
+    val system = AppWidgetManager.getInstance(context)
+    WIDGETS.forEach { (widget, receiver) ->
+        glance.getGlanceIds(widget.javaClass).forEach { id ->
+            val provider = system.getAppWidgetInfo(glance.getAppWidgetId(id))?.provider?.className
+            if (provider == receiver.name) widget.update(context, id)
+        }
+    }
 }
 
 /** Fills the picker with the Android 15+ generated previews; the system rate-limits this, so call it at launch and when the look changes only. */

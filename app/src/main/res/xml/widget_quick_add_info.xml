@@ -7,6 +7,8 @@
     android:minHeight="40dp"
     android:minResizeWidth="110dp"
     android:minResizeHeight="40dp"
+    android:configure="dev.yernur.moneytracker.widget.QuickAddConfigActivity"
+    android:widgetFeatures="reconfigurable"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen" />
