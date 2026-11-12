@@ -27,6 +27,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import dev.yernur.moneytracker.LocalAppContainer
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -229,6 +231,9 @@ class HistoryViewModel(
     }
 }
 
+/** Open History on [unit] (the current one) showing the income side or the expenses side. */
+data class HistoryRequest(val unit: PeriodUnit, val income: Boolean)
+
 @Composable
 fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
     val vm = appViewModel { HistoryViewModel(it.db, it.settings, { r -> it.historyRange.value = r }) }
@@ -240,6 +245,15 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
     val expanded = remember { mutableStateListOf<String>() }
     val collapse = rememberChartCollapse()
     var chartIncome by remember { mutableStateOf(false) }
+    val container = LocalAppContainer.current
+    val request by container.historyRequest.collectAsStateWithLifecycle()
+    LaunchedEffect(request) {
+        val asked = request ?: return@LaunchedEffect
+        vm.zoom(asked.unit)
+        vm.jumpToToday()
+        chartIncome = asked.income
+        container.historyRequest.value = null
+    }
     val slices = remember(state.groups, chartIncome) { chartSlices(state.groups, chartIncome) }
     val dayFormat = DateTimeFormatter.ofPattern("EEE, MMM d")
     val cues = rememberCueTracker(unit, range.from.toEpochDay())

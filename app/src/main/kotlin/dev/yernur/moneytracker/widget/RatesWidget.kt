@@ -2,6 +2,9 @@ package dev.yernur.moneytracker.widget
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.ColorFilter
@@ -21,6 +24,7 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.size
 import androidx.glance.text.FontWeight
@@ -39,11 +43,15 @@ class RatesWidget : MoneyWidget(2, 2) {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val container = (context.applicationContext as MoneyApp).container
-        val codes = RateCurrencies.of(context).get(GlanceAppWidgetManager(context).getAppWidgetId(id))
-        val rows = ratesRows(codes, container.fx.rates.first())
+        val saved = RateCurrencies.of(context)
+        val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
+        val rates = container.fx.rates.first()
         val title = ratesTitle(container.settings.ratesUpdatedAt.value)
         val style = container.settings.widgetStyle.value
-        provideContent { GlanceTheme { RatesCard(context, rows, title, widgetPalette(context, style)) } }
+        provideContent {
+            val codes by remember { saved.changes(appWidgetId) }.collectAsState(saved.get(appWidgetId))
+            GlanceTheme { RatesCard(context, ratesRows(codes, rates), title, widgetPalette(context, style)) }
+        }
     }
 
     override suspend fun onDelete(context: Context, glanceId: GlanceId) {
@@ -57,7 +65,7 @@ private val SAMPLE_RATES = mapOf("USD" to 450.0, "EUR" to 505.0, "RUB" to 5.5)
 @Composable
 private fun RatesCard(context: Context, rows: List<RateRow>, title: String, palette: WidgetPalette) {
     WidgetCard(palette, openApp(context)) {
-        Column(GlanceModifier.fillMaxWidth()) {
+        Column(GlanceModifier.fillMaxSize()) {
             Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Label(title, palette, size = 11)
                 Spacer(GlanceModifier.defaultWeight())
@@ -65,12 +73,16 @@ private fun RatesCard(context: Context, rows: List<RateRow>, title: String, pale
                     Image(ImageProvider(R.drawable.widget_refresh), "Refresh rates", GlanceModifier.size(18.dp), colorFilter = ColorFilter.tint(palette.primary))
                 }
             }
+            // Fewer currencies get bigger type and spread over the card instead of leaving it half empty.
+            val (codeSize, rateSize) = when (rows.size) { 1 -> 14 to 30; 2 -> 12 to 22; else -> 11 to 14 }
+            Spacer(GlanceModifier.defaultWeight())
             rows.forEach { row ->
                 Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Label(row.code, palette)
+                    Label(row.code, palette, size = codeSize)
                     Spacer(GlanceModifier.defaultWeight())
-                    Text(row.text, style = TextStyle(color = palette.primary, fontSize = 14.sp, fontWeight = FontWeight.Medium), maxLines = 1)
+                    Text(row.text, style = TextStyle(color = palette.primary, fontSize = rateSize.sp, fontWeight = FontWeight.Medium), maxLines = 1)
                 }
+                Spacer(GlanceModifier.defaultWeight())
             }
         }
     }

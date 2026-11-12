@@ -13,7 +13,10 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.performTouchInput
@@ -271,21 +274,20 @@ class PhoneScreenFlowTest {
     }
 
     @Test
-    fun addScreenShowsOnlyTheSelectedAccountsBalance_andWhatItWillBeAfter() {
+    fun addScreenShowsEachVisibleAccountAsATileWithItsBalance_andPickingOneSelectsIt() {
         runBlocking { // Main: +1,000.00; Deposit: +50,000.00
             container.ledger.saveTransaction(TransactionDraft(null, TransactionType.Income, "main", "cafe", 100_000, today.toString(), null, emptySet()))
             container.ledger.saveTransaction(TransactionDraft(null, TransactionType.Income, "dep", "cafe", 5_000_000, today.toString(), null, emptySet()))
         }
         tap("add")
-        waitForText("Balance ₸1,000") // the default account only
-        compose.onAllNodesWithText("Balance", substring = true).assertCountEquals(1)
-        compose.onNodeWithTag("amount").performTextInput("250")
-        waitForText("Balance ₸1,000 · after ₸750")
+        waitForText("₸1,000") // each balance appears once, on its own tile: no second "Balance" line
+        compose.onAllNodesWithText("₸1,000", substring = true).assertCountEquals(1)
+        compose.onAllNodesWithText("₸50,000", substring = true).assertCountEquals(1)
+        compose.onNodeWithTag("account-main").assertIsSelected()
 
-        tap("account-dep") // switching the account switches the balance
-        waitForText("Balance ₸50,000 · after ₸49,750")
-        tap("kind-Income")
-        waitForText("Balance ₸50,000 · after ₸50,250")
+        compose.onNodeWithTag("account-dep").performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitForIdle()
+        compose.onNodeWithTag("account-dep").assertIsSelected()
     }
 
     @Test

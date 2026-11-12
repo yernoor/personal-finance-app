@@ -1,5 +1,7 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -122,7 +124,7 @@ class HomeViewModel(
 }
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(onOpenHistory: (HistoryRequest) -> Unit = {}) {
     val container = LocalAppContainer.current
     val vm = appViewModel { HomeViewModel(it.db, it.forecasts, it.settings, it.fx.allRates) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -133,7 +135,7 @@ fun HomeScreen() {
             when (id) {
                 "warnings" -> if (state.warnings.isNotEmpty()) WarningsCard(state.warnings)
                 "balance" -> BalanceCard(state, showAll)
-                "totals" -> TotalsCard(state.period)
+                "totals" -> TotalsCard(state.period, onOpenHistory)
                 "top-categories" -> TopCategoriesCard(state.period)
                 "recent" -> RecentCard(state.recent)
             }
@@ -165,19 +167,19 @@ private fun BalanceCard(state: HomeState, showAll: Boolean) {
 
 /** The period's title, then income and expenses as two cards side by side. */
 @Composable
-private fun TotalsCard(period: PeriodTotals) {
+private fun TotalsCard(period: PeriodTotals, onOpenHistory: (HistoryRequest) -> Unit) {
     Column(Modifier.fillMaxWidth().testTag("home-totals"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(periodTitle(period.unit, period.range), style = MaterialTheme.typography.labelLarge, modifier = Modifier.testTag("home-totals-title"))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            TotalCard("Income", "+" + Money.format(period.income, DEFAULT_CURRENCY), Semantic.income, Modifier.weight(1f).testTag("home-income"))
-            TotalCard("Expenses", "\u2212" + Money.format(period.expense, DEFAULT_CURRENCY), MaterialTheme.colorScheme.onSurface, Modifier.weight(1f).testTag("home-expenses"))
+            TotalCard("Income", "+" + Money.format(period.income, DEFAULT_CURRENCY), Semantic.income, Modifier.weight(1f).testTag("home-income")) { onOpenHistory(HistoryRequest(period.unit, income = true)) }
+            TotalCard("Expenses", "\u2212" + Money.format(period.expense, DEFAULT_CURRENCY), MaterialTheme.colorScheme.onSurface, Modifier.weight(1f).testTag("home-expenses")) { onOpenHistory(HistoryRequest(period.unit, income = false)) }
         }
     }
 }
 
 @Composable
-private fun TotalCard(label: String, amount: String, color: Color, modifier: Modifier) {
-    AppCard(modifier) {
+private fun TotalCard(label: String, amount: String, color: Color, modifier: Modifier, onClick: () -> Unit) {
+    AppCard(modifier.clip(CardShape).clickable(onClick = onClick)) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             // Never wrap (a break after the sign left only "-" visible); shrink the text until the amount fits the card instead.

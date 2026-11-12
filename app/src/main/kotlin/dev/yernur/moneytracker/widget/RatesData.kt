@@ -54,6 +54,8 @@ class RateCurrencies(private val prefs: SharedPreferences) {
 
     fun remove(appWidgetId: Int) = prefs.edit().remove(appWidgetId.toString()).apply()
 
+    fun changes(appWidgetId: Int) = prefs.observe(appWidgetId.toString()) { get(appWidgetId) }
+
     companion object {
         fun of(context: Context) = RateCurrencies(context.applicationContext.getSharedPreferences("ratewidget", Context.MODE_PRIVATE))
     }

@@ -7,9 +7,12 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
@@ -87,6 +90,8 @@ class AppFlowTest {
     private fun tap(tag: String) = compose.onNodeWithTag(tag).performClick()
 
     /** Entry form widgets can be below the fold; scrolling needs a scrollable ancestor, so only use it there. */
+    private fun pickInForm(tag: String) = compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.OnClick) // account tiles scroll sideways, off the tiny test screen
+
     private fun tapInForm(tag: String) = compose.onNodeWithTag(tag).performScrollTo().performClick()
 
     private fun transactions() = runBlocking { db.transactionDao().getAll() }
@@ -147,9 +152,9 @@ class AppFlowTest {
         tap("tab-accounts")
         compose.onNodeWithText("New transfer").performClick()
         compose.onNodeWithTag("amount").performTextInput("4500")
-        waitForText("Main · KZT")
-        tapInForm("from-main")
-        tapInForm("to-usd")
+        eventually { compose.onAllNodesWithTag("from-main").fetchSemanticsNodes().isNotEmpty() }
+        pickInForm("from-main")
+        pickInForm("to-usd")
         eventually { runCatching { compose.onNodeWithTag("to-amount").performScrollTo().assertTextContains("10") }.isSuccess } // 4,500 / 450
 
         compose.onNodeWithTag("to-amount").performTextReplacement("9.9") // the bank gave a bit less

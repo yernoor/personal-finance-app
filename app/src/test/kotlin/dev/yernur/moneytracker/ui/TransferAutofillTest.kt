@@ -6,7 +6,10 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
@@ -21,6 +24,7 @@ import dev.yernur.moneytracker.data.wealth.updatedLabel
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -46,11 +50,14 @@ class TransferAutofillTest {
         db.fxRateDao().upsertAll(listOf(FxRateEntity("USD", 450.0, "2026-11-04")))
         container = AppContainer(db)
         container.settings.setRatesUpdatedAt(UPDATED_AT)
-        compose.setContent { CompositionLocalProvider(LocalAppContainer provides container) { AppTheme { EntryScreen(null, EntryKind.Transfer) {} } } }
+        compose.setContent { CompositionLocalProvider(LocalAppContainer provides container) { AppTheme { EntryScreen(null, EntryKind.Transfer, onLeave = {}) } } }
     }
 
     @After
     fun tearDown() = db.close()
+
+    /** Account tiles sit in a horizontally scrolling row that the tiny test screen cuts off, so they are picked by their click action. */
+    private fun pick(tag: String) = compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.OnClick)
 
     private fun tap(tag: String) = compose.onNodeWithTag(tag).performScrollTo().performClick()
 
@@ -64,8 +71,8 @@ class TransferAutofillTest {
     @Test
     fun receivedAmount_isCalculated_andFollowsTheSentAmount() {
         waitForTag("from-main")
-        tap("from-main")
-        tap("to-usd")
+        pick("from-main")
+        pick("to-usd")
         compose.onNodeWithTag("amount").performTextInput("4500")
         compose.waitUntil(10_000) { compose.onAllNodesWithText("10", substring = false).fetchSemanticsNodes().isNotEmpty() }
         received().assertTextContains("10") // 4,500 / 450
@@ -82,8 +89,8 @@ class TransferAutofillTest {
     @Test
     fun aTypedReceivedAmount_isKept_whenTheSentAmountChanges_andSavedAsTyped() {
         waitForTag("from-main")
-        tap("from-main")
-        tap("to-usd")
+        pick("from-main")
+        pick("to-usd")
         compose.onNodeWithTag("amount").performTextInput("4500")
         compose.waitUntil(10_000) { compose.onAllNodesWithText("10", substring = false).fetchSemanticsNodes().isNotEmpty() }
 
@@ -103,8 +110,8 @@ class TransferAutofillTest {
     @Test
     fun clearingTheReceivedAmount_handsItBackToTheCalculation() {
         waitForTag("from-main")
-        tap("from-main")
-        tap("to-usd")
+        pick("from-main")
+        pick("to-usd")
         compose.onNodeWithTag("amount").performTextInput("4500")
         compose.waitUntil(10_000) { compose.onAllNodesWithText("10", substring = false).fetchSemanticsNodes().isNotEmpty() }
         received().performScrollTo().performTextReplacement("3")
@@ -115,8 +122,8 @@ class TransferAutofillTest {
     @Test
     fun withoutARateForTheCurrency_nothingIsFilledIn_andSavingAsksForIt() {
         waitForTag("from-main")
-        tap("from-main")
-        tap("to-gbp")
+        pick("from-main")
+        pick("to-gbp")
         compose.onNodeWithTag("amount").performTextInput("4500")
         compose.waitForIdle()
         assertEquals(0, compose.onAllNodesWithTag("to-amount-rate").fetchSemanticsNodes().size) // no GBP rate: nothing to show
@@ -127,5 +134,19 @@ class TransferAutofillTest {
 
     private companion object {
         const val UPDATED_AT = 1_793_700_000_000L
+    }
+
+    @Test
+    fun receivedAmount_sitsRightUnderTheSentAmount_aboveTheAccounts() {
+        waitForTag("from-main")
+        assertEquals(0, compose.onAllNodesWithTag("to-amount").fetchSemanticsNodes().size) // same currency on both sides: no received field
+        pick("from-main")
+        pick("to-usd")
+        waitForTag("to-amount")
+        compose.waitForIdle() // the slide-in has finished
+        val sent = compose.onNodeWithTag("amount").fetchSemanticsNode().boundsInRoot
+        val received = compose.onNodeWithTag("to-amount").fetchSemanticsNode().boundsInRoot
+        val firstAccount = compose.onNodeWithText("From account").fetchSemanticsNode().boundsInRoot // the accounts block starts below the amounts
+        assertTrue(received.top >= sent.bottom && received.bottom <= firstAccount.top)
     }
 }

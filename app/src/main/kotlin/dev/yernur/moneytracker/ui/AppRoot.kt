@@ -159,7 +159,8 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
         onLaunched()
     }
     CrashPrompt(onReport = { nav.navigate("feedback/crash") })
-    val settings = LocalAppContainer.current.settings
+    val container = LocalAppContainer.current
+    val settings = container.settings
     val tabIds by settings.navTabs.collectAsStateWithLifecycle()
     val tabs = tabIds.mapNotNull { id -> NavTab.entries.firstOrNull { it.id == id } }
     val tabRoutes = tabs.map { it.id }.toSet()
@@ -233,7 +234,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 (tab?.id == "home" || tab?.id == "history") && !glass,
                 enter = scaleIn(tween(FADE_MS)) + fadeIn(tween(FADE_MS)), exit = scaleOut(tween(FADE_MS)) + fadeOut(tween(FADE_MS)),
             ) {
-                AddButton({ nav.navigate(entryRoute()) }, Modifier.padding(bottom = 4.dp))
+                AddButton({ nav.navigate(entryRoute()) }, Modifier.padding(bottom = 4.dp), onPickKind = { nav.navigate(entryRoute(kind = it)) })
             }
         },
     ) { padding ->
@@ -296,7 +297,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             predictivePopEnterTransition = { slideInHorizontally { -it / 6 } },
             predictivePopExitTransition = { slideOutHorizontally { it } },
         ) {
-            screen("home") { HomeScreen() }
+            screen("home") { HomeScreen { request -> container.historyRequest.value = request; nav.navigateTop("history") } }
             screen("history") {
                 HistoryScreen { uid, isTransfer -> nav.navigate(entryRoute(uid, if (isTransfer) EntryKind.Transfer else EntryKind.Expense)) }
             }
@@ -318,7 +319,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 ),
             ) { entry ->
                 val uid = entry.arguments?.getString("uid")?.takeIf { it.isNotEmpty() }
-                EntryScreen(uid, EntryKind.valueOf(entry.arguments?.getString("kind") ?: "Expense")) { nav.popBackStack() }
+                EntryScreen(uid, EntryKind.valueOf(entry.arguments?.getString("kind") ?: "Expense"), onLeave = { nav.popBackStack() })
             }
             screen(ACCOUNT, arguments = listOf(navArgument("uid") { type = NavType.StringType })) { entry ->
                 AccountEditScreen(entry.arguments?.getString("uid")?.takeIf { it != "new" }) { nav.popBackStack() }
@@ -377,7 +378,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             AnimatedVisibility(
                 tab?.id == "home" || tab?.id == "history", Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = navInset + 88.dp),
                 enter = scaleIn(tween(FADE_MS)) + fadeIn(tween(FADE_MS)), exit = scaleOut(tween(FADE_MS)) + fadeOut(tween(FADE_MS)),
-            ) { AddButton({ nav.navigate(entryRoute()) }, backdrop = backdrop) }
+            ) { AddButton({ nav.navigate(entryRoute()) }, backdrop = backdrop, onPickKind = { nav.navigate(entryRoute(kind = it)) }) }
         }
       }
       }

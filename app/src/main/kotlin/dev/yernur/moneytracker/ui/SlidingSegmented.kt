@@ -5,6 +5,10 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -34,7 +38,11 @@ import androidx.compose.ui.unit.dp
  * [tags] are the test tags of the segments, in order.
  */
 @Composable
-fun SlidingSegmented(labels: List<String>, selected: Int, tags: List<String>, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+fun SlidingSegmented(
+    labels: List<String>, selected: Int, tags: List<String>, onSelect: (Int) -> Unit, modifier: Modifier = Modifier,
+    /** An icon drawn before the label of the segment at this index; a segment may have an icon and an empty label. */
+    icons: Map<Int, ImageVector> = emptyMap(),
+) {
     val ink = MaterialTheme.colorScheme.onSurface
     val shape = RoundedCornerShape(18.dp)
     BoxWithConstraints(modifier.fillMaxWidth().height(44.dp).clip(RoundedCornerShape(22.dp)).background(ink.copy(alpha = 0.07f)).padding(4.dp)) {
@@ -48,7 +56,12 @@ fun SlidingSegmented(labels: List<String>, selected: Int, tags: List<String>, on
                 Box(
                     Modifier.weight(1f).fillMaxHeight().clip(shape).selectable(on, role = Role.Tab, onClick = { onSelect(index) }).testTag(tags[index]),
                     contentAlignment = Alignment.Center,
-                ) { Text(label, maxLines = 1, style = MaterialTheme.typography.labelLarge, color = color) }
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        icons[index]?.let { Icon(it, null, Modifier.size(18.dp), tint = color) }
+                        if (label.isNotEmpty()) Text(label, maxLines = 1, style = MaterialTheme.typography.labelLarge, color = color)
+                    }
+                }
             }
         }
     }

@@ -2,6 +2,27 @@ package dev.yernur.moneytracker.ui
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.material.icons.outlined.SwapVert
+import androidx.compose.ui.draw.rotate
+import androidx.compose.animation.core.Animatable
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import java.time.temporal.ChronoUnit
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.Role
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -97,6 +118,9 @@ import kotlinx.coroutines.launch
 
 enum class EntryKind { Expense, Income, Transfer }
 
+/** A refused account pick: [side] is "from" or "to"; [count] makes a repeated tap on the same chip a new event. */
+data class Rejection(val side: String, val uid: String, val count: Int)
+
 data class EntryOptions(
     val accounts: List<AccountEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
@@ -187,9 +211,55 @@ class EntryViewModel(
     fun changeToAmount(text: String) { toAmount = text; toAmountTyped = text.isNotBlank(); fillReceived() }
 
     /** A different account means a different currency pair, so an earlier typed figure no longer applies. */
-    fun pickAccount(uid: String) { accountUid = uid; toAmountTyped = false; fillReceived() }
+    fun pickAccount(uid: String) {
+        if (kind == EntryKind.Transfer && uid == toAccountUid) return reject("from", uid)
+        val before = currencyOf(accountUid)
+        accountUid = uid; toAmountTyped = false; fillReceived()
+        if (kind != EntryKind.Transfer) convertTypedAmount(before, currencyOf(uid))
+    }
 
-    fun pickToAccount(uid: String) { toAccountUid = uid; toAmountTyped = false; fillReceived() }
+    /** The typed amount of an expense or income follows the chosen account into its currency (at the bank rate, as the transfer's received amount does). */
+    private fun convertTypedAmount(from: String?, to: String?) {
+        val typed = Money.parseMinor(amount)?.takeIf { it > 0 }
+        if (typed == null || from == null || to == null || from == to) return
+        val asked = amount
+        viewModelScope.launch {
+            val converted = convertWithRates(typed, from, to, rates())?.let(Money::editable)
+            if (converted != null && amount == asked) amount = converted // the owner may have typed on meanwhile
+        }
+    }
+
+    /** The clear button of the From block: the account is chosen again from nothing. */
+    fun clearAccount() { accountUid = null; toAmountTyped = false; fillReceived() }
+
+    fun clearToAccount() { toAccountUid = null; toAmountTyped = false; toAmount = ""; rateNote = "" }
+
+    fun pickToAccount(uid: String) {
+        if (uid == accountUid) return reject("to", uid)
+        toAccountUid = uid; toAmountTyped = false; fillReceived()
+    }
+
+    /** A transfer cannot start and end at the same account: the tapped chip shakes instead of being selected. */
+    var rejection by mutableStateOf<Rejection?>(null)
+        private set
+
+    private fun reject(side: String, uid: String) { rejection = Rejection(side, uid, (rejection?.count ?: 0) + 1) }
+
+    /** Turns the transfer around: the accounts trade places, and so do the amounts when the currencies differ (each figure stays with its own currency). */
+    fun swapAccounts() {
+        val to = toAccountUid ?: return
+        val from = accountUid ?: return
+        val differentCurrencies = needsToAmount()
+        accountUid = to
+        toAccountUid = from
+        if (differentCurrencies) {
+            val sent = amount
+            amount = toAmount
+            toAmount = sent
+            toAmountTyped = toAmount.isNotBlank()
+        }
+        fillReceived()
+    }
 
     /** Call when the accounts or the account list change. */
     fun refreshRateNote() {
@@ -271,6 +341,7 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
     var confirmDelete by remember { mutableStateOf(false) }
     var addingTag by remember { mutableStateOf(false) }
     val isTransfer = vm.kind == EntryKind.Transfer
+    var swaps by remember { mutableStateOf(0) }
     LaunchedEffect(vm.accountUid, vm.toAccountUid, vm.kind, options.accounts) { vm.refreshRateNote() }
     val amountFocus = remember { FocusRequester() }
     // Leaving: the keyboard goes down in the same moment the screen starts to shrink, instead of waiting until the screen is gone. The bottom bar keeps
@@ -319,28 +390,39 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
                 isTransfer -> listOf(EntryKind.Transfer)
                 else -> listOf(EntryKind.Expense, EntryKind.Income)
             }
-            SlidingSegmented(kinds.map { it.name }, kinds.indexOf(vm.kind), kinds.map { "kind-$it" }, { vm.kind = kinds[it] })
+            if (kinds.size > 1) SlidingSegmented(kinds.map { it.name }, kinds.indexOf(vm.kind), kinds.map { "kind-$it" }, { vm.kind = kinds[it] }) // a transfer being edited has nothing to switch to
 
-            AmountField(
-                vm.amount, vm::changeAmount, if (isTransfer) "Amount sent" else "Amount", vm.currencyOf(vm.accountUid).orEmpty(), "amount",
-                Modifier.focusRequester(amountFocus),
-            )
-
-            Text(if (isTransfer) "From account" else "Account", style = MaterialTheme.typography.labelLarge)
-            AccountChips(options.accounts, vm.accountUid, tagPrefix = if (isTransfer) "from" else "account", onPick = vm::pickAccount)
-            val sign = if (vm.kind == EntryKind.Income) 1 else -1 // an expense and a transfer both take money out of this account
-            BalanceLine(balances[vm.accountUid], vm.currencyOf(vm.accountUid), Money.parseMinor(vm.amount)?.takeIf { it > 0 && !vm.isEditing }?.times(sign), "account-balance")
-            if (isTransfer) {
-                Text("To account", style = MaterialTheme.typography.labelLarge)
-                AccountChips(options.accounts, vm.toAccountUid, tagPrefix = "to", onPick = vm::pickToAccount)
-                val received = if (vm.needsToAmount()) Money.parseMinor(vm.toAmount) else Money.parseMinor(vm.amount)
-                BalanceLine(balances[vm.toAccountUid], vm.currencyOf(vm.toAccountUid), received?.takeIf { it > 0 && !vm.isEditing }, "to-balance")
-                if (vm.needsToAmount()) {
-                    AmountField(vm.toAmount, vm::changeToAmount, "Amount received", vm.currencyOf(vm.toAccountUid).orEmpty(), "to-amount")
-                    if (vm.rateNote.isNotEmpty()) {
-                        Text(vm.rateNote, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("to-amount-rate"))
+            // The received amount of a transfer between currencies sits right under the sent one and slides down out of it.
+            Column {
+                AmountField(
+                    vm.amount, vm::changeAmount, if (isTransfer) "Amount sent" else "Amount", vm.currencyOf(vm.accountUid).orEmpty(), "amount",
+                    Modifier.focusRequester(amountFocus),
+                )
+                AnimatedVisibility(
+                    isTransfer && vm.needsToAmount(),
+                    enter = expandVertically(tween(350)) + slideInVertically(tween(350)) { -it / 2 } + fadeIn(tween(300)),
+                    exit = shrinkVertically(tween(250)) + slideOutVertically(tween(250)) { -it / 2 } + fadeOut(tween(200)),
+                ) {
+                    Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AmountField(vm.toAmount, vm::changeToAmount, "Amount received", vm.currencyOf(vm.toAccountUid).orEmpty(), "to-amount")
+                        if (vm.rateNote.isNotEmpty()) {
+                            Text(vm.rateNote, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("to-amount-rate"))
+                        }
                     }
                 }
+            }
+
+            if (isTransfer) {
+                AccountLabel("From account", vm.accountUid != null, "clear-from", vm::clearAccount)
+                AccountStrip(options.accounts, balances, vm.accountUid, "from", blockedUid = vm.toAccountUid, rejection = vm.rejection?.takeIf { it.side == "from" }, onPick = vm::pickAccount)
+            } else {
+                Text("Account", style = MaterialTheme.typography.labelLarge)
+                AccountPicker(options.accounts, balances, vm.accountUid, "account", vm::pickAccount)
+            }
+            if (isTransfer) {
+                SwapDivider(swaps, enabled = vm.accountUid != null && vm.toAccountUid != null) { swaps++; vm.swapAccounts() }
+                AccountLabel("To account", vm.toAccountUid != null, "clear-to", vm::clearToAccount)
+                AccountStrip(options.accounts, balances, vm.toAccountUid, "to", blockedUid = vm.accountUid, rejection = vm.rejection?.takeIf { it.side == "to" }, onPick = vm::pickToAccount)
             } else {
                 val type = if (vm.kind == EntryKind.Income) TransactionType.Income else TransactionType.Expense
                 Text("Category", style = MaterialTheme.typography.labelLarge)
@@ -355,7 +437,7 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
                 }
             }
 
-            DateChips(vm.date, today = LocalDate.now()) { vm.date = it }
+            DateSegmented(vm.date, today = LocalDate.now()) { vm.date = it }
 
             if (!isTransfer) {
                 Text("Tags", style = MaterialTheme.typography.labelLarge)
@@ -375,29 +457,30 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
     if (confirmDelete) ConfirmDialog("Delete this entry?", "Delete", { confirmDelete = false }) { confirmDelete = false; vm.delete(onBack) }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+/** The label above an account block, with its clear button at the right. The button fades instead of appearing, so the row never changes height and nothing below it moves. */
 @Composable
-private fun AccountChips(accounts: List<AccountEntity>, selected: String?, tagPrefix: String, onPick: (String) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        accounts.forEach { account ->
-            FilterChip(
-                account.uid == selected, { onPick(account.uid) },
-                label = { Text("${account.title.ifBlank { "Main" }} · ${account.currencyCode}") },
-                modifier = Modifier.testTag("$tagPrefix-${account.uid}"),
-            )
-        }
+private fun AccountLabel(text: String, hasAccount: Boolean, clearTag: String, onClear: () -> Unit) {
+    val alpha by animateFloatAsState(if (hasAccount) 1f else 0f, tween(200), label = "clear-alpha")
+    Row(Modifier.fillMaxWidth().heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(text, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
+        IconButton(onClear, enabled = hasAccount, modifier = Modifier.size(40.dp).alpha(alpha).testTag(clearTag)) { Icon(Icons.Outlined.Close, "Clear $text", Modifier.size(20.dp)) }
     }
 }
 
-/**
- * The balance of the selected account only, in its currency. For a new entry it also shows what it would be after
- * the typed amount ([change] is signed); an edited entry is already part of the balance, so no preview then.
- */
+/** The swap button, centered between the From and To blocks on a thin rule: a tonal circle with a clear outline that turns over (with a small overshoot) each time it swaps. */
 @Composable
-private fun BalanceLine(balance: Long?, currency: String?, change: Long?, tag: String) {
-    if (balance == null || currency == null) return
-    val text = "Balance ${Money.format(balance, currency)}" + (change?.let { " · after ${Money.format(balance + it, currency)}" } ?: "")
-    Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag(tag))
+private fun SwapDivider(swaps: Int, enabled: Boolean, onSwap: () -> Unit) {
+    val turn by animateFloatAsState(swaps * 180f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessLow), label = "swap-turn")
+    val scheme = MaterialTheme.colorScheme
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        HorizontalDivider(Modifier.weight(1f))
+        Box(
+            Modifier.size(48.dp).alpha(if (enabled) 1f else 0.4f).clip(CircleShape).background(scheme.secondaryContainer).border(1.5.dp, scheme.primary, CircleShape)
+                .clickable(enabled = enabled, role = Role.Button, onClick = onSwap).testTag("swap-accounts"),
+            contentAlignment = Alignment.Center,
+        ) { Icon(Icons.Outlined.SwapVert, "Swap accounts", Modifier.size(26.dp).rotate(turn), tint = scheme.primary) }
+        HorizontalDivider(Modifier.weight(1f))
+    }
 }
 
 /** Decimal field with a calculator button (tags: `<tag>` for the field, `<tag>-calc` for the button). */
@@ -459,30 +542,29 @@ fun CategoryTile(category: CategoryEntity, selected: Boolean, onClick: () -> Uni
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+/**
+ * Today, yesterday or two days ago as a sliding selector, and a calendar segment for any other day: it opens the month in place, and picking a
+ * day closes it and shows that day (as "Nov 9") in the last segment.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DateChips(date: LocalDate, today: LocalDate, onPick: (LocalDate) -> Unit) {
-    var picking by remember { mutableStateOf(false) }
-    val label = DateTimeFormatter.ofPattern("EEE, MMM d, yyyy")
+private fun DateSegmented(date: LocalDate, today: LocalDate, onPick: (LocalDate) -> Unit) {
+    var calendar by rememberSaveable { mutableStateOf(false) }
+    val daysBack = ChronoUnit.DAYS.between(date, today).toInt()
+    val quick = daysBack in 0..2
+    val selected = if (calendar || !quick) 3 else daysBack
     Text("Date", style = MaterialTheme.typography.labelLarge)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        listOf("Today" to 0L, "Yesterday" to 1L, "2 days ago" to 2L).forEach { (name, back) ->
-            FilterChip(date == today.minusDays(back), { onPick(today.minusDays(back)) }, label = { Text(name) })
-        }
-        AssistChip({ picking = true }, label = { Text(date.format(label)) }, leadingIcon = { Icon(Icons.Outlined.CalendarMonth, null) })
-    }
-    if (picking) {
+    SlidingSegmented(
+        listOf("Today", "Yesterday", "2 days ago", if (quick) "" else date.format(DateTimeFormatter.ofPattern("MMM d"))), selected, List(4) { "date-$it" },
+        { index -> if (index == 3) calendar = !calendar else { calendar = false; onPick(today.minusDays(index.toLong())) } },
+        icons = mapOf(3 to Icons.Outlined.CalendarMonth),
+    )
+    AnimatedVisibility(calendar, enter = expandVertically(tween(400)) + fadeIn(tween(250)), exit = shrinkVertically(tween(300)) + fadeOut(tween(200))) {
         val state = rememberDatePickerState(initialSelectedDateMillis = date.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
-        DatePickerDialog(
-            onDismissRequest = { picking = false },
-            colors = DatePickerDefaults.colors(containerColor = glassContainer(DatePickerDefaults.colors().containerColor)),
-            confirmButton = {
-                TextButton({
-                    state.selectedDateMillis?.let { onPick(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) }
-                    picking = false
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton({ picking = false }) { Text("Cancel") } },
-        ) { GlassWindowBlur(); DatePicker(state) }
+        LaunchedEffect(state.selectedDateMillis) {
+            val picked = state.selectedDateMillis?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
+            if (picked != null && picked != date) { onPick(picked); calendar = false }
+        }
+        DatePicker(state, title = null, headline = null, showModeToggle = false, modifier = Modifier.testTag("date-calendar"))
     }
 }

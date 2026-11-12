@@ -55,6 +55,8 @@ class AppContainer(
 ) {
     /** The period History is showing; a new entry defaults to its date. Null until History has been opened. */
     val historyRange = kotlinx.coroutines.flow.MutableStateFlow<dev.yernur.moneytracker.data.DateRange?>(null)
+    /** A tap on a Home total asks History to open on that side (income or expenses) of the current period; History clears it once it has acted. */
+    val historyRequest = kotlinx.coroutines.flow.MutableStateFlow<dev.yernur.moneytracker.ui.HistoryRequest?>(null)
     /** Today when the shown period contains it, otherwise the period's last day (the day itself for a day view). */
     fun newEntryDate(today: LocalDate = LocalDate.now()): LocalDate =
         historyRange.value?.let { if (today in it) today else it.to } ?: today
