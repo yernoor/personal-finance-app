@@ -8,6 +8,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -105,7 +107,14 @@ fun WalletPickerDialog(pending: PendingPayment, onClose: () -> Unit) {
                     Text(Money.format(pending.payment.amount, pending.payment.currency), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.SemiBold)
                     Text(paidWith(pending), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (account == null) AccountQuestion(choosable) { container.settings.setWalletAccount(it.uid) } else {
+                // The first-time account question gives way to the category grid with a slide and fade, and the sheet's height follows, instead of a cut.
+                AnimatedContent(
+                    account == null,
+                    transitionSpec = { (slideInHorizontally(tween(320)) { it / 4 } + fadeIn(tween(320))) togetherWith (slideOutHorizontally(tween(220)) { -it / 4 } + fadeOut(tween(160))) },
+                    label = "wallet-step",
+                ) { asking ->
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (asking) AccountQuestion(choosable) { container.settings.setWalletAccount(it.uid) } else if (account != null) {
                     Text("Account", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         choosable.forEach { FilterChip(it.uid == account.uid, { otherUid = it.uid }, label = { Text(it.title) }, modifier = Modifier.testTag("wallet-account-${it.uid}")) }
@@ -134,6 +143,8 @@ fun WalletPickerDialog(pending: PendingPayment, onClose: () -> Unit) {
                             }
                         }
                     }
+                }
+                }
                 }
                 // Skip until a category is selected, then Add in its place: saving takes a deliberate second tap, so a stray touch cannot add an entry.
                 val selected = account?.let { chosen -> WalletPlan.expenseCategories(categories).firstOrNull { it.uid == selectedUid }?.let { chosen to it } }
