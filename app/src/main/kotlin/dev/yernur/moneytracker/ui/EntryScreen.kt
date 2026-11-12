@@ -12,6 +12,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import java.time.temporal.ChronoUnit
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -425,7 +428,7 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
                 }
             }
 
-            DateChips(vm.date, today = LocalDate.now()) { vm.date = it }
+            DateSegmented(vm.date, today = LocalDate.now()) { vm.date = it }
 
             if (!isTransfer) {
                 Text("Tags", style = MaterialTheme.typography.labelLarge)
@@ -527,30 +530,30 @@ fun CategoryTile(category: CategoryEntity, selected: Boolean, onClick: () -> Uni
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+/**
+ * Today, yesterday or two days ago as a sliding selector, and a calendar segment for any other day: it opens the month in place, and picking a
+ * day closes it and shows that day (as "Nov 9") in the last segment.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DateChips(date: LocalDate, today: LocalDate, onPick: (LocalDate) -> Unit) {
-    var picking by remember { mutableStateOf(false) }
-    val label = DateTimeFormatter.ofPattern("EEE, MMM d, yyyy")
+private fun DateSegmented(date: LocalDate, today: LocalDate, onPick: (LocalDate) -> Unit) {
+    var calendar by rememberSaveable { mutableStateOf(false) }
+    val daysBack = ChronoUnit.DAYS.between(date, today).toInt()
+    val quick = daysBack in 0..2
+    val selected = if (calendar || !quick) 3 else daysBack
     Text("Date", style = MaterialTheme.typography.labelLarge)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        listOf("Today" to 0L, "Yesterday" to 1L, "2 days ago" to 2L).forEach { (name, back) ->
-            FilterChip(date == today.minusDays(back), { onPick(today.minusDays(back)) }, label = { Text(name) })
-        }
-        AssistChip({ picking = true }, label = { Text(date.format(label)) }, leadingIcon = { Icon(Icons.Outlined.CalendarMonth, null) })
-    }
-    if (picking) {
+    SlidingSegmented(
+        listOf("Today", "Yesterday", "2 days ago", if (quick) "" else date.format(DateTimeFormatter.ofPattern("MMM d"))), selected, List(4) { "date-$it" },
+        { index -> if (index == 3) calendar = !calendar else { calendar = false; onPick(today.minusDays(index.toLong())) } },
+        icons = mapOf(3 to Icons.Outlined.CalendarMonth),
+    )
+    Text(date.format(DateTimeFormatter.ofPattern("EEE, MMM d, yyyy")), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("date-text"))
+    AnimatedVisibility(calendar, enter = expandVertically(tween(400)) + fadeIn(tween(250)), exit = shrinkVertically(tween(300)) + fadeOut(tween(200))) {
         val state = rememberDatePickerState(initialSelectedDateMillis = date.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
-        DatePickerDialog(
-            onDismissRequest = { picking = false },
-            colors = DatePickerDefaults.colors(containerColor = glassContainer(DatePickerDefaults.colors().containerColor)),
-            confirmButton = {
-                TextButton({
-                    state.selectedDateMillis?.let { onPick(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) }
-                    picking = false
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton({ picking = false }) { Text("Cancel") } },
-        ) { GlassWindowBlur(); DatePicker(state) }
+        LaunchedEffect(state.selectedDateMillis) {
+            val picked = state.selectedDateMillis?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
+            if (picked != null && picked != date) { onPick(picked); calendar = false }
+        }
+        DatePicker(state, title = null, headline = null, showModeToggle = false, modifier = Modifier.testTag("date-calendar"))
     }
 }
