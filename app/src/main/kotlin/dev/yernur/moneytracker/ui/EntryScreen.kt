@@ -15,6 +15,13 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -337,10 +344,14 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
             } else {
                 val type = if (vm.kind == EntryKind.Income) TransactionType.Income else TransactionType.Expense
                 Text("Category", style = MaterialTheme.typography.labelLarge)
+                val all = options.categories.filter { it.type == type }
+                var expanded by rememberSaveable { mutableStateOf(false) }
+                val shown = visibleCategories(all, expanded, vm.categoryUid)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    options.categories.filter { it.type == type }.forEach { category ->
+                    shown.forEach { category ->
                         CategoryTile(category, selected = vm.categoryUid == category.uid) { vm.categoryUid = category.uid }
                     }
+                    if (all.size > COLLAPSED_CATEGORIES) ExpandTile(expanded, Modifier.width(76.dp)) { expanded = !expanded }
                 }
             }
 
@@ -409,6 +420,28 @@ fun CreateTile(label: String, modifier: Modifier = Modifier, onClick: () -> Unit
     Column(modifier.width(76.dp).clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
         IconBadge("add", AccentPalette.KEYS.first(), size = 48.dp) // the first palette slot sits exactly on the accent hue
         Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+    }
+}
+
+/** Category lists start collapsed to this many icons, followed by an expand tile. */
+const val COLLAPSED_CATEGORIES = 7
+
+/** The categories to draw: all when [expanded], else the first [COLLAPSED_CATEGORIES] (a selected one beyond them goes first and the rest shift right, so it stays visible). */
+fun visibleCategories(all: List<CategoryEntity>, expanded: Boolean, selectedUid: String?): List<CategoryEntity> {
+    if (expanded || all.size <= COLLAPSED_CATEGORIES) return all
+    val head = all.take(COLLAPSED_CATEGORIES)
+    val selected = all.firstOrNull { it.uid == selectedUid }
+    return if (selected == null || selected in head) head else listOf(selected) + head.dropLast(1)
+}
+
+/** The tile after the collapsed categories: expands the list, or collapses it again. */
+@Composable
+fun ExpandTile(expanded: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Column(modifier.clickable(onClick = onClick).testTag("category-expand"), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+            Icon(if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, null)
+        }
+        Text(if (expanded) "Less" else "More", style = MaterialTheme.typography.labelMedium, maxLines = 1)
     }
 }
 

@@ -68,6 +68,8 @@ class WalletPrompts(private val context: Context, private val container: AppCont
             .setContentTitle(title).setContentText(text).setStyle(Notification.BigTextStyle().bigText(text))
             .setVisibility(Notification.VISIBILITY_PRIVATE).setPublicVersion(public)
             .setContentIntent(content).setAutoCancel(true)
+            // Own group per payment: with four or more ungrouped notifications Android bundles them into a silent summary and nothing pops up.
+            .setGroup("wallet-${idOf(pending)}")
         actions.forEach { builder.addAction(it) }
         manager.notify(idOf(pending), builder.build())
     }
