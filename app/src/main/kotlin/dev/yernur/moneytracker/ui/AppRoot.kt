@@ -159,7 +159,8 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
         onLaunched()
     }
     CrashPrompt(onReport = { nav.navigate("feedback/crash") })
-    val settings = LocalAppContainer.current.settings
+    val container = LocalAppContainer.current
+    val settings = container.settings
     val tabIds by settings.navTabs.collectAsStateWithLifecycle()
     val tabs = tabIds.mapNotNull { id -> NavTab.entries.firstOrNull { it.id == id } }
     val tabRoutes = tabs.map { it.id }.toSet()
@@ -296,7 +297,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             predictivePopEnterTransition = { slideInHorizontally { -it / 6 } },
             predictivePopExitTransition = { slideOutHorizontally { it } },
         ) {
-            screen("home") { HomeScreen() }
+            screen("home") { HomeScreen { request -> container.historyRequest.value = request; nav.navigateTop("history") } }
             screen("history") {
                 HistoryScreen { uid, isTransfer -> nav.navigate(entryRoute(uid, if (isTransfer) EntryKind.Transfer else EntryKind.Expense)) }
             }
