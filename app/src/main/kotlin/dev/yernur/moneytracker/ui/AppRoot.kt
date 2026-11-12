@@ -54,6 +54,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -148,6 +149,7 @@ private val slideEasing = FastOutSlowInEasing
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch? = null, onLaunched: () -> Unit = {}) {
+    var sheetKind by rememberSaveable { mutableStateOf<EntryKind?>(null) }
     LaunchedEffect(launch) {
         val target = launch ?: return@LaunchedEffect
         val kind = when (target.kind) {
@@ -155,8 +157,11 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             "transfer" -> EntryKind.Transfer
             else -> EntryKind.Expense
         }
-        nav.navigate(entryRoute(target.uid, kind))
+        if (target.uid == null) sheetKind = kind else nav.navigate(entryRoute(target.uid, kind)) // a widget's add runs in a half sheet; an operation opens in full
         onLaunched()
+    }
+    sheetKind?.let { kind ->
+        QuickEntrySheet(kind, onClose = { sheetKind = null }, onExpand = { sheetKind = null; nav.navigate(entryRoute(kind = it)) })
     }
     CrashPrompt(onReport = { nav.navigate("feedback/crash") })
     val settings = LocalAppContainer.current.settings
@@ -318,7 +323,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 ),
             ) { entry ->
                 val uid = entry.arguments?.getString("uid")?.takeIf { it.isNotEmpty() }
-                EntryScreen(uid, EntryKind.valueOf(entry.arguments?.getString("kind") ?: "Expense")) { nav.popBackStack() }
+                EntryScreen(uid, EntryKind.valueOf(entry.arguments?.getString("kind") ?: "Expense"), onLeave = { nav.popBackStack() })
             }
             screen(ACCOUNT, arguments = listOf(navArgument("uid") { type = NavType.StringType })) { entry ->
                 AccountEditScreen(entry.arguments?.getString("uid")?.takeIf { it != "new" }) { nav.popBackStack() }

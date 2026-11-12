@@ -46,7 +46,7 @@ class TransferAutofillTest {
         db.fxRateDao().upsertAll(listOf(FxRateEntity("USD", 450.0, "2026-11-04")))
         container = AppContainer(db)
         container.settings.setRatesUpdatedAt(UPDATED_AT)
-        compose.setContent { CompositionLocalProvider(LocalAppContainer provides container) { AppTheme { EntryScreen(null, EntryKind.Transfer) {} } } }
+        compose.setContent { CompositionLocalProvider(LocalAppContainer provides container) { AppTheme { EntryScreen(null, EntryKind.Transfer, onLeave = {}) } } }
     }
 
     @After

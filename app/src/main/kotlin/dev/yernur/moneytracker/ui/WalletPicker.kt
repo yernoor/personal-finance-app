@@ -41,6 +41,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -91,10 +95,11 @@ fun WalletPickerDialog(pending: PendingPayment, onClose: () -> Unit) {
         fun skip() { context.getSystemService(NotificationManager::class.java).cancel(WalletPrompts.idOf(pending)); onClose() }
 
         ModalBottomSheet(
-            onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false), dragHandle = null,
             containerColor = glassContainer(BottomSheetDefaults.ContainerColor),
         ) {
             GlassWindowBlur()
+            IconButton(onClose, Modifier.padding(start = 8.dp).testTag("wallet-collapse")) { Icon(Icons.Outlined.KeyboardArrowDown, "Collapse") }
             Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column {
                     Text(Money.format(pending.payment.amount, pending.payment.currency), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.SemiBold)
