@@ -4,6 +4,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -73,5 +74,17 @@ class AccountPickerTest {
         waitForTag("account-usd")
         compose.onNodeWithTag("account-usd").performSemanticsAction(SemanticsActions.OnClick)
         compose.waitUntil(10_000) { runCatching { compose.onNodeWithTag("amount").assertTextContains("10"); true }.getOrDefault(false) } // 4,500 KZT / 450
+    }
+
+    @Test
+    fun aHiddenAccountShowsNoBalance_evenWhenSelected() {
+        waitForTag("account-line")
+        compose.onNodeWithTag("account-line").performClick()
+        waitForTag("account-usd")
+        compose.onNodeWithTag("account-usd").assertTextEquals("Dollars", "USD") // currency only: no balance
+        compose.onNodeWithTag("account-main").assertTextEquals("Main", "₸0") // a visible account does
+        compose.onNodeWithTag("account-usd").performSemanticsAction(SemanticsActions.OnClick) // selected, and closed: the line shows the currency too
+        compose.waitUntil(10_000) { count("account-usd") == 0 }
+        compose.onNodeWithTag("account-line").assertTextEquals("Dollars", "USD")
     }
 }

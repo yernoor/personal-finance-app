@@ -76,7 +76,7 @@ fun AccountTile(
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             IconBadge(account.icon, account.color, size = 40.dp)
             Text(account.shownTitle(), Modifier.padding(top = 6.dp), style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(balance?.let { Money.format(it, account.currencyCode) } ?: account.currencyCode, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant, maxLines = 1)
+            Text(balance?.takeIf { !account.ignoreInBalance }?.let { Money.format(it, account.currencyCode) } ?: account.currencyCode, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant, maxLines = 1)
         }
         if (account.ignoreInBalance) Icon(Icons.Outlined.VisibilityOff, "Hidden from the total", Modifier.align(Alignment.TopEnd).padding(8.dp).size(16.dp), tint = scheme.onSurfaceVariant)
     }
@@ -120,7 +120,7 @@ fun AccountPicker(accounts: List<AccountEntity>, balances: Map<String, Long>, se
                 if (chosen != null) IconBadge(chosen.icon, chosen.color, size = 40.dp)
                 Column(Modifier.weight(1f)) {
                     Text(chosen?.shownTitle() ?: "Choose an account", style = MaterialTheme.typography.bodyLarge)
-                    if (chosen != null) Text(balances[chosen.uid]?.let { Money.format(it, chosen.currencyCode) } ?: chosen.currencyCode, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (chosen != null) Text(balances[chosen.uid]?.takeIf { !chosen.ignoreInBalance }?.let { Money.format(it, chosen.currencyCode) } ?: chosen.currencyCode, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Icon(Icons.Outlined.ExpandMore, if (expanded) "Hide accounts" else "Show all accounts", Modifier.rotate(turn))
             }
