@@ -85,6 +85,7 @@ import dev.yernur.moneytracker.data.TransferDraft
 import dev.yernur.moneytracker.data.wealth.convertWithRates
 import dev.yernur.moneytracker.data.wealth.rateLabel
 import dev.yernur.moneytracker.data.wealth.updatedLabel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import dev.yernur.moneytracker.data.db.AccountEntity
 import dev.yernur.moneytracker.data.db.AppDatabase
@@ -269,6 +270,9 @@ class EntryViewModel(
     }
 }
 
+/** About how long a bottom sheet takes to slide in; the keyboard waits that long, as it waits for the full screen's arrival. */
+private const val SHEET_ARRIVE_MS = 350L
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit, sheet: Boolean = false, onExpand: (EntryKind) -> Unit = {}) {
@@ -298,6 +302,7 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit, sheet: Boole
     LaunchedEffect(Unit) {
         if (vm.isEditing) return@LaunchedEffect
         if (arrival != null) snapshotFlow { arrival.currentState }.first { it == EnterExitState.Visible }
+        else if (sheet) delay(SHEET_ARRIVE_MS) // a sheet has no nav transition to wait for: let it finish rising first
         amountFocus.requestFocus()
     }
 
