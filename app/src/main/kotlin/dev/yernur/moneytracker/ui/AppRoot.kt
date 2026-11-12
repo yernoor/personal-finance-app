@@ -375,10 +375,16 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 enter = slideInVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeIn(tween(FADE_MS)),
                 exit = slideOutVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeOut(tween(FADE_MS)),
             ) { FloatingTabBar(tabs, lastTab, onSelect = { nav.navigateTop(it.id) }, backdrop = backdrop) }
+            val addMenu = remember { mutableStateOf(false) }
+            val addShown = tab?.id == "home" || tab?.id == "history"
+            if (addMenu.value && addShown) GlassAddMenu(backdrop, bottom = navInset + 88.dp + 60.dp + 12.dp, end = 16.dp, onDismiss = { addMenu.value = false }) {
+                addMenu.value = false
+                nav.navigate(entryRoute(kind = it))
+            }
             AnimatedVisibility(
-                tab?.id == "home" || tab?.id == "history", Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = navInset + 88.dp),
+                addShown, Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = navInset + 88.dp),
                 enter = scaleIn(tween(FADE_MS)) + fadeIn(tween(FADE_MS)), exit = scaleOut(tween(FADE_MS)) + fadeOut(tween(FADE_MS)),
-            ) { AddButton({ nav.navigate(entryRoute()) }, backdrop = backdrop, onPickKind = { nav.navigate(entryRoute(kind = it)) }) }
+            ) { AddButton({ nav.navigate(entryRoute()) }, backdrop = backdrop, onPickKind = { nav.navigate(entryRoute(kind = it)) }, menu = addMenu) }
         }
       }
       }

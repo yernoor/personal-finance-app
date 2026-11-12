@@ -10,6 +10,8 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -311,5 +313,19 @@ class PhoneScreenFlowTest {
         tap("icon-style-Frost")
         assertEquals(IconStyle.Frost, container.settings.glassIconStyle.value)
         assertEquals(IconStyle.Tonal, container.settings.iconStyle.value) // the everyday choice is kept for when glass is off again
+    }
+
+    @Test
+    fun glassAddMenu_opensOnHold_closesOnTheScrim_andPicksAKind() {
+        container.settings.setGlass(true)
+        compose.waitForIdle()
+        compose.onNodeWithTag("add").performTouchInput { longClick() }
+        compose.onNodeWithTag("add-menu-scrim").assertExists() // drawn in the app's window (blurred screen behind), not a popup
+        tap("add-menu-scrim")
+        compose.onNodeWithTag("add-menu-scrim").assertDoesNotExist()
+        compose.onNodeWithTag("add").performTouchInput { longClick() }
+        tap("add-Income")
+        eventually { compose.onAllNodesWithTag("amount").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("kind-Income").assertIsSelected()
     }
 }
