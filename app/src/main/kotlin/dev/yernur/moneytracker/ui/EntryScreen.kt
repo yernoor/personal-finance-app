@@ -2,6 +2,10 @@ package dev.yernur.moneytracker.ui
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.material.icons.outlined.SwapVert
+import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -191,6 +195,22 @@ class EntryViewModel(
 
     fun pickToAccount(uid: String) { toAccountUid = uid; toAmountTyped = false; fillReceived() }
 
+    /** Turns the transfer around: the accounts trade places, and so do the amounts when the currencies differ (each figure stays with its own currency). */
+    fun swapAccounts() {
+        val to = toAccountUid ?: return
+        val from = accountUid
+        val differentCurrencies = needsToAmount()
+        accountUid = to
+        toAccountUid = from
+        if (differentCurrencies) {
+            val sent = amount
+            amount = toAmount
+            toAmount = sent
+            toAmountTyped = toAmount.isNotBlank()
+        }
+        fillReceived()
+    }
+
     /** Call when the accounts or the account list change. */
     fun refreshRateNote() {
         val from = currencyOf(accountUid)
@@ -271,6 +291,7 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
     var confirmDelete by remember { mutableStateOf(false) }
     var addingTag by remember { mutableStateOf(false) }
     val isTransfer = vm.kind == EntryKind.Transfer
+    var swaps by remember { mutableStateOf(0) }
     LaunchedEffect(vm.accountUid, vm.toAccountUid, vm.kind, options.accounts) { vm.refreshRateNote() }
     val amountFocus = remember { FocusRequester() }
     // Leaving: the keyboard goes down in the same moment the screen starts to shrink, instead of waiting until the screen is gone. The bottom bar keeps
@@ -331,7 +352,13 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
             val sign = if (vm.kind == EntryKind.Income) 1 else -1 // an expense and a transfer both take money out of this account
             BalanceLine(balances[vm.accountUid], vm.currencyOf(vm.accountUid), Money.parseMinor(vm.amount)?.takeIf { it > 0 && !vm.isEditing }?.times(sign), "account-balance")
             if (isTransfer) {
-                Text("To account", style = MaterialTheme.typography.labelLarge)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("To account", Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
+                    val turn by animateFloatAsState(swaps * 180f, tween(350), label = "swap-turn")
+                    IconButton({ swaps++; vm.swapAccounts() }, enabled = vm.toAccountUid != null, modifier = Modifier.testTag("swap-accounts")) {
+                        Icon(Icons.Outlined.SwapVert, "Swap accounts", Modifier.rotate(turn))
+                    }
+                }
                 AccountChips(options.accounts, vm.toAccountUid, tagPrefix = "to", onPick = vm::pickToAccount)
                 val received = if (vm.needsToAmount()) Money.parseMinor(vm.toAmount) else Money.parseMinor(vm.amount)
                 BalanceLine(balances[vm.toAccountUid], vm.currencyOf(vm.toAccountUid), received?.takeIf { it > 0 && !vm.isEditing }, "to-balance")

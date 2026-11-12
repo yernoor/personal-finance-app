@@ -62,4 +62,17 @@ class TransferScreenTest {
         show(null, EntryKind.Transfer)
         waitForTag("kind-Transfer")
     }
+
+    @Test
+    fun swap_tradesTheTwoAccounts_inAnAddedAndAnEditedTransfer() {
+        runBlocking { db.transferDao().insertAll(listOf(TransferEntity("t1", "main", "sav", 100_00, "KZT", null, null, "2026-11-01", null, "", ""))) }
+        show("t1", EntryKind.Transfer)
+        waitForTag("from-main")
+        compose.onNodeWithTag("from-main").assertIsSelected()
+        compose.onNodeWithTag("to-sav").assertIsSelected()
+        compose.onNodeWithTag("swap-accounts").performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("from-sav").assertIsSelected()
+        compose.onNodeWithTag("to-main").assertIsSelected()
+    }
 }
