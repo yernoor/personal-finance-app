@@ -35,6 +35,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
@@ -445,7 +447,7 @@ private fun TransferEndTile(end: TransferEnd) {
     }
 }
 
-/** One transfer inside an opened pair: its day, From -> To, and what was sent (and received, across currencies). */
+/** One transfer inside an opened pair: its day, the From and To account icons, and what was sent (and received, across currencies). */
 @Composable
 private fun TransferLine(row: HistoryRow, onOpen: (uid: String, isTransfer: Boolean) -> Unit, modifier: Modifier = Modifier) {
     val sides = row.transfer ?: return
@@ -455,9 +457,10 @@ private fun TransferLine(row: HistoryRow, onOpen: (uid: String, isTransfer: Bool
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(LocalDate.parse(row.date).format(DateTimeFormatter.ofPattern("MMM d")), Modifier.width(48.dp), style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant)
-        Text(sides.fromTitle, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        // Just the two account icons (owner request 2026-11-13: cleaner); the names stay for screen readers.
+        IconBadge(sides.fromIcon, sides.fromColor, size = 28.dp, modifier = Modifier.semantics { contentDescription = sides.fromTitle })
         Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(16.dp), tint = scheme.onSurfaceVariant)
-        Text(sides.toTitle, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        IconBadge(sides.toIcon, sides.toColor, size = 28.dp, modifier = Modifier.semantics { contentDescription = sides.toTitle })
         Spacer(Modifier.weight(1f))
         Text(row.amount, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
     }
