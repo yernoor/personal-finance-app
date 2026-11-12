@@ -1,6 +1,7 @@
 package dev.yernur.moneytracker.widget
 
 import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.os.Build
 import androidx.compose.runtime.Composable
@@ -185,17 +186,14 @@ private val WIDGETS: List<Pair<MoneyWidget, Class<*>>> = listOf(
 
 /**
  * Redraws every placed widget; call after anything that changes spending or the widget look.
- * Each id is checked against the provider Android says it belongs to, so a widget can never be drawn with another widget's content
- * (a Quick add widget was seen showing Spent this month; the cause was not found, this is a guard, not a confirmed fix).
+ * Ids come from Android, per receiver, not from Glance's `getGlanceIds` / `updateAll`: in a release build R8 merged all the widget classes into one,
+ * so Glance thought every placed widget belonged to every class and drew Month onto the Quick add widget (reproduced on the emulator, docs/QUICK_ADD_BUG_PLAN.md).
  */
 suspend fun updateAllWidgets(context: Context) {
     val glance = GlanceAppWidgetManager(context)
     val system = AppWidgetManager.getInstance(context)
     WIDGETS.forEach { (widget, receiver) ->
-        glance.getGlanceIds(widget.javaClass).forEach { id ->
-            val provider = system.getAppWidgetInfo(glance.getAppWidgetId(id))?.provider?.className
-            if (provider == receiver.name) widget.update(context, id)
-        }
+        system.getAppWidgetIds(ComponentName(context, receiver)).forEach { widget.update(context, glance.getGlanceIdBy(it)) }
     }
 }
 

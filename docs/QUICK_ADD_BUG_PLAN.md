@@ -1,5 +1,13 @@
 # Plan: Quick add widget turns into "Spent this month"
 
+**CAUSE FOUND AND FIXED, 2026-11-12.** It happens only in minified **release** builds (the owner's phone), never in debug builds, which is why the emulator debug replays below never showed it.
+R8 merges `MoneyWidget` and all its subclasses (`MonthWidget`, `TodayWidget`, `QuickAddWidget`, ...) into one class (checked in `mapping.txt`: every widget's methods end up in class `zs`).
+Glance files each receiver under its widget's class name and `getGlanceIds(MonthWidget)` / `updateAll` return the ids of every receiver filed under that name, so all placed widgets counted as Month widgets and Month's
+`update` started a Month session on the Quick add id. Replayed on the emulator with a signed minified build and the pre-0.6.4 redraw (Month + Quick add placed, More -> Widget style: Quick add became "Spent in November / 0 / on pace for 0").
+The phone, 0.6.3 (no guard yet), had Android binding the id to `QuickAddWidgetReceiver` (`dumpsys appwidget`), so it was not H2. 0.6.4's guard filtered those ids by receiver, so it already hid the symptom.
+Fix: `updateAllWidgets` takes ids from Android per receiver (no Glance class bookkeeping), and `app/proguard-rules.pro` keeps the widget classes apart. Verified on the emulator with the same minified build: Quick add and Month stay themselves after the same step.
+The hypotheses and replay notes below are kept as history.
+
 Owner report, 2026-11-12: a Quick add widget (placed 2x1) showed the Spent this month content, squeezed into 2x1 so its text collapsed.
 It "may happen after changes in balance" (after a transaction is saved). Not reproduced: the session that wrote this had no Android SDK,
 emulator or Glance source, so **the cause is not found**. Everything under "Hypotheses" is unverified.
@@ -54,3 +62,15 @@ Try the Nothing launcher and the emulator's launcher: a bug seen only on one is 
 | `dumpsys` shows the wrong provider for the id | H2, launcher or system | Remove and re-place the widget; test on another launcher |
 | Wrong content right after install, no ledger change | H3 | Trigger `updateAllWidgets` at app start after an update |
 | None of these | Cause is in our `provideGlance` or the 2x1 size | Reproduce on the emulator with `provideGlance` logging |
+
+## Replay on the emulator, 2026-11-12 (not reproduced)
+Emulator `moneytracker` (Android 16, Pixel launcher), a Month, a Budget and a Quick add (2x1, Expense) widget placed, debug build of 0.6.4. After each step the screen was compared
+with `dumpsys appwidget` (each id kept its own provider throughout; ids were renumbered by the reboot, providers followed):
+- Saved an expense from the Add screen (opened from the Quick add widget): all widgets redrawn correctly, Quick add still "Add expense".
+- Saved an expense from the Wallet notification's category button (`walletstub/`, app process cold, no activity): same, Month total updated.
+- `adb install -r` of the same build, app force-stop plus launcher force-stop, and a full emulator reboot: no content swap.
+- The pre-0.6.4 `updateAllWidgets` (`updateAll` on fresh instances), put back temporarily, then a Wallet save: still no swap. So on this emulator the old code did not show it either; H1 is not shown to be the cause, and the guard is not shown to be the fix.
+- Debug logging inside the guard: for every id Glance's list for each class matched what Android reports (no skip, in every run above).
+- Resized the Quick add widget on the home screen (wider, narrower, back to 2x1, several times; vertical drags did not register with `adb input`), then saved via Wallet: still Quick add, `WidgetGuard` silent.
+- Not done: vertical resize, the Nothing launcher, and a real phone.
+(The debug-only `WidgetGuard` log added during this replay was removed again once the cause was found: the guard it watched no longer exists.)
