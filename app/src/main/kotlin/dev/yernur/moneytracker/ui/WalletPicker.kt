@@ -80,7 +80,8 @@ fun WalletPickerDialog(pending: PendingPayment, onClose: () -> Unit) {
     val glassIconStyle by container.settings.glassIconStyle.collectAsStateWithLifecycle()
     val primary = MaterialTheme.colorScheme.primary
     val accentHue = remember(primary) { Oklch.hueOf(primary.toArgb()) }
-    CompositionLocalProvider(LocalIconStyle provides if (glass) glassIconStyle else iconStyle, LocalAccentHue provides accentHue) {
+    // Shown over the app from outside AppRoot, so it must say itself that glass is on: without it the sheet was opaque and nothing blurred.
+    CompositionLocalProvider(LocalGlass provides glass, LocalIconStyle provides if (glass) glassIconStyle else iconStyle, LocalAccentHue provides accentHue) {
         val scope = rememberCoroutineScope()
         val accounts by remember { container.db.accountDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
         val categories by remember { container.db.categoryDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
