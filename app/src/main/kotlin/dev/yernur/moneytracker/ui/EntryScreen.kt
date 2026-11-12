@@ -319,7 +319,7 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
                 isTransfer -> listOf(EntryKind.Transfer)
                 else -> listOf(EntryKind.Expense, EntryKind.Income)
             }
-            SlidingSegmented(kinds.map { it.name }, kinds.indexOf(vm.kind), kinds.map { "kind-$it" }, { vm.kind = kinds[it] })
+            if (kinds.size > 1) SlidingSegmented(kinds.map { it.name }, kinds.indexOf(vm.kind), kinds.map { "kind-$it" }, { vm.kind = kinds[it] }) // a transfer being edited has nothing to switch to
 
             AmountField(
                 vm.amount, vm::changeAmount, if (isTransfer) "Amount sent" else "Amount", vm.currencyOf(vm.accountUid).orEmpty(), "amount",
