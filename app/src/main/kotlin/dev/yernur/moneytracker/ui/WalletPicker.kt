@@ -49,6 +49,7 @@ import dev.yernur.moneytracker.LocalAppContainer
 import dev.yernur.moneytracker.data.Money
 import dev.yernur.moneytracker.data.Oklch
 import dev.yernur.moneytracker.data.db.AccountEntity
+import dev.yernur.moneytracker.data.db.CategoryEntity
 import dev.yernur.moneytracker.data.wallet.PendingPayment
 import dev.yernur.moneytracker.data.wallet.WalletPlan
 import dev.yernur.moneytracker.data.wallet.WalletPrompts
@@ -105,10 +106,16 @@ fun WalletPickerDialog(pending: PendingPayment, onClose: () -> Unit) {
                         choosable.forEach { FilterChip(it.uid == account.uid, { otherUid = it.uid }, label = { Text(it.title) }, modifier = Modifier.testTag("wallet-account-${it.uid}")) }
                     }
                     Text("Category", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val all = WalletPlan.expenseCategories(categories)
+                    var expanded by rememberSaveable { mutableStateOf(false) }
+                    val shown = visibleCategories(all, expanded, selectedUid)
+                    val expandTile = all.size > COLLAPSED_CATEGORIES
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        WalletPlan.expenseCategories(categories).chunked(GRID_COLUMNS).forEach { row ->
+                        (shown.map<_, Any> { it } + if (expandTile) listOf(Unit) else emptyList()).chunked(GRID_COLUMNS).forEach { row ->
                             Row(Modifier.fillMaxWidth()) {
-                                row.forEach { category ->
+                                row.forEach { item ->
+                                    val category = item as? CategoryEntity
+                                    if (category == null) { ExpandTile(expanded, Modifier.weight(1f).padding(vertical = 6.dp)) { expanded = !expanded }; return@forEach }
                                     Column(
                                         Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).clickable { selectedUid = if (selectedUid == category.uid) null else category.uid }
                                             .padding(vertical = 6.dp).testTag("wallet-category-${category.uid}"),
