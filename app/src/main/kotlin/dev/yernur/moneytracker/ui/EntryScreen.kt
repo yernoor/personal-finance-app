@@ -532,7 +532,6 @@ private fun DateSegmented(date: LocalDate, today: LocalDate, onPick: (LocalDate)
         { index -> if (index == 3) calendar = !calendar else { calendar = false; onPick(today.minusDays(index.toLong())) } },
         icons = mapOf(3 to Icons.Outlined.CalendarMonth),
     )
-    Text(date.format(DateTimeFormatter.ofPattern("EEE, MMM d, yyyy")), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("date-text"))
     AnimatedVisibility(calendar, enter = expandVertically(tween(400)) + fadeIn(tween(250)), exit = shrinkVertically(tween(300)) + fadeOut(tween(200))) {
         val state = rememberDatePickerState(initialSelectedDateMillis = date.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
         LaunchedEffect(state.selectedDateMillis) {
