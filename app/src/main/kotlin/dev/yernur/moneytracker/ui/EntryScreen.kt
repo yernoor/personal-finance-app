@@ -2,13 +2,6 @@ package dev.yernur.moneytracker.ui
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.OpenInFull
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -85,7 +78,6 @@ import dev.yernur.moneytracker.data.TransferDraft
 import dev.yernur.moneytracker.data.wealth.convertWithRates
 import dev.yernur.moneytracker.data.wealth.rateLabel
 import dev.yernur.moneytracker.data.wealth.updatedLabel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import dev.yernur.moneytracker.data.db.AccountEntity
 import dev.yernur.moneytracker.data.db.AppDatabase
@@ -270,12 +262,9 @@ class EntryViewModel(
     }
 }
 
-/** About how long a bottom sheet takes to slide in; the keyboard waits that long, as it waits for the full screen's arrival. */
-private const val SHEET_ARRIVE_MS = 350L
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit, sheet: Boolean = false, onExpand: (EntryKind) -> Unit = {}) {
+fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
     val vm = appViewModel(key = "entry-$uid-$kind") { EntryViewModel(it.db, it.ledger, uid, kind, it::afterLedgerChange, { it.fx.allRates.first() }, { it.settings.ratesUpdatedAt.value }, { it.newEntryDate() }) }
     val options by vm.options.collectAsStateWithLifecycle()
     val balances by vm.balances.collectAsStateWithLifecycle()
@@ -302,16 +291,11 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit, sheet: Boole
     LaunchedEffect(Unit) {
         if (vm.isEditing) return@LaunchedEffect
         if (arrival != null) snapshotFlow { arrival.currentState }.first { it == EnterExitState.Visible }
-        else if (sheet) delay(SHEET_ARRIVE_MS) // a sheet has no nav transition to wait for: let it finish rising first
         amountFocus.requestFocus()
     }
 
-    Scaffold(containerColor = if (sheet) Color.Transparent else MaterialTheme.colorScheme.background, topBar = {
-        if (sheet) Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onBack, modifier = Modifier.testTag("collapse")) { Icon(Icons.Outlined.KeyboardArrowDown, "Collapse") }
-            Spacer(Modifier.weight(1f))
-            IconButton({ onExpand(vm.kind) }, modifier = Modifier.testTag("expand")) { Icon(Icons.Outlined.OpenInFull, "Open full screen") }
-        } else AppTopBar(
+    Scaffold(topBar = {
+        AppTopBar(
             title = { Text(if (vm.isEditing) "Edit" else "Add") },
             navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
             actions = {
@@ -500,17 +484,5 @@ private fun DateChips(date: LocalDate, today: LocalDate, onPick: (LocalDate) -> 
             },
             dismissButton = { TextButton({ picking = false }) { Text("Cancel") } },
         ) { GlassWindowBlur(); DatePicker(state) }
-    }
-}
-
-/**
- * The add screen as a sheet over the app, for the Quick add widget: over half the screen (swipe down closes it), the chevron closes it,
- * the corner icon swaps it for the full add screen ([onExpand]).
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun QuickEntrySheet(kind: EntryKind, onClose: () -> Unit, onExpand: (EntryKind) -> Unit) {
-    ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), dragHandle = null) {
-        Box(Modifier.fillMaxHeight(0.6f)) { EntryScreen(null, kind, onClose, sheet = true, onExpand = onExpand) }
     }
 }
