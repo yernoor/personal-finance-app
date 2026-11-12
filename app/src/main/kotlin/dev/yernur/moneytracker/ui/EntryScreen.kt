@@ -8,6 +8,10 @@ import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.ui.draw.rotate
 import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -198,8 +202,26 @@ class EntryViewModel(
     /** A different account means a different currency pair, so an earlier typed figure no longer applies. */
     fun pickAccount(uid: String) {
         if (kind == EntryKind.Transfer && uid == toAccountUid) return reject("from", uid)
+        val before = currencyOf(accountUid)
         accountUid = uid; toAmountTyped = false; fillReceived()
+        if (kind != EntryKind.Transfer) convertTypedAmount(before, currencyOf(uid))
     }
+
+    /** The typed amount of an expense or income follows the chosen account into its currency (at the bank rate, as the transfer's received amount does). */
+    private fun convertTypedAmount(from: String?, to: String?) {
+        val typed = Money.parseMinor(amount)?.takeIf { it > 0 }
+        if (typed == null || from == null || to == null || from == to) return
+        val asked = amount
+        viewModelScope.launch {
+            val converted = convertWithRates(typed, from, to, rates())?.let(Money::editable)
+            if (converted != null && amount == asked) amount = converted // the owner may have typed on meanwhile
+        }
+    }
+
+    /** The clear button of the From block: the account is chosen again from nothing. */
+    fun clearAccount() { accountUid = null; toAmountTyped = false; fillReceived() }
+
+    fun clearToAccount() { toAccountUid = null; toAmountTyped = false; toAmount = ""; rateNote = "" }
 
     fun pickToAccount(uid: String) {
         if (uid == accountUid) return reject("to", uid)
@@ -215,7 +237,7 @@ class EntryViewModel(
     /** Turns the transfer around: the accounts trade places, and so do the amounts when the currencies differ (each figure stays with its own currency). */
     fun swapAccounts() {
         val to = toAccountUid ?: return
-        val from = accountUid
+        val from = accountUid ?: return
         val differentCurrencies = needsToAmount()
         accountUid = to
         toAccountUid = from
@@ -364,19 +386,23 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
                 Modifier.focusRequester(amountFocus),
             )
 
-            Text(if (isTransfer) "From account" else "Account", style = MaterialTheme.typography.labelLarge)
-            AccountChips(options.accounts, vm.accountUid, tagPrefix = if (isTransfer) "from" else "account", rejection = vm.rejection?.takeIf { it.side == "from" }, onPick = vm::pickAccount)
+            if (isTransfer) {
+                AccountLabel("From account", vm.accountUid != null, "clear-from", vm::clearAccount)
+                AccountStrip(options.accounts, balances, vm.accountUid, "from", blockedUid = vm.toAccountUid, rejection = vm.rejection?.takeIf { it.side == "from" }, onPick = vm::pickAccount)
+            } else {
+                Text("Account", style = MaterialTheme.typography.labelLarge)
+                AccountPicker(options.accounts, balances, vm.accountUid, "account", vm::pickAccount)
+            }
             val sign = if (vm.kind == EntryKind.Income) 1 else -1 // an expense and a transfer both take money out of this account
             BalanceLine(balances[vm.accountUid], vm.currencyOf(vm.accountUid), Money.parseMinor(vm.amount)?.takeIf { it > 0 && !vm.isEditing }?.times(sign), "account-balance")
             if (isTransfer) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("To account", Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
-                    val turn by animateFloatAsState(swaps * 180f, tween(350), label = "swap-turn")
-                    IconButton({ swaps++; vm.swapAccounts() }, enabled = vm.toAccountUid != null, modifier = Modifier.testTag("swap-accounts")) {
+                val turn by animateFloatAsState(swaps * 180f, tween(350), label = "swap-turn")
+                AccountLabel("To account", vm.toAccountUid != null, "clear-to", vm::clearToAccount) {
+                    IconButton({ swaps++; vm.swapAccounts() }, enabled = vm.accountUid != null && vm.toAccountUid != null, modifier = Modifier.testTag("swap-accounts")) {
                         Icon(Icons.Outlined.SwapVert, "Swap accounts", Modifier.rotate(turn))
                     }
                 }
-                AccountChips(options.accounts, vm.toAccountUid, tagPrefix = "to", rejection = vm.rejection?.takeIf { it.side == "to" }, onPick = vm::pickToAccount)
+                AccountStrip(options.accounts, balances, vm.toAccountUid, "to", blockedUid = vm.accountUid, rejection = vm.rejection?.takeIf { it.side == "to" }, onPick = vm::pickToAccount)
                 val received = if (vm.needsToAmount()) Money.parseMinor(vm.toAmount) else Money.parseMinor(vm.amount)
                 BalanceLine(balances[vm.toAccountUid], vm.currencyOf(vm.toAccountUid), received?.takeIf { it > 0 && !vm.isEditing }, "to-balance")
                 if (vm.needsToAmount()) {
@@ -419,20 +445,14 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
     if (confirmDelete) ConfirmDialog("Delete this entry?", "Delete", { confirmDelete = false }) { confirmDelete = false; vm.delete(onBack) }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+/** The label above an account block, with its clear button (shown while an account is chosen) at the right, after [extra]. */
 @Composable
-private fun AccountChips(accounts: List<AccountEntity>, selected: String?, tagPrefix: String, rejection: Rejection? = null, onPick: (String) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        accounts.forEach { account ->
-            val shake = remember { Animatable(0f) }
-            LaunchedEffect(rejection) {
-                if (rejection?.uid == account.uid) for (x in listOf(-14f, 12f, -8f, 5f, 0f)) shake.animateTo(x, tween(45))
-            }
-            FilterChip(
-                account.uid == selected, { onPick(account.uid) },
-                label = { Text("${account.title.ifBlank { "Main" }} · ${account.currencyCode}") },
-                modifier = Modifier.graphicsLayer { translationX = shake.value }.testTag("$tagPrefix-${account.uid}"),
-            )
+private fun AccountLabel(text: String, hasAccount: Boolean, clearTag: String, onClear: () -> Unit, extra: @Composable () -> Unit = {}) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(text, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
+        extra()
+        AnimatedVisibility(hasAccount, enter = fadeIn(tween(200)), exit = fadeOut(tween(150))) {
+            IconButton(onClear, modifier = Modifier.testTag(clearTag)) { Icon(Icons.Outlined.Close, "Clear $text", Modifier.size(20.dp)) }
         }
     }
 }

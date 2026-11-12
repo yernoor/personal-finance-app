@@ -1,11 +1,14 @@
 package dev.yernur.moneytracker.ui
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performScrollTo
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -80,13 +83,25 @@ class TransferScreenTest {
     fun theSameAccountCannotBePickedOnBothSides_andTheTappedChipIsRefused() {
         show(null, EntryKind.Transfer)
         waitForTag("from-main")
-        compose.onNodeWithTag("from-main").performScrollTo().performClick()
-        compose.onNodeWithTag("to-sav").performScrollTo().performClick()
-        compose.onNodeWithTag("to-main").performScrollTo().performClick() // same as From: refused
+        compose.onNodeWithTag("from-main").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithTag("to-sav").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithTag("to-main").performSemanticsAction(SemanticsActions.OnClick) // same as From: refused
         compose.waitForIdle()
         compose.onNodeWithTag("to-sav").assertIsSelected() // unchanged
-        compose.onNodeWithTag("from-sav").performScrollTo().performClick() // same as To: refused
+        compose.onNodeWithTag("from-sav").performSemanticsAction(SemanticsActions.OnClick) // same as To: refused
         compose.waitForIdle()
         compose.onNodeWithTag("from-main").assertIsSelected()
+    }
+
+    @Test
+    fun theClearButtonsEmptyTheirOwnSide() {
+        show(null, EntryKind.Transfer)
+        waitForTag("from-main")
+        compose.onNodeWithTag("to-sav").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithTag("clear-to").performScrollTo().performClick()
+        compose.waitUntil(10_000) { runCatching { compose.onNodeWithTag("to-sav").assertIsNotSelected(); true }.getOrDefault(false) }
+        compose.onNodeWithTag("from-main").assertIsSelected() // the other side is untouched
+        compose.onNodeWithTag("clear-from").performScrollTo().performClick()
+        compose.waitUntil(10_000) { runCatching { compose.onNodeWithTag("from-main").assertIsNotSelected(); true }.getOrDefault(false) }
     }
 }

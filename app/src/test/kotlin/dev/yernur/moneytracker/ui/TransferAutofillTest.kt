@@ -7,6 +7,8 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
@@ -52,6 +54,9 @@ class TransferAutofillTest {
     @After
     fun tearDown() = db.close()
 
+    /** Account tiles sit in a horizontally scrolling row that the tiny test screen cuts off, so they are picked by their click action. */
+    private fun pick(tag: String) = compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.OnClick)
+
     private fun tap(tag: String) = compose.onNodeWithTag(tag).performScrollTo().performClick()
 
     /** The Save button is pinned to the bottom bar, outside the scrolling form. */
@@ -64,8 +69,8 @@ class TransferAutofillTest {
     @Test
     fun receivedAmount_isCalculated_andFollowsTheSentAmount() {
         waitForTag("from-main")
-        tap("from-main")
-        tap("to-usd")
+        pick("from-main")
+        pick("to-usd")
         compose.onNodeWithTag("amount").performTextInput("4500")
         compose.waitUntil(10_000) { compose.onAllNodesWithText("10", substring = false).fetchSemanticsNodes().isNotEmpty() }
         received().assertTextContains("10") // 4,500 / 450
@@ -82,8 +87,8 @@ class TransferAutofillTest {
     @Test
     fun aTypedReceivedAmount_isKept_whenTheSentAmountChanges_andSavedAsTyped() {
         waitForTag("from-main")
-        tap("from-main")
-        tap("to-usd")
+        pick("from-main")
+        pick("to-usd")
         compose.onNodeWithTag("amount").performTextInput("4500")
         compose.waitUntil(10_000) { compose.onAllNodesWithText("10", substring = false).fetchSemanticsNodes().isNotEmpty() }
 
@@ -103,8 +108,8 @@ class TransferAutofillTest {
     @Test
     fun clearingTheReceivedAmount_handsItBackToTheCalculation() {
         waitForTag("from-main")
-        tap("from-main")
-        tap("to-usd")
+        pick("from-main")
+        pick("to-usd")
         compose.onNodeWithTag("amount").performTextInput("4500")
         compose.waitUntil(10_000) { compose.onAllNodesWithText("10", substring = false).fetchSemanticsNodes().isNotEmpty() }
         received().performScrollTo().performTextReplacement("3")
@@ -115,8 +120,8 @@ class TransferAutofillTest {
     @Test
     fun withoutARateForTheCurrency_nothingIsFilledIn_andSavingAsksForIt() {
         waitForTag("from-main")
-        tap("from-main")
-        tap("to-gbp")
+        pick("from-main")
+        pick("to-gbp")
         compose.onNodeWithTag("amount").performTextInput("4500")
         compose.waitForIdle()
         assertEquals(0, compose.onAllNodesWithTag("to-amount-rate").fetchSemanticsNodes().size) // no GBP rate: nothing to show
