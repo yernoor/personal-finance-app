@@ -15,6 +15,12 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import java.time.temporal.ChronoUnit
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -397,12 +403,8 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
                 AccountPicker(options.accounts, balances, vm.accountUid, "account", vm::pickAccount)
             }
             if (isTransfer) {
-                val turn by animateFloatAsState(swaps * 180f, tween(350), label = "swap-turn")
-                AccountLabel("To account", vm.toAccountUid != null, "clear-to", vm::clearToAccount) {
-                    IconButton({ swaps++; vm.swapAccounts() }, enabled = vm.accountUid != null && vm.toAccountUid != null, modifier = Modifier.testTag("swap-accounts")) {
-                        Icon(Icons.Outlined.SwapVert, "Swap accounts", Modifier.rotate(turn))
-                    }
-                }
+                SwapDivider(swaps, enabled = vm.accountUid != null && vm.toAccountUid != null) { swaps++; vm.swapAccounts() }
+                AccountLabel("To account", vm.toAccountUid != null, "clear-to", vm::clearToAccount)
                 AccountStrip(options.accounts, balances, vm.toAccountUid, "to", blockedUid = vm.accountUid, rejection = vm.rejection?.takeIf { it.side == "to" }, onPick = vm::pickToAccount)
                 if (vm.needsToAmount()) {
                     AmountField(vm.toAmount, vm::changeToAmount, "Amount received", vm.currencyOf(vm.toAccountUid).orEmpty(), "to-amount")
@@ -444,15 +446,29 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
     if (confirmDelete) ConfirmDialog("Delete this entry?", "Delete", { confirmDelete = false }) { confirmDelete = false; vm.delete(onBack) }
 }
 
-/** The label above an account block, with its clear button (shown while an account is chosen) at the right, after [extra]. */
+/** The label above an account block, with its clear button at the right. The button fades instead of appearing, so the row never changes height and nothing below it moves. */
 @Composable
-private fun AccountLabel(text: String, hasAccount: Boolean, clearTag: String, onClear: () -> Unit, extra: @Composable () -> Unit = {}) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+private fun AccountLabel(text: String, hasAccount: Boolean, clearTag: String, onClear: () -> Unit) {
+    val alpha by animateFloatAsState(if (hasAccount) 1f else 0f, tween(200), label = "clear-alpha")
+    Row(Modifier.fillMaxWidth().heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(text, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
-        extra()
-        AnimatedVisibility(hasAccount, enter = fadeIn(tween(200)), exit = fadeOut(tween(150))) {
-            IconButton(onClear, modifier = Modifier.testTag(clearTag)) { Icon(Icons.Outlined.Close, "Clear $text", Modifier.size(20.dp)) }
-        }
+        IconButton(onClear, enabled = hasAccount, modifier = Modifier.size(40.dp).alpha(alpha).testTag(clearTag)) { Icon(Icons.Outlined.Close, "Clear $text", Modifier.size(20.dp)) }
+    }
+}
+
+/** The swap button, centered between the From and To blocks on a thin rule: a tonal circle with a clear outline that turns over (with a small overshoot) each time it swaps. */
+@Composable
+private fun SwapDivider(swaps: Int, enabled: Boolean, onSwap: () -> Unit) {
+    val turn by animateFloatAsState(swaps * 180f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessLow), label = "swap-turn")
+    val scheme = MaterialTheme.colorScheme
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        HorizontalDivider(Modifier.weight(1f))
+        Box(
+            Modifier.size(48.dp).alpha(if (enabled) 1f else 0.4f).clip(CircleShape).background(scheme.secondaryContainer).border(1.5.dp, scheme.primary, CircleShape)
+                .clickable(enabled = enabled, role = Role.Button, onClick = onSwap).testTag("swap-accounts"),
+            contentAlignment = Alignment.Center,
+        ) { Icon(Icons.Outlined.SwapVert, "Swap accounts", Modifier.size(26.dp).rotate(turn), tint = scheme.primary) }
+        HorizontalDivider(Modifier.weight(1f))
     }
 }
 
