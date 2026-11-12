@@ -3,6 +3,13 @@ package dev.yernur.moneytracker.ui
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
@@ -60,7 +67,7 @@ private fun AccountEntity.shownTitle() = title.ifBlank { "Main" }
 @Composable
 fun AccountTile(
     account: AccountEntity, balance: Long?, selected: Boolean, tag: String, modifier: Modifier = Modifier,
-    dimmed: Boolean = false, rejection: Rejection? = null, onClick: () -> Unit,
+    dimmed: Boolean = false, rejection: Rejection? = null, ownHighlight: Boolean = true, onClick: () -> Unit,
 ) {
     val shake = remember { Animatable(0f) }
     LaunchedEffect(rejection) {
@@ -69,8 +76,8 @@ fun AccountTile(
     val scheme = MaterialTheme.colorScheme
     Box(
         modifier.width(112.dp).graphicsLayer { translationX = shake.value }.alpha(if (dimmed) 0.42f else 1f).clip(TILE_SHAPE)
-            .background(if (selected) scheme.secondaryContainer else scheme.surface)
-            .border(if (selected) BorderStroke(2.dp, scheme.primary) else BorderStroke(1.dp, scheme.outlineVariant), TILE_SHAPE)
+            .background(if (selected && ownHighlight) scheme.secondaryContainer else scheme.surface)
+            .border(if (selected && ownHighlight) BorderStroke(2.dp, scheme.primary) else BorderStroke(1.dp, scheme.outlineVariant), TILE_SHAPE)
             .selectable(selected, role = Role.RadioButton, onClick = onClick).testTag(tag),
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -82,19 +89,34 @@ fun AccountTile(
     }
 }
 
-/** Every account as a scrolling row of tiles (transfers: From and To). [blockedUid] is the account the other side holds. */
+private val TILE_WIDTH = 112.dp
+private val TILE_GAP = 10.dp
+
+/**
+ * Every account as a scrolling row of tiles (transfers: From and To). [blockedUid] is the account the other side holds. The selection is
+ * one highlight that slides sideways to the chosen tile, so a swap shows the two choices crossing over; it fades out while nothing is chosen.
+ */
 @Composable
 fun AccountStrip(
     accounts: List<AccountEntity>, balances: Map<String, Long>, selected: String?, tagPrefix: String,
     blockedUid: String? = null, rejection: Rejection? = null, onPick: (String) -> Unit,
 ) {
-    Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        accounts.forEach { account ->
-            AccountTile(
-                account, balances[account.uid], account.uid == selected, "$tagPrefix-${account.uid}",
-                dimmed = account.uid == blockedUid && account.uid != selected, rejection = rejection,
-            ) { onPick(account.uid) }
+    val index = accounts.indexOfFirst { it.uid == selected }
+    var lastIndex by remember { mutableStateOf(0) }
+    if (index >= 0) lastIndex = index
+    val x by animateDpAsState((TILE_WIDTH + TILE_GAP) * lastIndex, spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow), label = "tile-highlight")
+    val alpha by animateFloatAsState(if (index >= 0) 1f else 0f, tween(200), label = "tile-highlight-alpha")
+    val scheme = MaterialTheme.colorScheme
+    Box(Modifier.horizontalScroll(rememberScrollState()).height(IntrinsicSize.Min).padding(vertical = 4.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(TILE_GAP)) {
+            accounts.forEach { account ->
+                AccountTile(
+                    account, balances[account.uid], account.uid == selected, "$tagPrefix-${account.uid}",
+                    dimmed = account.uid == blockedUid && account.uid != selected, rejection = rejection, ownHighlight = false,
+                ) { onPick(account.uid) }
+            }
         }
+        Box(Modifier.offset(x = x).width(TILE_WIDTH).fillMaxHeight().alpha(alpha).clip(TILE_SHAPE).background(scheme.primary.copy(alpha = 0.14f)).border(2.dp, scheme.primary, TILE_SHAPE))
     }
 }
 
