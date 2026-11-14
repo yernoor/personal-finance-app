@@ -1,5 +1,7 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
@@ -61,7 +63,7 @@ class RecurringFlowTest {
     private fun openScreen() {
         compose.onNodeWithTag("tab-analysis").performClick()
         waitFor("open-recurring")
-        compose.onNodeWithTag("open-recurring").performScrollTo().performClick()
+        compose.onNodeWithTag("open-recurring").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // not a touch: the scrolled-to row sits under the floating bar
         waitFor("recurring")
     }
 

@@ -1,5 +1,7 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
@@ -53,7 +55,7 @@ class AnalysisFlowTest {
         waitFor("analysis-monthly")
         compose.onNodeWithTag("analysis-average").assertIsDisplayed()
         waitFor("trend-cafe")
-        compose.onNodeWithTag("trend-cafe").performScrollTo().performClick()
+        compose.onNodeWithTag("trend-cafe").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // not a touch: the scrolled-to row sits under the floating bar
         waitFor("category-trend")
         compose.onNodeWithTag("trend-projected").assertIsDisplayed()
         waitFor("trend-op-" + runBlocking { db.transactionDao().getAll() }.first { it.comment == "Lunch" }.uid)

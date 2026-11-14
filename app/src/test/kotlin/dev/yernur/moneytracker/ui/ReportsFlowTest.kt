@@ -1,5 +1,7 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -112,9 +114,9 @@ class ReportsFlowTest {
         compose.onNodeWithTag("chart-tab-Expenses").performClick()
         waitForText("Кафе")
         assertEquals(0, operationRows())
-        compose.onNodeWithTag("category-row-cafe").performScrollTo().performClick()
+        compose.onNodeWithTag("category-row-cafe").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // not a touch: the scrolled-to row sits under the floating bar
         eventually { operationRows() == 1 }
-        compose.onNodeWithTag("category-row-cafe").performClick()
+        compose.onNodeWithTag("category-row-cafe").performSemanticsAction(SemanticsActions.OnClick)
         eventually { operationRows() == 0 }
     }
 
