@@ -48,6 +48,14 @@ class DemoDataTest {
     }
 
     @Test
+    fun addsBondsOtherAssetsAndMonthlyIncome() = runBlocking {
+        DemoData.seedIfEmpty(db, today)
+        assertEquals(2, db.bondDao().getLive().size)
+        assertEquals(2, db.manualAssetDao().getLive().size)
+        assertEquals(840_000_00L, db.cashflowItemDao().getLive().single { it.title == "Salary" }.monthlyMinor)
+    }
+
+    @Test
     fun leavesAUsedDemoDatabaseAlone() = runBlocking {
         DemoData.seedIfEmpty(db, today)
         val before = db.transactionDao().observeBetween("2000-01-01", today.toString()).first().size

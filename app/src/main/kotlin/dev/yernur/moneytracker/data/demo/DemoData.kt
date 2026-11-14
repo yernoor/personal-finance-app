@@ -2,7 +2,12 @@ package dev.yernur.moneytracker.data.demo
 
 import dev.yernur.moneytracker.data.db.AccountEntity
 import dev.yernur.moneytracker.data.db.AppDatabase
+import dev.yernur.moneytracker.data.db.BondEntity
+import dev.yernur.moneytracker.data.db.CashflowItemEntity
+import dev.yernur.moneytracker.data.db.CashflowKind
 import dev.yernur.moneytracker.data.db.CategoryEntity
+import dev.yernur.moneytracker.data.db.ManualAssetEntity
+import dev.yernur.moneytracker.data.db.ManualKind
 import dev.yernur.moneytracker.data.db.TransactionEntity
 import dev.yernur.moneytracker.data.db.TransactionType
 import dev.yernur.moneytracker.data.db.TransferEntity
@@ -13,7 +18,7 @@ import kotlinx.coroutines.flow.first
 
 /**
  * Made-up data for demo mode: four months of everyday spending, two salaries a month, and transfers both ways between the same accounts
- * (so History's netting shows). Nothing here comes from the owner's backup. Fixed seed, dated back from [today], so every demo looks alike.
+ * (so History's netting shows), plus a few wealth entries (two bonds, two other assets, monthly income and payments). Nothing here comes from the owner's backup. Fixed seed, dated back from [today], so every demo looks alike.
  */
 object DemoData {
     /** Used for the dollar account's default-currency amounts (a demo constant, not a real rate). */
@@ -101,5 +106,17 @@ object DemoData {
         }
         db.transactionDao().insertAll(transactions)
         db.transferDao().insertAll(transfers)
+        seedWealth(db, created)
+    }
+
+    /** Amounts are minor units (x100). The monthly salary matches the two 420,000 paydays above. */
+    private suspend fun seedWealth(db: AppDatabase, stamp: String) {
+        db.manualAssetDao().upsert(ManualAssetEntity("demo-asset-flat", "Flat", ManualKind.Asset, "KZT", 30_000_000_00, stamp, stamp))
+        db.manualAssetDao().upsert(ManualAssetEntity("demo-asset-car", "Car", ManualKind.Asset, "KZT", 5_000_000_00, stamp, stamp))
+        db.bondDao().upsert(BondEntity("demo-bond-usd", "Treasury bond 2029", "USD", 1_000_00, 2, 1_960_00, 425, 2, "2029-08-15", 2_010_00, stamp, stamp))
+        db.bondDao().upsert(BondEntity("demo-bond-kzt", "Corporate bond 2030", "KZT", 100_000_00, 5, 480_000_00, 1400, 2, "2030-03-10", null, stamp, stamp))
+        db.cashflowItemDao().upsert(CashflowItemEntity("demo-cf-salary", "Salary", CashflowKind.Income, "KZT", 840_000_00, false, stamp, stamp))
+        db.cashflowItemDao().upsert(CashflowItemEntity("demo-cf-rent", "Rent", CashflowKind.Obligation, "KZT", 180_000_00, true, stamp, stamp))
+        db.cashflowItemDao().upsert(CashflowItemEntity("demo-cf-subs", "Subscriptions", CashflowKind.Obligation, "KZT", 9_000_00, false, stamp, stamp))
     }
 }
