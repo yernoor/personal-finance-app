@@ -166,18 +166,13 @@ fun GlassWindowBlur(radius: Dp = 24.dp) {
 private val SCRIM_FADE = GlassBarInset + 24.dp
 
 /**
- * Glass off: the strip behind the floating bar and the system navigation bar. The content scrolls under it, softly blurred and tinted with
- * the page color, fading in from nothing at the top edge to full at the bottom.
+ * Glass off: the strip behind the floating bar and the system navigation bar. Content scrolls under it and dissolves into the page color,
+ * clear at the top edge, nearly solid at the bottom. No blur on purpose: it needs no extra layer, so it costs next to nothing.
  */
 @Composable
-fun BarScrim(backdrop: Backdrop, modifier: Modifier = Modifier) {
-    val tint = MaterialTheme.colorScheme.background.copy(alpha = 0.4f)
-    val fade = remember { Brush.verticalGradient(listOf(Color.Transparent, Color.Black)) }
+fun BarScrim(modifier: Modifier = Modifier) {
+    val page = MaterialTheme.colorScheme.background
+    val fade = remember(page) { Brush.verticalGradient(listOf(page.copy(alpha = 0f), page.copy(alpha = 0.92f))) }
     val height = SCRIM_FADE + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    Box(
-        modifier.fillMaxWidth().height(height)
-            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-            .drawWithContent { drawContent(); drawRect(fade, blendMode = BlendMode.DstIn) } // outermost: masks what the blur below draws
-            .drawBackdrop(backdrop, shape = { RectangleShape }, effects = { blur(4.dp.toPx()) }, onDrawSurface = { drawRect(tint) }),
-    )
+    Box(modifier.fillMaxWidth().height(height).background(fade))
 }

@@ -195,11 +195,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     val scheme = MaterialTheme.colorScheme
     val darkTheme = isDarkSurface()
     val glow = remember(scheme.surface, scheme.primary, darkTheme) { Glow.of(scheme.surface, scheme.primary, darkTheme) }
-    val plainBackground = scheme.background
-    val backdropDraw = remember(glow, glass, plainBackground) {
-        val draw: ContentDrawScope.() -> Unit = { if (glass) glow.draw(this, size.width, size.height) else drawRect(plainBackground); drawContent() }
-        draw
-    }
+    val backdropDraw = remember(glow) { val draw: ContentDrawScope.() -> Unit = { glow.draw(this, size.width, size.height); drawContent() }; draw }
     val backdrop = rememberLayerBackdrop(onDraw = backdropDraw)
 
     val iconSetting by settings.iconStyle.collectAsStateWithLifecycle()
@@ -268,7 +264,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
         NavHost(
             nav, startDestination = startRoute,
             // With glass the content runs under the floating bar (so there is something to blur); otherwise the bar owns that strip.
-            modifier = Modifier.layerBackdrop(backdrop),
+            modifier = if (glass) Modifier.layerBackdrop(backdrop) else Modifier,
             // Between two tabs: both move the way you are going (right of the current tab slides in from the right) while fading, so it
             // feels like the swipe. The add screen grows out of the add button. Into any other screen: slide forward while fading.
             enterTransition = {
@@ -375,7 +371,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
         run {
             val navInset = padding.calculateBottomPadding()
             val glassBackdrop = if (glass) backdrop else null // without glass: a plain pill and button over a blurred, fading strip of the content
-            if (!glass) AnimatedVisibility(tab != null, Modifier.align(Alignment.BottomCenter), enter = fadeIn(tween(FADE_MS)), exit = fadeOut(tween(FADE_MS))) { BarScrim(backdrop) } // only where the bar is
+            if (!glass) AnimatedVisibility(tab != null, Modifier.align(Alignment.BottomCenter), enter = fadeIn(tween(FADE_MS)), exit = fadeOut(tween(FADE_MS))) { BarScrim() } // only where the bar is
             AnimatedVisibility(
                 tab != null, Modifier.align(Alignment.BottomCenter),
                 enter = slideInVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeIn(tween(FADE_MS)),
