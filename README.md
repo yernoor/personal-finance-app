@@ -41,8 +41,16 @@ Your data lives in a local database on the phone; the optional Google Sheet is a
 
 **Charts and forecast**
 - General (income / expenses / profit or loss), Expenses and Income stacked by category, by day / week / month / year. Tap a category row to see its operations in that period and tap one to edit it.
-- **Forecast**: projected month-end spending, overall and per category, from the run-rate (spent so far ÷ days elapsed × days in month) with the 3-month average next to it.
+- **Forecast** (in the Analysis tab): projected month-end spending, overall and per category, from the run-rate (spent so far ÷ days elapsed × days in month) with the 3-month average next to it.
 - **Limit warnings** on Home and as notifications when a projection exceeds a category's limit (threshold configurable).
+
+**Analysis and affordability**
+- **Analysis tab**: six monthly bars with a projected current month, "worth a look" insights, and a per-category trend (12-month line, weekday pattern, largest operations).
+- Recurring costs, price changes and possible duplicates detected from your own history; nothing changes unless you confirm.
+- **Can I afford this?** (More): enter a price, a category and an account; get Yes / Tight / No with the numbers behind it. Everything is computed on the phone.
+
+**Automation**
+- **Google Wallet payments** (off until you agree): a payment made with Google Wallet raises a prompt to pick the category, then saves the expense. Only Wallet notifications are read, nothing leaves the phone.
 
 **Reminders and notifications**
 - Daily reminder at a time you choose (default 20:00): "enter today's spending".
@@ -64,8 +72,8 @@ Your data lives in a local database on the phone; the optional Google Sheet is a
 </p>
 
 **Home-screen widgets**
-- Seven widgets: Spent this month, Spent today, Quick add, Category limits, Month by category, Recent operations, Month dashboard.
-- Glass or solid look, optional dot-matrix numerals (More → Widgets). Widgets show spending, never account balances.
+- Six widgets: Spent this month, Spent today, Quick add (expense, income or transfer, chosen when placed), Currency rates (up to three currencies against tenge, with a refresh button), Month by category, Month dashboard. Each draws a preview in the widget picker.
+- Three looks (More → Widget style): Nothing OS (dot-matrix numerals), Glass, Usual. Widgets show spending, never account balances.
 
 **Privacy and backup**
 - App lock with a 4–6 digit PIN, optional fingerprint or face unlock, auto-lock delay, and control over what the recent-apps list shows.
@@ -77,7 +85,9 @@ Your data lives in a local database on the phone; the optional Google Sheet is a
 - Updates from GitHub releases inside the app, with release notes; the app saves a copy of your data first.
 
 **Look and feel**
-- Material 3 with the system accent color and dark mode, original icon artwork in three styles, customizable bottom bar and Home cards, swipe between tabs, optional experimental "liquid glass" look.
+- Material 3 with the system accent color and dark mode, Inter type, a floating bottom bar, original icon artwork in several styles, customizable bottom bar and Home cards, swipe between tabs, per-effect animation switches, optional "liquid glass" look.
+- **Demo mode** (More → About): a separate database of made-up data, handy for screenshots or showing the app; your real data is never opened.
+- **Report a bug or suggest a feature** (More → App): opens a pre-filled GitHub issue in the browser; the app sends nothing itself.
 
 <p align="center">
 <img src="docs/screenshots/accounts.png" width="19%" alt="Accounts">
@@ -85,6 +95,8 @@ Your data lives in a local database on the phone; the optional Google Sheet is a
 <img src="docs/screenshots/calc.png" width="19%" alt="Calculator">
 <img src="docs/screenshots/charts.png" width="19%" alt="General chart">
 <img src="docs/screenshots/more.png" width="19%" alt="More">
+<img src="docs/screenshots/more-appearance.png" width="19%" alt="Appearance settings">
+<img src="docs/screenshots/more-animations.png" width="19%" alt="Animation switches">
 </p>
 
 ## Quick start (user manual)
@@ -123,7 +135,7 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@25 PATH=/opt/homebrew/opt/openjdk@25/
 ./gradlew testDebugUnitTest assembleDebug     # APK: app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Stack: Kotlin, Jetpack Compose + Material 3, Room, WorkManager, hand-wired DI. Money is stored as `Long` minor units, never `Double`. No analytics and no network calls except Google auth and Sheets/Drive, the update check against GitHub, and one exchange-rate request a day to the National Bank of Kazakhstan.
+Stack: Kotlin, Jetpack Compose + Material 3, Room, WorkManager, hand-wired DI. Money is stored as `Long` minor units, never `Double`. No analytics and no network calls except Google auth and Sheets/Drive, the update check against GitHub, and one exchange-rate request a day (plus a manual refresh from the Rates widget, at most hourly) to the National Bank of Kazakhstan.
 
 ## Documentation
 
@@ -135,8 +147,9 @@ Stack: Kotlin, Jetpack Compose + Material 3, Room, WorkManager, hand-wired DI. M
 | [docs/SYNC_DESIGN.md](docs/SYNC_DESIGN.md) | Google Sheets sync design and its known limits |
 | [docs/GOOGLE_SETUP.md](docs/GOOGLE_SETUP.md) | Google Cloud setup for the Sheets sync |
 | [docs/RELEASING.md](docs/RELEASING.md) | Branches, tags, signed release APK |
+| [docs/WALLET_LOGGER.md](docs/WALLET_LOGGER.md) | The notification logger used to check Google Wallet's format |
 | [CLAUDE.md](CLAUDE.md) | Project rules and milestones for the AI-assisted workflow |
 
 ## Status
 
-Version 0.4.0. Unit tests and the debug build pass; the live Google round trip and the app on a physical phone are not yet verified. The wealth data lives on the phone only (it is not in the Google Sheet); use *Back up to a file* for it. Not built: Apps Script `onEdit` stamping, sync conflict log, regular-payment reminders, previews in the widget picker (planned, see [docs/FEATURES.md](docs/FEATURES.md)).
+Version 0.7.1. Unit tests and the debug build pass; the live Google round trip and the app on a physical phone are not yet verified. The wealth data lives on the phone only (it is not in the Google Sheet); use *Back up to a file* for it. Not built: Apps Script `onEdit` stamping, sync conflict log, regular-payment reminders, per-card Wallet account mapping (planned, see [docs/FEATURES.md](docs/FEATURES.md)).
