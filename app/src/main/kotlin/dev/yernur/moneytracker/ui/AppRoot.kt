@@ -375,7 +375,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
         run {
             val navInset = padding.calculateBottomPadding()
             val glassBackdrop = if (glass) backdrop else null // without glass: a plain pill and button over a blurred, fading strip of the content
-            if (!glass) BarScrim(backdrop, Modifier.align(Alignment.BottomCenter))
+            if (!glass) AnimatedVisibility(tab != null, Modifier.align(Alignment.BottomCenter), enter = fadeIn(tween(FADE_MS)), exit = fadeOut(tween(FADE_MS))) { BarScrim(backdrop) } // only where the bar is
             AnimatedVisibility(
                 tab != null, Modifier.align(Alignment.BottomCenter),
                 enter = slideInVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeIn(tween(FADE_MS)),
