@@ -361,6 +361,11 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     }
 
     companion object {
+        /** Forgets when rates were fetched. The rates live in the database, which demo mode swaps, so these markers must not outlive a swap. */
+        fun forgetRatesFetch(prefs: SharedPreferences) {
+            prefs.edit().remove(LAST_RATES_DATE).remove(RATES_UPDATED_AT).remove(RATES_ATTEMPT_AT).commit()
+        }
+
         const val DEFAULT_THRESHOLD = 100
         val NAV_POOL = listOf("home", "history", "charts", "accounts", "analysis", "categories", "tags", "wealth")
         val NAV_DEFAULT = NAV_POOL.take(5)

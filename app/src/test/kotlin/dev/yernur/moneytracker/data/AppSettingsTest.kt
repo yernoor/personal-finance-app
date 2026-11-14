@@ -21,6 +21,17 @@ class AppSettingsTest {
     }
 
     @Test
+    fun forgetRatesFetch_clearsTheMarkersSoANewDatabaseFetchesAgain() {
+        prefs.edit().clear().commit()
+        AppSettings(prefs).apply { setLastRatesDate("2026-11-12"); setRatesUpdatedAt(5L); setRatesAttemptAt(6L) }
+        AppSettings.forgetRatesFetch(prefs)
+        val after = AppSettings(prefs)
+        assertEquals(null, after.lastRatesDate.value)
+        assertEquals(null, after.ratesUpdatedAt.value)
+        assertEquals(null, after.ratesAttemptAt.value)
+    }
+
+    @Test
     fun keptDuplicates_areRemembered() {
         prefs.edit().clear().commit()
         AppSettings(prefs).keepDuplicate("a")

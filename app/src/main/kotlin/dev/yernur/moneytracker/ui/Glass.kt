@@ -1,6 +1,15 @@
 package dev.yernur.moneytracker.ui
 
 import android.view.WindowManager
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -151,4 +160,19 @@ fun GlassWindowBlur(radius: Dp = 24.dp) {
         params.blurBehindRadius = (radius.value * view.resources.displayMetrics.density).toInt()
         windowManager.updateViewLayout(root, params)
     }
+}
+
+/** Height of the fade above the floating bar when glass is off. */
+private val SCRIM_FADE = GlassBarInset + 24.dp
+
+/**
+ * Glass off: the strip behind the floating bar and the system navigation bar. Content scrolls under it and dissolves into the page color,
+ * clear at the top edge, nearly solid at the bottom. No blur on purpose: it needs no extra layer, so it costs next to nothing.
+ */
+@Composable
+fun BarScrim(modifier: Modifier = Modifier) {
+    val page = MaterialTheme.colorScheme.background
+    val fade = remember(page) { Brush.verticalGradient(listOf(page.copy(alpha = 0f), page.copy(alpha = 0.92f))) }
+    val height = SCRIM_FADE + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    Box(modifier.fillMaxWidth().height(height).background(fade))
 }

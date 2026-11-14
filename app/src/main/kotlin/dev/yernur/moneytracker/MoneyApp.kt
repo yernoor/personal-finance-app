@@ -144,6 +144,7 @@ class MoneyApp : Application() {
      */
     private fun switchDemoMode(on: Boolean) {
         getSharedPreferences(MODE_PREFS, MODE_PRIVATE).edit().putBoolean(DEMO_KEY, on).commit() // commit: it must be on disk before the process ends
+        AppSettings.forgetRatesFetch(getSharedPreferences("settings", MODE_PRIVATE)) // the other database has its own (maybe empty) rates table
         if (on) deleteDatabase(DEMO_DB_NAME) // not open: the app is on the real database right now
         val launch = packageManager.getLaunchIntentForPackage(packageName)!!.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
         startActivity(launch)

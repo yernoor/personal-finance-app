@@ -115,7 +115,10 @@ private const val CATEGORY = "category/{uid}?type={type}"
 private const val ACCOUNT = "account/{uid}"
 
 /** Where a widget tap should land: an add screen of this kind ("expense", "income", "transfer"), or the operation with this uid. Null kind and uid: just open the app. */
-data class AppLaunch(val kind: String?, val uid: String?)
+data class AppLaunch(val kind: String?, val uid: String?, val tap: Long = nextTap++)
+
+/** Makes every tap a new value: two quick taps on the same widget must not look like one (state equality would swallow the second). */
+private var nextTap = 0L
 
 /** The enter/exit transition of the screen being composed (null outside the nav host), so a screen can wait for its arrival to finish. */
 val LocalArrival = staticCompositionLocalOf<Transition<EnterExitState>?> { null }
@@ -132,7 +135,7 @@ data class Insets(val left: Dp, val top: Dp, val right: Dp, val bottom: Dp) {
  */
 class ChromeInsets(val tabRoutes: Set<String>, val barRoutes: Set<String>, val glass: Boolean, val tab: Insets, val system: Insets) {
     fun padding(route: String?) = when {
-        route in tabRoutes -> tab.padding(glass)
+        route in tabRoutes -> tab.padding(true) // every tab screen runs under the floating bar (blurred scrim, or glass)
         route in barRoutes -> tab.copy(bottom = system.bottom).padding(glass) // More and screens hidden from the navbar have the top bar but no tab bar
         else -> PaddingValues() // these screens are Scaffolds with their own app bar, which already keep clear of the system bars
     }
@@ -201,7 +204,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
 
     GlassScaffoldTheme(glass) {
     CompositionLocalProvider(
-        LocalAnimationsOff provides animationsOff, LocalGlass provides glass, LocalGlow provides (if (glass) glow else null), LocalChromeInset provides if (glass && tab != null) GlassBarInset else 0.dp,
+        LocalAnimationsOff provides animationsOff, LocalGlass provides glass, LocalGlow provides (if (glass) glow else null), LocalChromeInset provides if (tab != null) GlassBarInset else 0.dp,
         LocalIconStyle provides if (glass) glassIconSetting else iconSetting, // glass allows only glass-style icons
         LocalAccentHue provides accentHue,
     ) {
@@ -233,23 +236,6 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = if (glass) Color.Transparent else Color.Unspecified),
                 navigationIcon = { IconButton({ nav.popBackStack() }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
             )
-        },
-        bottomBar = {
-            AnimatedVisibility(
-                tab != null && !glass,
-                enter = slideInVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeIn(tween(FADE_MS)),
-                exit = slideOutVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeOut(tween(FADE_MS)),
-            ) {
-                FloatingTabBar(tabs, lastTab, onSelect = { nav.navigateTop(it.id) })
-            }
-        },
-        floatingActionButton = {
-            AnimatedVisibility(
-                (tab?.id == "home" || tab?.id == "history") && !glass,
-                enter = scaleIn(tween(FADE_MS)) + fadeIn(tween(FADE_MS)), exit = scaleOut(tween(FADE_MS)) + fadeOut(tween(FADE_MS)),
-            ) {
-                AddButton({ nav.navigate(entryRoute()) }, Modifier.padding(bottom = 4.dp), onPickKind = { nav.navigate(entryRoute(kind = it)) })
-            }
         },
     ) { padding ->
       val ltr = LayoutDirection.Ltr
@@ -382,23 +368,25 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             }
             screen("tags") { TagsScreen(embedded = "tags" in tabRoutes) { nav.popBackStack() } }
         }
-        if (glass) {
+        run {
             val navInset = padding.calculateBottomPadding()
+            val glassBackdrop = if (glass) backdrop else null // without glass: a plain pill and button over a blurred, fading strip of the content
+            if (!glass) AnimatedVisibility(tab != null, Modifier.align(Alignment.BottomCenter), enter = fadeIn(tween(FADE_MS)), exit = fadeOut(tween(FADE_MS))) { BarScrim() } // only where the bar is
             AnimatedVisibility(
                 tab != null, Modifier.align(Alignment.BottomCenter),
                 enter = slideInVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeIn(tween(FADE_MS)),
                 exit = slideOutVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeOut(tween(FADE_MS)),
-            ) { FloatingTabBar(tabs, lastTab, onSelect = { nav.navigateTop(it.id) }, backdrop = backdrop) }
+            ) { FloatingTabBar(tabs, lastTab, onSelect = { nav.navigateTop(it.id) }, backdrop = glassBackdrop) }
             val addMenu = remember { mutableStateOf(false) }
             val addShown = tab?.id == "home" || tab?.id == "history"
-            if (addMenu.value && addShown) GlassAddMenu(backdrop, bottom = navInset + 88.dp + 60.dp + 12.dp, end = 16.dp, onDismiss = { addMenu.value = false }) {
+            if (glass && addMenu.value && addShown) GlassAddMenu(backdrop, bottom = navInset + 88.dp + 60.dp + 12.dp, end = 16.dp, onDismiss = { addMenu.value = false }) {
                 addMenu.value = false
                 nav.navigate(entryRoute(kind = it))
             }
             AnimatedVisibility(
                 addShown, Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = navInset + 88.dp),
                 enter = scaleIn(tween(FADE_MS)) + fadeIn(tween(FADE_MS)), exit = scaleOut(tween(FADE_MS)) + fadeOut(tween(FADE_MS)),
-            ) { AddButton({ nav.navigate(entryRoute()) }, backdrop = backdrop, onPickKind = { nav.navigate(entryRoute(kind = it)) }, menu = addMenu) }
+            ) { AddButton({ nav.navigate(entryRoute()) }, backdrop = glassBackdrop, onPickKind = { nav.navigate(entryRoute(kind = it)) }, menu = addMenu) }
         }
       }
       }
@@ -423,7 +411,7 @@ private fun NavGraphBuilder.screen(
     val background = if (glow != null) Modifier.drawBehind { glow.draw(this, size.width, size.height) }
     else Modifier.background(MaterialTheme.colorScheme.background)
     val onTab = chrome != null && route in chrome.tabRoutes
-    CompositionLocalProvider(LocalArrival provides transition, LocalChromeInset provides if (chrome != null && chrome.glass && onTab) GlassBarInset else 0.dp) {
+    CompositionLocalProvider(LocalArrival provides transition, LocalChromeInset provides if (onTab) GlassBarInset else 0.dp) {
         Box(Modifier.fillMaxSize().then(background)) {
             Box(Modifier.fillMaxSize().then(if (chrome != null) Modifier.padding(chrome.padding(route)) else Modifier)) { content(entry) }
         }
