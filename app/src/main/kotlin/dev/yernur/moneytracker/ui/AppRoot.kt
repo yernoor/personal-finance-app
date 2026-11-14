@@ -115,7 +115,10 @@ private const val CATEGORY = "category/{uid}?type={type}"
 private const val ACCOUNT = "account/{uid}"
 
 /** Where a widget tap should land: an add screen of this kind ("expense", "income", "transfer"), or the operation with this uid. Null kind and uid: just open the app. */
-data class AppLaunch(val kind: String?, val uid: String?)
+data class AppLaunch(val kind: String?, val uid: String?, val tap: Long = nextTap++)
+
+/** Makes every tap a new value: two quick taps on the same widget must not look like one (state equality would swallow the second). */
+private var nextTap = 0L
 
 /** The enter/exit transition of the screen being composed (null outside the nav host), so a screen can wait for its arrival to finish. */
 val LocalArrival = staticCompositionLocalOf<Transition<EnterExitState>?> { null }

@@ -37,4 +37,9 @@ class WidgetLaunchTest {
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("save").fetchSemanticsNodes().isNotEmpty() } // the regular add screen, with its pinned Add button
         compose.onNodeWithTag("kind-Transfer").assertIsSelected()
     }
+
+    @Test
+    fun twoTapsOnTheSameWidget_areTwoLaunches() {
+        org.junit.Assert.assertNotEquals(AppLaunch("expense", null), AppLaunch("expense", null))
+    }
 }
