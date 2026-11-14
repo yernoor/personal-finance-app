@@ -95,6 +95,8 @@ Your data lives in a local database on the phone; the optional Google Sheet is a
 <img src="docs/screenshots/calc.png" width="19%" alt="Calculator">
 <img src="docs/screenshots/charts.png" width="19%" alt="General chart">
 <img src="docs/screenshots/more.png" width="19%" alt="More">
+<img src="docs/screenshots/more-appearance.png" width="19%" alt="Appearance settings">
+<img src="docs/screenshots/more-animations.png" width="19%" alt="Animation switches">
 </p>
 
 ## Quick start (user manual)

@@ -2,6 +2,8 @@
 
 <img src="../screenshots/more.png" width="240" alt="More"> <img src="../screenshots/more-data.png" width="240" alt="More, data and sync">
 
+<img src="../screenshots/more-appearance.png" width="240" alt="More, Appearance"> <img src="../screenshots/more-animations.png" width="240" alt="More, Animations">
+
 | Section | Setting | What it does |
 |---|---|---|
 | Wealth | Wealth, Compound interest | See [Wealth and compound interest](Wealth-and-Compound-Interest.md) |
