@@ -178,6 +178,6 @@ fun BarScrim(backdrop: Backdrop, modifier: Modifier = Modifier) {
         modifier.fillMaxWidth().height(height)
             .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
             .drawWithContent { drawContent(); drawRect(fade, blendMode = BlendMode.DstIn) } // outermost: masks what the blur below draws
-            .drawBackdrop(backdrop, shape = { RectangleShape }, effects = { blur(8.dp.toPx()) }, onDrawSurface = { drawRect(tint) }),
+            .drawBackdrop(backdrop, shape = { RectangleShape }, effects = { blur(4.dp.toPx()) }, onDrawSurface = { drawRect(tint) }),
     )
 }
