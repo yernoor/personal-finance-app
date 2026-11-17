@@ -133,7 +133,9 @@ fun ChartsScreen(onOpenTransaction: (String) -> Unit = {}) {
     val cues = rememberCueTracker(unit, -page.toLong()) // older pages are further from the present
     val periodFade = periodFade(unit to page)
 
-    Column(Modifier.fillMaxSize()) {
+    val swipe = rememberSwipeSteps()
+    // A swipe turns the page: left to newer (not past today), right to older.
+    Column(Modifier.fillMaxSize().swipeSteps(swipe) { by -> if (by > 0 && page == 0) false else { vm.turnPage(-by); true } }) {
         // Same header as History: the period slicer on top, then what to show underneath.
         run {
             val units = listOf(PeriodUnit.Day, PeriodUnit.Week, PeriodUnit.Month, PeriodUnit.Year)
@@ -155,7 +157,7 @@ fun ChartsScreen(onOpenTransaction: (String) -> Unit = {}) {
             tabs.map { it.label }, tabs.indexOf(vm.tab), tabs.map { "chart-tab-${it.name}" }, { vm.tab = tabs[it] },
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.swipeShift(swipe).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             data?.let { chart -> ChartBody(chart, vm.tab, cues, vm.selected, onSelect = { vm.selected = it }, onOpenTransaction) }
             Spacer(Modifier.height(LocalChromeInset.current))
         }

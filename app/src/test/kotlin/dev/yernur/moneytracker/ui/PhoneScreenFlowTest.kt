@@ -179,13 +179,17 @@ class PhoneScreenFlowTest {
     }
 
     @Test
-    fun swipingLeftAndRight_movesBetweenTabs() {
+    fun swipingOnHome_movesToTheNextTab_andOnHistory_stepsTheDay() {
         waitForText("Home") // starts on the first tab
         compose.onRoot().performTouchInput { swipeLeft() }
-        waitForText(periodTitle(PeriodUnit.Day, PeriodUnit.Day.rangeOf(today))) // History
-        compose.onRoot().performTouchInput { swipeRight() }
-        compose.onNodeWithTag("more").assertExists()
-        waitForText("Balance") // back on Home
+        waitForText(periodTitle(PeriodUnit.Day, PeriodUnit.Day.rangeOf(today))) // History, on today
+        compose.onRoot().performTouchInput { swipeRight() } // History has its own selector: a swipe steps the day, it does not leave the tab
+        waitForText(periodTitle(PeriodUnit.Day, PeriodUnit.Day.rangeOf(today.minusDays(1))))
+        compose.onRoot().performTouchInput { swipeLeft() }
+        waitForText(periodTitle(PeriodUnit.Day, PeriodUnit.Day.rangeOf(today)))
+        compose.onRoot().performTouchInput { swipeLeft() } // not past today
+        waitForText(periodTitle(PeriodUnit.Day, PeriodUnit.Day.rangeOf(today)))
+        compose.onNodeWithTag("tab-history").assertIsSelected()
     }
 
     @Test

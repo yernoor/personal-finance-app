@@ -101,13 +101,16 @@ fun AnalysisScreen(onOpenCategory: (String) -> Unit, onOpenTrend: (String) -> Un
     val vm = appViewModel { AnalysisViewModel(it.db, it.forecasts, it.today) }
     val forecast by vm.forecast.collectAsStateWithLifecycle()
     val categories = vm.state.collectAsStateWithLifecycle().value?.second.orEmpty()
-    Column(Modifier.fillMaxSize()) {
+    val swipe = rememberSwipeSteps()
+    Column(Modifier.fillMaxSize().swipeSteps(swipe) { by -> AnalysisTab.entries.getOrNull(tab.ordinal + by)?.let { tab = it } != null }) {
         SlidingSegmented(
             AnalysisTab.entries.map { it.label }, tab.ordinal, AnalysisTab.entries.map { "analysis-tab-${it.name}" }, { tab = AnalysisTab.entries[it] },
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
-        if (tab == AnalysisTab.Forecast) forecast?.let { ForecastView(it, categories, onOpenCategory) }
-        else AnalysisView(onOpenTrend, onOpenRecurring)
+        androidx.compose.foundation.layout.Box(Modifier.weight(1f).swipeShift(swipe)) {
+            if (tab == AnalysisTab.Forecast) forecast?.let { ForecastView(it, categories, onOpenCategory) }
+            else AnalysisView(onOpenTrend, onOpenRecurring)
+        }
     }
 }
 
@@ -205,7 +208,7 @@ private fun InsightsCard(insights: List<Insight>, categories: Map<String?, Categ
             insights.forEach {
                 val name = categories[it.categoryUid]?.title ?: "A category"
                 Text(
-                    if (it.kind == InsightKind.Rise) "$name is on pace for ${it.percent}% more than its 3-month average (last month for fixed bills)."
+                    if (it.kind == InsightKind.Rise) "$name is on pace for ${it.percent}% more than its 3-month average."
                     else "$name has dropped three months in a row.",
                     style = MaterialTheme.typography.bodyMedium,
                 )

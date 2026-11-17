@@ -317,7 +317,9 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
     val cues = rememberCueTracker(unit, range.from.toEpochDay())
     val periodFade = periodFade(unit to range)
 
-    Column(Modifier.fillMaxSize()) {
+    val swipe = rememberSwipeSteps()
+    // A swipe steps the period: left to the next one (not past today), right to the one before.
+    Column(Modifier.fillMaxSize().swipeSteps(swipe) { by -> if (by > 0 && range.to >= LocalDate.now()) false else { vm.shift(by.toLong()); true } }) {
         val units = PeriodUnit.entries
         SlidingSegmented(
             units.map { it.name }, units.indexOf(unit), units.map { "period-${it.name}" }, { vm.zoom(units[it]) },
@@ -338,9 +340,9 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
         )
         // No +income / -expense line here (owner request 2026-11-13): the ring below already shows the chosen side's total.
         // Pinned above the list: scrolling the list shrinks the ring into the bar first (nestedScroll), so there is no toggle button.
-        HistoryChart(slices, chartIncome, collapse, cues, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        HistoryChart(slices, chartIncome, collapse, cues, Modifier.swipeShift(swipe).padding(horizontal = 16.dp, vertical = 8.dp))
         // Bottom padding keeps the last row's amount clear of the add button.
-        LazyColumn(Modifier.weight(1f).graphicsLayer { alpha = periodFade }.nestedScroll(collapse).testTag("history-list"), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
+        LazyColumn(Modifier.weight(1f).swipeShift(swipe).graphicsLayer { alpha = periodFade }.nestedScroll(collapse).testTag("history-list"), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
             item(key = "search") {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(query, { vm.query.value = it }, label = { Text("Search") }, singleLine = true, modifier = Modifier.weight(1f).testTag("search"))
@@ -479,3 +481,4 @@ private fun TransferLine(row: HistoryRow, onOpen: (uid: String, isTransfer: Bool
         Text(row.amount, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
     }
 }
+
