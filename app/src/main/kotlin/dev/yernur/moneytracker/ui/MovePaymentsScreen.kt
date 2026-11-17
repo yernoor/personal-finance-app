@@ -158,19 +158,7 @@ fun MovePaymentsScreen(key: String, onNewCategory: (name: String) -> Unit, onDon
             }
             item { Text("Move to", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp)) }
             item {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        false, { vm.expectNewCategory(); onNewCategory(bill.item.title) }, { Text("New: ${bill.item.title}") },
-                        leadingIcon = { Icon(Icons.Outlined.Add, null, Modifier.size(18.dp)) }, modifier = Modifier.testTag("move-new"),
-                    )
-                    categories.filter { it.uid != bill.item.categoryUid }.forEach { c ->
-                        FilterChip(
-                            vm.target == c.uid, { vm.target = c.uid }, { Text(c.title) },
-                            leadingIcon = { Box(Modifier.size(12.dp).background(themedColor(c.color), CircleShape)) },
-                            modifier = Modifier.testTag("move-to-${c.title}"),
-                        )
-                    }
-                }
+                MoveToChips(bill.item.title, categories.filter { it.uid != bill.item.categoryUid }, vm.target, { vm.expectNewCategory(); onNewCategory(bill.item.title) }, { vm.target = it })
             }
             item {
                 Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -182,10 +170,7 @@ fun MovePaymentsScreen(key: String, onNewCategory: (name: String) -> Unit, onDon
             group("Same comment “${bill.item.title.lowercase()}” · ${vm.candidates.sameComment.size}", vm.candidates.sameComment, vm.picked, guess = false)
             group("No comment, but looks like ${bill.item.title} · ${vm.candidates.lookAlike.size}", vm.candidates.lookAlike, vm.picked, guess = true)
             item {
-                Row(Modifier.fillMaxWidth().clickable { vm.addComment = !vm.addComment }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(vm.addComment, { vm.addComment = it }, Modifier.testTag("move-add-comment"))
-                    Text("Add the comment “${bill.item.title}” to the ones without one, so next time they are found by comment", style = MaterialTheme.typography.bodyMedium)
-                }
+                CommentCheck(vm.addComment, { vm.addComment = it }, "Add the comment “${bill.item.title}” to the ones without one, so next time they are found by comment")
             }
         }
     }
@@ -196,19 +181,54 @@ private fun androidx.compose.foundation.lazy.LazyListScope.group(title: String, 
     item { Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp)) }
     items(rows, key = { it.uid }) { row ->
         val on = row.uid in picked
-        Row(
-            Modifier.fillMaxWidth().clickable { if (on) picked.remove(row.uid) else picked.add(row.uid) }.padding(vertical = 4.dp).testTag("move-row-${row.uid}"),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Checkbox(on, { if (it) picked.add(row.uid) else picked.remove(row.uid) })
-            Column(Modifier.weight(1f)) {
-                Text(LocalDate.parse(row.date).format(rowDate), style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    if (guess) "No comment · similar amount and day" else "“${row.comment}”", style = MaterialTheme.typography.bodySmall,
-                    color = if (guess) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Text(Money.formatRounded(row.amount, DEFAULT_CURRENCY), style = MaterialTheme.typography.bodyLarge)
+        PaymentRow(row, on, guess, "move-row-${row.uid}") { if (on) picked.remove(row.uid) else picked.add(row.uid) }
+    }
+}
+
+/** One payment with a tick box: date, comment, amount. A [guess] (ticked because it looks like the bill) is marked in the tertiary color. */
+@Composable
+internal fun PaymentRow(row: TxFull, on: Boolean, guess: Boolean, tag: String, onToggle: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(vertical = 4.dp).testTag(tag), verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(on, { onToggle() })
+        Column(Modifier.weight(1f)) {
+            Text(LocalDate.parse(row.date).format(rowDate), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                listOfNotNull(row.comment?.takeIf { it.isNotBlank() }?.let { "“$it”" } ?: "No comment", "similar amount and day".takeIf { guess }).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall, color = if (guess) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
+        Text(Money.formatRounded(row.amount, DEFAULT_CURRENCY), style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+/**
+ * Where a bill's payments go: "New: [name]" ([onNew]), then [categories]. With [keepLabel], a first chip leaves them where they are
+ * (selected while [target] is null).
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun MoveToChips(name: String, categories: List<CategoryEntity>, target: String?, onNew: () -> Unit, onPick: (String?) -> Unit, keepLabel: String? = null) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (keepLabel != null) FilterChip(target == null, { onPick(null) }, { Text(keepLabel) }, modifier = Modifier.testTag("move-keep"))
+        FilterChip(
+            false, onNew, { Text("New: $name") },
+            leadingIcon = { Icon(Icons.Outlined.Add, null, Modifier.size(18.dp)) }, modifier = Modifier.testTag("move-new"),
+        )
+        categories.forEach { c ->
+            FilterChip(
+                target == c.uid, { onPick(c.uid) }, { Text(c.title) },
+                leadingIcon = { Box(Modifier.size(12.dp).background(themedColor(c.color), CircleShape)) },
+                modifier = Modifier.testTag("move-to-${c.title}"),
+            )
+        }
+    }
+}
+
+/** The "also set the comment" tick box under the move choices. */
+@Composable
+internal fun CommentCheck(checked: Boolean, onChange: (Boolean) -> Unit, text: String) {
+    Row(Modifier.fillMaxWidth().clickable { onChange(!checked) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(checked, onChange, Modifier.testTag("move-add-comment"))
+        Text(text, style = MaterialTheme.typography.bodyMedium)
     }
 }
