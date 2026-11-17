@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -226,12 +227,14 @@ private fun androidx.compose.foundation.lazy.LazyListScope.categoryStep(vm: Manu
     item { Note("Last $RECURRING_MONTHS_BACK months. Fewer payments a month first: bills rarely hide among groceries.") }
     items(vm.uses(categories), key = { it.category.uid }) { use ->
         ChoiceRow(vm.source == use.category.uid, "manual-cat-${use.category.title}", { vm.choose(use.category.uid) }, {
-            Box(Modifier.size(12.dp).background(themedColor(use.category.color), CircleShape))
+            IconBadge(use.category.icon, use.category.color, size = 40.dp)
         }, use.category.title, "${use.payments} payment${if (use.payments == 1) "" else "s"} · ${use.months} mo")
     }
     item {
         ChoiceRow(vm.all, "manual-cat-all", { vm.choose(null) }, {
-            Box(Modifier.size(12.dp).background(MaterialTheme.colorScheme.outline, CircleShape))
+            Box(Modifier.size(40.dp).background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.Category, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }, "All categories", "a bill spread across several")
     }
 }
@@ -240,7 +243,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.categoryStep(vm: Manu
 private fun ChoiceRow(on: Boolean, tag: String, onClick: () -> Unit, dot: @Composable () -> Unit, title: String, detail: String) {
     Row(
         Modifier.fillMaxWidth().background(if (on) MaterialTheme.colorScheme.primaryContainer else Color.Transparent, RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 14.dp).testTag(tag),
+            .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 8.dp).testTag(tag),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         dot()
