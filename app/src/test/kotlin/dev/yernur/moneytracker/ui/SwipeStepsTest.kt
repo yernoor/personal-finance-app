@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import dev.yernur.moneytracker.data.AppSettings
 import dev.yernur.moneytracker.data.PeriodUnit
 import dev.yernur.moneytracker.data.db.AppDatabase
+import dev.yernur.moneytracker.data.db.ProjectionMode
 import java.time.LocalDate
 import androidx.compose.runtime.MonotonicFrameClock
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -60,4 +61,8 @@ class SwipeStepsTest {
         assertFalse(vm.step(1)) // a second quick tap is checked against the period now, not the one last drawn
         assertEquals(today, vm.anchor.value)
     }
+
+    @Test
+    fun everyProjectionMode_isExplained() =
+        ProjectionMode.entries.forEach { assertTrue(it.name, projectionModeHelp(it).length > 20) }
 }
