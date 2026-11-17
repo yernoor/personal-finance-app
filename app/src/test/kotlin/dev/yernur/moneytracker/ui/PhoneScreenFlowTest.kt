@@ -193,6 +193,13 @@ class PhoneScreenFlowTest {
     }
 
     @Test
+    fun holdingThePeriodLabel_opensACalendar() {
+        tap("tab-history")
+        compose.onNodeWithTag("period-label").performTouchInput { longClick() }
+        compose.onNodeWithTag("period-calendar").assertExists()
+    }
+
+    @Test
     fun slidingAlongTheNavbar_opensEachTabItCrosses() {
         waitForText("Balance")
         val tabs = dev.yernur.moneytracker.data.AppSettings().navTabs.value

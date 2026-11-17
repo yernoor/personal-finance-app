@@ -17,6 +17,13 @@ import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.SwapHoriz
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -287,6 +294,10 @@ class HistoryViewModel(
     fun jumpToToday() {
         anchor.value = today()
     }
+
+    fun jumpTo(day: LocalDate) {
+        anchor.value = day
+    }
 }
 
 /** Open History on [unit] (the current one) showing the income side or the expenses side. */
@@ -318,6 +329,8 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
     val periodFade = periodFade(unit to range)
 
     val swipe = rememberSwipeSteps()
+    var calendar by remember { mutableStateOf(false) }
+    if (calendar) PeriodCalendar(range.from, onDismiss = { calendar = false }) { calendar = false; vm.jumpTo(it) }
     // A swipe steps the period: left to the next one (not past today), right to the one before.
     Column(Modifier.fillMaxSize().swipeSteps(swipe) { by -> if (by > 0 && range.to >= LocalDate.now()) false else { vm.shift(by.toLong()); true } }) {
         val units = PeriodUnit.entries
@@ -329,7 +342,9 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
             IconButton({ vm.shift(-1) }, modifier = Modifier.testTag("prev-period")) { Icon(Icons.Outlined.ChevronLeft, "Previous") }
             Text(
                 periodTitle(unit, range), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f).graphicsLayer { alpha = periodFade }.clickable { vm.jumpToToday() }.testTag("period-label"), // tap to jump back to today
+                // Tap: back to today. Hold: pick a day on a calendar.
+                modifier = Modifier.weight(1f).graphicsLayer { alpha = periodFade }
+                    .combinedClickable(onLongClick = { calendar = true }) { vm.jumpToToday() }.testTag("period-label"),
             )
             IconButton({ vm.shift(1) }, enabled = range.to < LocalDate.now(), modifier = Modifier.testTag("next-period")) { Icon(Icons.Outlined.ChevronRight, "Next") }
         }
@@ -482,3 +497,21 @@ private fun TransferLine(row: HistoryRow, onOpen: (uid: String, isTransfer: Bool
     }
 }
 
+/** Picks the day History jumps to (it keeps the zoom: a week view shows that day's week). Days after today cannot be picked. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PeriodCalendar(shown: LocalDate, onDismiss: () -> Unit, onPick: (LocalDate) -> Unit) {
+    val utc = java.time.ZoneOffset.UTC
+    val todayMillis = LocalDate.now().atStartOfDay().toInstant(utc).toEpochMilli()
+    val state = rememberDatePickerState(
+        initialSelectedDateMillis = shown.atStartOfDay().toInstant(utc).toEpochMilli(),
+        selectableDates = object : SelectableDates { override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis <= todayMillis },
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton({ state.selectedDateMillis?.let { onPick(java.time.Instant.ofEpochMilli(it).atZone(utc).toLocalDate()) } ?: onDismiss() }, Modifier.testTag("calendar-ok")) { Text("Show") }
+        },
+        dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
+    ) { DatePicker(state, Modifier.testTag("period-calendar")) }
+}
