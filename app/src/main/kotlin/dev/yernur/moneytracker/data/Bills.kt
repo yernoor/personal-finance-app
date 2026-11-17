@@ -112,10 +112,12 @@ class BillRepository(
      * Fixed monthly bill on, or back to Automatic, flipping what is saved now: a second tap before the card redrew must undo the first,
      * not repeat it (seen as a flaky test on CI).
      */
-    suspend fun toggleFixed(bill: Bill) = fixedLock.withLock {
-        val category = bill.category?.uid?.let { db.categoryDao().get(it) } ?: return
-        val fixed = category.projectionMode == ProjectionMode.Fixed
-        ledger.saveCategory(category.copy(projectionMode = if (fixed) ProjectionMode.Auto else ProjectionMode.Fixed))
+    suspend fun toggleFixed(bill: Bill) {
+        fixedLock.withLock {
+            val category = bill.category?.uid?.let { db.categoryDao().get(it) } ?: return
+            val fixed = category.projectionMode == ProjectionMode.Fixed
+            ledger.saveCategory(category.copy(projectionMode = if (fixed) ProjectionMode.Auto else ProjectionMode.Fixed))
+        }
     }
 
     suspend fun saveReminder(bill: Bill, daysBefore: Int, minuteOfDay: Int) =

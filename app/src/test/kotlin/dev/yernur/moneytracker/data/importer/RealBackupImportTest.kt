@@ -38,7 +38,7 @@ class RealBackupImportTest {
         assumeTrue("no backup or snapshot in data/", backup != null && snapshotFile.exists())
         val snapshot = JSONObject(snapshotFile.readText())
 
-        val tempDir = File(System.getProperty("java.io.tmpdir"))
+        val tempDir = File(requireNotNull(System.getProperty("java.io.tmpdir")))
         val result = MmbackupMapper.map(MmbackupReader.read(backup!!.readBytes(), tempDir))
         assertEquals("importer warnings", emptyList<String>(), result.warnings)
         assertEquals(0, result.unresolvedAccountAmount)

@@ -14,6 +14,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class QuickAddKindsTest {
     private val prefs = ApplicationProvider.getApplicationContext<Application>().getSharedPreferences("quickadd-test", 0)

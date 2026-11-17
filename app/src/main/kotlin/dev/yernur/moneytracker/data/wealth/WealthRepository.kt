@@ -63,7 +63,7 @@ class WealthRepository(private val db: AppDatabase, private val fx: FxRepository
     fun changes(): Flow<Unit> = combine(
         db.accountDao().observeBalances(), db.manualAssetDao().observeLive(), db.bondDao().observeLive(),
         db.goalDao().observeLive(), db.cashflowItemDao().observeLive(), db.netWorthSnapshotDao().observeAll(), fx.rates,
-    ) { _ -> Unit }
+    ) { _ -> }
 
     suspend fun overview(today: LocalDate): WealthOverview = WealthOverview(
         netWorth = currentNetWorth(),
