@@ -14,6 +14,7 @@ import dev.yernur.moneytracker.data.db.TxLite
 import java.time.LocalDate
 import java.time.LocalDateTime
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -111,6 +112,21 @@ class BillsTest {
         val bill = db.billDao().get("category:inst")!!
         assertFalse(bill.reminderOn)
         assertTrue(bill.settled)
+    }
+
+    @Test
+    fun twoQuickTogglesOnFixed_fromTheSameStaleCard_endWhereTheyStarted() = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java).allowMainThreadQueries().build()
+        db.categoryDao().upsert(category("rent", "Rent"))
+        val repo = BillRepository(db, LedgerRepository(db), flowOf(today))
+        // Both taps come from the card as it was drawn (not fixed yet), at once: the second must undo the first, not repeat it.
+        val stale = bills(rows, emptyList(), listOf(db.categoryDao().get("rent")!!), emptyList(), today).single()
+        kotlinx.coroutines.coroutineScope {
+            repeat(2) { launch(kotlinx.coroutines.Dispatchers.Default) { repo.toggleFixed(stale) } }
+        }
+        assertEquals(ProjectionMode.Auto, db.categoryDao().get("rent")!!.projectionMode)
+        repo.toggleFixed(stale)
+        assertEquals(ProjectionMode.Fixed, db.categoryDao().get("rent")!!.projectionMode)
     }
 
     @Test

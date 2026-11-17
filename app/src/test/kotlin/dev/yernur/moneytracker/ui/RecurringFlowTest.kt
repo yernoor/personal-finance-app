@@ -113,19 +113,6 @@ class RecurringFlowTest {
     }
 
     @Test
-    fun twoQuickTapsOnFixed_endWhereTheyStarted() {
-        openScreen()
-        waitFor("fixed-Gym")
-        // No wait in between: the second tap comes before the card redraws (what failed on CI); it must undo the first, not repeat it.
-        repeat(2) { compose.onNodeWithTag("fixed-Gym").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) }
-        compose.waitForIdle()
-        compose.waitUntil(5_000) { runBlocking { db.categoryDao().get("food")!!.modified }.isNotEmpty() }
-        Thread.sleep(300) // both saves land on Room's executor
-        compose.waitForIdle()
-        assertEquals(ProjectionMode.Auto, runBlocking { db.categoryDao().get("food")!!.projectionMode })
-    }
-
-    @Test
     fun settingAnEnd_showsHowManyArePaid() {
         openScreen()
         waitFor("ends-Gym")
