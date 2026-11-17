@@ -79,6 +79,11 @@ import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberUpdatedState
+import kotlin.math.roundToInt
 
 /** How much wider the chosen tab is than the others (it shows its label; the others only their icon). */
 private const val CHOSEN_WEIGHT = 2.3f
@@ -87,6 +92,8 @@ private val barSpring = spring<Float>(dampingRatio = 0.75f, stiffness = Spring.S
 /**
  * The bottom bar as a floating pill: the chosen tab opens up to icon and label while the others shrink to their icon, and one highlight
  * slides between them. Works for 2 to 5 tabs.
+ * Sliding a finger along the bar scrubs: the tabs flatten to equal slots (so they stay put under the finger), the highlight lifts and follows,
+ * and each slot crossed ticks and opens its tab. Letting go drops the highlight into place. Design: the "Navbar scrub" prototype artifact.
  */
 @Composable
 fun FloatingTabBar(tabs: List<NavTab>, selected: NavTab, onSelect: (NavTab) -> Unit, modifier: Modifier = Modifier, backdrop: Backdrop? = null) {
@@ -98,12 +105,56 @@ fun FloatingTabBar(tabs: List<NavTab>, selected: NavTab, onSelect: (NavTab) -> U
         val surface = if (backdrop != null) Modifier.clip(shape).glass(backdrop, shape).border(1.dp, Color.White.copy(alpha = if (isDarkSurface()) 0.18f else 0.7f), shape)
         else Modifier.shadow(10.dp, shape, ambientColor = Color.Black.copy(alpha = 0.3f), spotColor = Color.Black.copy(alpha = 0.3f))
             .clip(shape).background(scheme.surface).border(1.dp, scheme.outlineVariant, shape)
-        BoxWithConstraints(Modifier.fillMaxWidth().height(64.dp).then(surface).padding(8.dp)) {
-            val weights = tabs.indices.map { if (it == chosen) CHOSEN_WEIGHT else 1f }
+        val haptic = LocalHapticFeedback.current
+        val current by rememberUpdatedState(selected) // the gesture outlives recompositions: read the latest
+        val select by rememberUpdatedState(onSelect)
+        var scrubX by remember { mutableStateOf<Float?>(null) } // finger x while scrubbing, null otherwise
+        val scrubbing = scrubX != null
+        BoxWithConstraints(
+            Modifier.fillMaxWidth().height(64.dp).then(surface).padding(8.dp).testTag("tab-bar").pointerInput(tabs) {
+                val slot = size.width.toFloat() / tabs.size
+                var last = -1
+                fun at(x: Float) = (x / slot).toInt().coerceIn(0, tabs.lastIndex)
+                detectHorizontalDragGestures(
+                    onDragStart = { scrubX = it.x; last = -1 },
+                    onDragEnd = { scrubX = null }, onDragCancel = { scrubX = null },
+                ) { change, delta ->
+                    change.consume() // the screen's own swipe must not also fire
+                    val x = (scrubX ?: change.position.x) + delta
+                    scrubX = x
+                    val i = at(x)
+                    if (i != last) {
+                        if (last != -1) haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                        last = i
+                        if (tabs[i] != current) select(tabs[i])
+                    }
+                }
+            },
+        ) {
+            val weights = tabs.indices.map { if (it == chosen && !scrubbing) CHOSEN_WEIGHT else 1f }
             val total = weights.sum()
-            val highlightX by animateDpAsState(maxWidth * weights.take(chosen).sum() / total, spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow), label = "highlight-x")
-            val highlightW by animateDpAsState(maxWidth * weights[chosen] / total, spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow), label = "highlight-w")
-            Box(Modifier.offset(x = highlightX).width(highlightW).fillMaxHeight().clip(RoundedCornerShape(24.dp)).background(scheme.secondaryContainer.copy(alpha = if (backdrop != null) 0.7f else 1f)))
+            val widthPx = constraints.maxWidth.toFloat()
+            val restX = widthPx * weights.take(chosen).sum() / total
+            val restW = widthPx * weights[chosen] / total
+            val highlightX = remember { Animatable(restX) }
+            val highlightW = remember { Animatable(restW) }
+            val slotW = widthPx / tabs.size
+            val x = scrubX
+            if (x != null) LaunchedEffect(x) { // follows the finger at once; only the width eases to one slot
+                highlightX.snapTo((x - slotW / 2).coerceIn(0f, widthPx - slotW))
+                highlightW.animateTo(slotW, tween(160))
+            } else LaunchedEffect(restX, restW) {
+                launch { highlightX.animateTo(restX, barSpring) }
+                highlightW.animateTo(restW, barSpring)
+            }
+            val lift by animateFloatAsState(if (scrubbing) 1.08f else 1f, barSpring, label = "highlight-lift")
+            val density = LocalDensity.current
+            Box(
+                Modifier.offset { IntOffset(highlightX.value.roundToInt(), 0) }.width(with(density) { highlightW.value.toDp() }).fillMaxHeight()
+                    .graphicsLayer { scaleX = lift; scaleY = lift }
+                    .shadow(if (scrubbing) 6.dp else 0.dp, RoundedCornerShape(24.dp))
+                    .clip(RoundedCornerShape(24.dp)).background(scheme.secondaryContainer.copy(alpha = if (backdrop != null) 0.7f else 1f)),
+            )
             Row(Modifier.fillMaxWidth().fillMaxHeight(), verticalAlignment = Alignment.CenterVertically) {
                 tabs.forEachIndexed { index, tab ->
                     val on = index == chosen
@@ -114,8 +165,9 @@ fun FloatingTabBar(tabs: List<NavTab>, selected: NavTab, onSelect: (NavTab) -> U
                             .selectable(on, role = Role.Tab, onClick = { onSelect(tab) }).testTag("tab-${tab.id}"),
                         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(tab.icon, if (on) null else tab.label, Modifier.size(22.dp), tint = tint)
-                        AnimatedVisibility(on, enter = fadeIn() + expandHorizontally(), exit = fadeOut() + shrinkHorizontally()) {
+                        val pop by animateFloatAsState(if (on && scrubbing) 1.18f else 1f, barSpring, label = "tab-pop")
+                        Icon(tab.icon, if (on) null else tab.label, Modifier.size(22.dp).graphicsLayer { scaleX = pop; scaleY = pop }, tint = tint)
+                        AnimatedVisibility(on && !scrubbing, enter = fadeIn() + expandHorizontally(), exit = fadeOut() + shrinkHorizontally()) {
                             Row {
                                 Spacer(Modifier.width(8.dp))
                                 Text(tab.label, maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelLarge, color = tint)

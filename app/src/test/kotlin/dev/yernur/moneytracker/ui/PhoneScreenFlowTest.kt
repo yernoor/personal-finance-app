@@ -21,6 +21,8 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.swipe
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performScrollTo
@@ -184,6 +186,16 @@ class PhoneScreenFlowTest {
         compose.onRoot().performTouchInput { swipeRight() }
         compose.onNodeWithTag("more").assertExists()
         waitForText("Balance") // back on Home
+    }
+
+    @Test
+    fun slidingAlongTheNavbar_opensEachTabItCrosses() {
+        waitForText("Balance")
+        val tabs = dev.yernur.moneytracker.data.AppSettings().navTabs.value
+        compose.onNodeWithTag("tab-bar").performTouchInput { swipe(centerLeft, centerRight, 600) }
+        compose.onNodeWithTag("tab-${tabs.last()}").assertIsSelected()
+        compose.onNodeWithTag("tab-bar").performTouchInput { swipe(centerRight, centerLeft, 600) }
+        compose.onNodeWithTag("tab-${tabs.first()}").assertIsSelected()
     }
 
     @Test
