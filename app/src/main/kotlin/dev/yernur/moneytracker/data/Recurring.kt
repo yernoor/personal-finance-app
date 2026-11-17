@@ -84,14 +84,35 @@ private fun recurringRun(perMonth: Map<YearMonth, MonthEntry>, thisMonth: YearMo
     return run
 }
 
-private fun item(run: List<MonthEntry>, title: String, hasReminder: Boolean, byCategory: Boolean, key: String): RecurringItem {
+private fun item(run: List<MonthEntry>, title: String, hasReminder: Boolean, byCategory: Boolean, key: String, next: LocalDate = run.last().date.plusMonths(1)): RecurringItem {
     val latest = run.last()
-    val previous = run[run.size - 2].amount
-    val change = divideRounded((latest.amount - previous) * 100, previous).toInt()
+    val previous = run.getOrNull(run.size - 2)?.amount
+    val change = previous?.takeIf { it > 0 }?.let { divideRounded((latest.amount - it) * 100, it).toInt() }
     return RecurringItem(
-        title, latest.amount, run.size, latest.date, latest.date.plusMonths(1),
-        change.takeIf { abs(it) >= PRICE_CHANGE_MIN_PERCENT }, previous, hasReminder, latest.categoryUid, byCategory, key,
+        title, latest.amount, run.size, latest.date, next,
+        change?.takeIf { abs(it) >= PRICE_CHANGE_MIN_PERCENT }, previous, hasReminder, latest.categoryUid, byCategory, key,
     )
+}
+
+/**
+ * A bill the owner added by hand ([key] as in [RecurringItem.key]), listed from whatever payments it has in [rows]: no run of months or
+ * steady amount is needed. Its months are the months with a payment; the next one is a month after the last, moved past [today]. Null without any.
+ */
+fun manualRecurring(key: String, title: String, rows: List<TxFull>, today: LocalDate): RecurringItem? {
+    val expenses = rows.filter { it.type == TransactionType.Expense && it.amount > 0 }
+    fun month(tx: TxFull) = YearMonth.from(LocalDate.parse(tx.date))
+    val byCategory = key.startsWith("category:")
+    val perMonth = when {
+        key.startsWith("comment:") -> expenses.filter { it.comment?.trim()?.lowercase() == key.removePrefix("comment:") }.groupBy(::month)
+            .mapValues { (_, l) -> l.maxBy { it.amount }.let { MonthEntry(it.amount, LocalDate.parse(it.date), it.categoryUid, 1) } }
+        byCategory -> expenses.filter { it.categoryUid == key.removePrefix("category:") }.groupBy(::month)
+            .mapValues { (m, l) -> MonthEntry(l.sumOf { it.amount }, l.maxOf { LocalDate.parse(it.date) }, l.first().categoryUid, l.size) }
+        else -> return null
+    }
+    if (perMonth.isEmpty()) return null
+    val run = perMonth.toSortedMap().values.toList()
+    val next = generateSequence(run.last().date.plusMonths(1)) { it.plusMonths(1) }.first { it >= today }
+    return item(run, title, false, byCategory, key, next)
 }
 
 /** Two operations the same day on the same account and category with the same amount, created within [DUPLICATE_WINDOW_MINUTES] of each other. [second] is the newer. */

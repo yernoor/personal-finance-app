@@ -286,4 +286,6 @@ data class BillEntity(
     val settled: Boolean = false,
     /** The day ("yyyy-MM-dd") a reminder was last posted, so one due date never notifies twice. */
     val lastNotified: String? = null,
+    /** Added by hand (Recurring -> Add a bill by hand): listed from its payments even when they are not steady enough to be detected. */
+    val manual: Boolean = false,
 )

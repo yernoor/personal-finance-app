@@ -307,4 +307,7 @@ interface BillDao {
 
     @Upsert
     suspend fun upsert(item: BillEntity)
+
+    @Query("DELETE FROM bill WHERE `key` = :key")
+    suspend fun delete(key: String)
 }

@@ -125,14 +125,15 @@ class LedgerRepository(
     }
 
     /**
-     * Moves operations to [categoryUid], filling an empty comment with [comment] when given. Returns the operations as they were, for [restore].
+     * Moves operations to [categoryUid] (null: each keeps its own), filling an empty comment with [comment] when given ([replaceComment]: every
+     * comment). Returns the operations as they were, for [restore].
      * Each is stamped, so sync carries the move.
      */
-    suspend fun moveToCategory(uids: Collection<String>, categoryUid: String, comment: String?): List<TransactionEntity> = db.withTransaction {
+    suspend fun moveToCategory(uids: Collection<String>, categoryUid: String?, comment: String?, replaceComment: Boolean = false): List<TransactionEntity> = db.withTransaction {
         val stamp = now()
         uids.mapNotNull { db.transactionDao().get(it) }.onEach { t ->
-            val filled = if (t.comment.isNullOrBlank() && !comment.isNullOrBlank()) comment else t.comment
-            db.transactionDao().upsert(t.copy(categoryUid = categoryUid, comment = filled, modified = stamp))
+            val filled = if ((replaceComment || t.comment.isNullOrBlank()) && !comment.isNullOrBlank()) comment else t.comment
+            db.transactionDao().upsert(t.copy(categoryUid = categoryUid ?: t.categoryUid, comment = filled, modified = stamp))
         }
     }
 

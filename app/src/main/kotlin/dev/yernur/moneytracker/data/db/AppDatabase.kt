@@ -7,7 +7,7 @@ import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
 
 /** The schema version in one place: Room's `@Database` and the backup's "is this file from a newer app" check both read it. */
-const val DB_VERSION = 7
+const val DB_VERSION = 8
 
 @Database(
     entities = [
@@ -90,5 +90,12 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
 val MIGRATION_6_7 = object : Migration(6, 7) {
     override fun migrate(connection: SQLiteConnection) {
         connection.execSQL("CREATE TABLE IF NOT EXISTS `bill` (`key` TEXT NOT NULL, `title` TEXT NOT NULL, `categoryUid` TEXT, `amount` INTEGER NOT NULL, `reminderOn` INTEGER NOT NULL, `reminderPaused` INTEGER NOT NULL, `reminderDaysBefore` INTEGER NOT NULL, `reminderMinute` INTEGER NOT NULL, `endMonth` TEXT, `settled` INTEGER NOT NULL, `lastNotified` TEXT, PRIMARY KEY(`key`))")
+    }
+}
+
+/** Marks recurring bills the owner added by hand. */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE bill ADD COLUMN manual INTEGER NOT NULL DEFAULT 0")
     }
 }

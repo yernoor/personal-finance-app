@@ -1,5 +1,13 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,14 +23,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import dev.yernur.moneytracker.data.AccentPalette
 import dev.yernur.moneytracker.data.Bill
 import dev.yernur.moneytracker.data.BillRepository
 import dev.yernur.moneytracker.data.DEFAULT_CURRENCY
@@ -158,19 +165,7 @@ fun MovePaymentsScreen(key: String, onNewCategory: (name: String) -> Unit, onDon
             }
             item { Text("Move to", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp)) }
             item {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        false, { vm.expectNewCategory(); onNewCategory(bill.item.title) }, { Text("New: ${bill.item.title}") },
-                        leadingIcon = { Icon(Icons.Outlined.Add, null, Modifier.size(18.dp)) }, modifier = Modifier.testTag("move-new"),
-                    )
-                    categories.filter { it.uid != bill.item.categoryUid }.forEach { c ->
-                        FilterChip(
-                            vm.target == c.uid, { vm.target = c.uid }, { Text(c.title) },
-                            leadingIcon = { Box(Modifier.size(12.dp).background(themedColor(c.color), CircleShape)) },
-                            modifier = Modifier.testTag("move-to-${c.title}"),
-                        )
-                    }
-                }
+                MoveToPicker(bill.item.title, categories.filter { it.uid != bill.item.categoryUid }, vm.target, { vm.expectNewCategory(); onNewCategory(bill.item.title) }, { vm.target = it })
             }
             item {
                 Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -182,10 +177,7 @@ fun MovePaymentsScreen(key: String, onNewCategory: (name: String) -> Unit, onDon
             group("Same comment “${bill.item.title.lowercase()}” · ${vm.candidates.sameComment.size}", vm.candidates.sameComment, vm.picked, guess = false)
             group("No comment, but looks like ${bill.item.title} · ${vm.candidates.lookAlike.size}", vm.candidates.lookAlike, vm.picked, guess = true)
             item {
-                Row(Modifier.fillMaxWidth().clickable { vm.addComment = !vm.addComment }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(vm.addComment, { vm.addComment = it }, Modifier.testTag("move-add-comment"))
-                    Text("Add the comment “${bill.item.title}” to the ones without one, so next time they are found by comment", style = MaterialTheme.typography.bodyMedium)
-                }
+                CommentCheck(vm.addComment, { vm.addComment = it }, "Add the comment “${bill.item.title}” to the ones without one, so next time they are found by comment")
             }
         }
     }
@@ -196,19 +188,85 @@ private fun androidx.compose.foundation.lazy.LazyListScope.group(title: String, 
     item { Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp)) }
     items(rows, key = { it.uid }) { row ->
         val on = row.uid in picked
-        Row(
-            Modifier.fillMaxWidth().clickable { if (on) picked.remove(row.uid) else picked.add(row.uid) }.padding(vertical = 4.dp).testTag("move-row-${row.uid}"),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Checkbox(on, { if (it) picked.add(row.uid) else picked.remove(row.uid) })
-            Column(Modifier.weight(1f)) {
-                Text(LocalDate.parse(row.date).format(rowDate), style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    if (guess) "No comment · similar amount and day" else "“${row.comment}”", style = MaterialTheme.typography.bodySmall,
-                    color = if (guess) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Text(Money.formatRounded(row.amount, DEFAULT_CURRENCY), style = MaterialTheme.typography.bodyLarge)
+        PaymentRow(row, on, guess, "move-row-${row.uid}") { if (on) picked.remove(row.uid) else picked.add(row.uid) }
+    }
+}
+
+/** One payment with a tick box: date, comment, amount. A [guess] (ticked because it looks like the bill) is marked in the tertiary color. */
+@Composable
+internal fun PaymentRow(row: TxFull, on: Boolean, guess: Boolean, tag: String, onToggle: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(vertical = 4.dp).testTag(tag), verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(on, { onToggle() })
+        Column(Modifier.weight(1f)) {
+            Text(LocalDate.parse(row.date).format(rowDate), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                listOfNotNull(row.comment?.takeIf { it.isNotBlank() }?.let { "“$it”" } ?: "No comment", "similar amount and day".takeIf { guess }).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall, color = if (guess) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
+        Text(Money.formatRounded(row.amount, DEFAULT_CURRENCY), style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+/**
+ * Where a bill's payments go. Two big tiles first: [keepLabel] (when given: leave them where they are, selected while [target] is null, with
+ * [keepCategory]'s icon) and "New: [name]" ([onNew]). The other [categories] sit in a block that expands, drawn with the add screen's
+ * [CategoryTile] (icon over its name). It starts folded and opens only on a tap; folded, its header names the one picked.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun MoveToPicker(
+    name: String, categories: List<CategoryEntity>, target: String?, onNew: () -> Unit, onPick: (String?) -> Unit,
+    keepLabel: String? = null, keepCategory: CategoryEntity? = null,
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (keepLabel != null) BigTile(target == null, keepLabel, "move-keep", Modifier.weight(1f), { onPick(null) }) {
+                if (keepCategory != null) IconBadge(keepCategory.icon, keepCategory.color, size = 48.dp)
+                else IconBadge("other", null, size = 48.dp)
+            }
+            BigTile(false, "New: $name", "move-new", Modifier.weight(1f), onNew) { IconBadge("add", AccentPalette.KEYS.first(), size = 48.dp) }
+        }
+        if (categories.isNotEmpty()) {
+            val picked = categories.firstOrNull { it.uid == target }
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { expanded = !expanded }.padding(vertical = 8.dp).testTag("move-others"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Other categories" + (picked?.let { " · ${it.title}" } ?: ""), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
+                Icon(if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, if (expanded) "Less" else "More")
+            }
+            AnimatedVisibility(expanded) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    categories.forEach { c -> Box(Modifier.testTag("move-to-${c.title}")) { CategoryTile(c, target == c.uid) { onPick(c.uid) } } }
+                }
+            }
+        }
+    }
+}
+
+/** A large choice: icon over a label, in a tinted rounded box; [selected] gets the primary outline. */
+@Composable
+private fun BigTile(selected: Boolean, label: String, tag: String, modifier: Modifier, onClick: () -> Unit, icon: @Composable () -> Unit) {
+    val shape = RoundedCornerShape(16.dp)
+    Column(
+        modifier.clip(shape)
+            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow)
+            .border(if (selected) 2.dp else 1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, shape)
+            .clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 14.dp).testTag(tag),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        icon()
+        Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 2, textAlign = TextAlign.Center)
+    }
+}
+
+/** The "also set the comment" tick box under the move choices. */
+@Composable
+internal fun CommentCheck(checked: Boolean, onChange: (Boolean) -> Unit, text: String) {
+    Row(Modifier.fillMaxWidth().clickable { onChange(!checked) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(checked, onChange, Modifier.testTag("move-add-comment"))
+        Text(text, style = MaterialTheme.typography.bodyMedium)
     }
 }

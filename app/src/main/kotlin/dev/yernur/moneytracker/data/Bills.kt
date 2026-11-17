@@ -42,13 +42,20 @@ data class Bill(
         get() = endMonth?.let { end -> item.months to item.months + (ChronoUnit.MONTHS.between(YearMonth.from(item.next), end).toInt() + 1).coerceAtLeast(0) }
 }
 
-/** Detected bills with their settings, biggest first. Bills whose last payment month is before this month have ended and are left out. */
+/**
+ * Detected bills and the ones added by hand ([BillEntity.manual], see [manualRecurring]), with their settings, biggest first. Bills whose end
+ * month is before this month have ended and are left out. A category found as a bill is dropped when a hand-added bill lives in it (its payments).
+ */
 fun bills(rows: List<TxFull>, reminders: List<ReminderEntity>, categories: List<CategoryEntity>, settings: List<BillEntity>, today: LocalDate): List<Bill> {
     val titles = categories.filter { !it.isRemoved }.associate { it.uid to it.title }
     val byUid = categories.associateBy { it.uid }
     val byKey = settings.associateBy { it.key }
     val thisMonth = YearMonth.from(today)
-    return detectRecurring(rows, reminders, today, titles).mapNotNull { item ->
+    val detected = detectRecurring(rows, reminders, today, titles)
+    val added = settings.filter { it.manual && detected.none { d -> d.key == it.key } }.mapNotNull { manualRecurring(it.key, it.title, rows, today) }
+    val addedIn = added.mapNotNull { it.categoryUid }.toSet()
+    val items = (detected.filter { !(it.byCategory && it.categoryUid in addedIn) } + added).sortedByDescending { it.amount }
+    return items.mapNotNull { item ->
         val saved = byKey[item.key]
         if (saved?.endMonth != null && YearMonth.parse(saved.endMonth) < thisMonth) return@mapNotNull null
         val shares = !item.byCategory && item.categoryUid != null && rows.any {
@@ -78,8 +85,15 @@ fun moveCandidates(bill: RecurringItem, inCategory: List<TxFull>): MoveCandidate
     )
 }
 
-/** A finished move: what to say, and the payments as they were (for Undo). */
-class MoveDone(val message: String, val before: List<TransactionEntity>)
+/** Two payments of one bill, as far as a guess goes: amount within [LOOK_ALIKE_PERCENT] of [a]'s, day of the month within [LOOK_ALIKE_DAYS]. */
+fun looksAlike(a: TxFull, b: TxFull): Boolean =
+    abs(a.amount - b.amount) * 100 <= a.amount * LOOK_ALIKE_PERCENT && abs(LocalDate.parse(a.date).dayOfMonth - LocalDate.parse(b.date).dayOfMonth) <= LOOK_ALIKE_DAYS
+
+/**
+ * A finished move: what to say, and the payments as they were (for Undo). A bill added by hand also carries its [billKey] and its settings
+ * from before ([billBefore], null when it was new), so Undo takes the bill away again.
+ */
+class MoveDone(val message: String, val before: List<TransactionEntity>, val billKey: String? = null, val billBefore: BillEntity? = null)
 
 /** Category -> amount of bills whose last payment was last month: a fixed category's "last month" still holds them, this month will not. */
 fun endedLastMonth(settings: List<BillEntity>, today: LocalDate): Map<String, Long> {
@@ -167,8 +181,22 @@ class BillRepository(
         lastMove.value = MoveDone("Moved ${before.size} payment${if (before.size == 1) "" else "s"} to $categoryTitle", before)
     }
 
+    /**
+     * Adds a bill by hand: the ticked payments [uids] get [title] as their comment when [setComment] (then the bill is found by that comment),
+     * and move to [categoryUid] when given (otherwise the bill is that category's). Undo is offered like after a move.
+     */
+    suspend fun addManual(title: String, uids: Collection<String>, categoryUid: String?, categoryTitle: String?, setComment: Boolean, amount: Long) {
+        val name = title.trim()
+        val key = if (setComment || categoryUid == null) "comment:${name.lowercase()}" else "category:$categoryUid"
+        val before = ledger.moveToCategory(uids, categoryUid, name.takeIf { setComment || categoryUid == null }, replaceComment = true)
+        val saved = db.billDao().get(key)
+        save((saved ?: BillEntity(key, name, categoryUid, amount)).copy(title = name, manual = true))
+        lastMove.value = MoveDone("Added $name" + (categoryTitle?.let { " · moved ${before.size} to $it" } ?: ""), before, key, saved)
+    }
+
     suspend fun undo(done: MoveDone) {
         ledger.restore(done.before)
+        done.billKey?.let { key -> done.billBefore?.let { db.billDao().upsert(it) } ?: db.billDao().delete(key); changed() }
         lastMove.value = null
     }
 

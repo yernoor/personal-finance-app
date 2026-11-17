@@ -19,6 +19,7 @@ import dev.yernur.moneytracker.data.db.MIGRATION_3_4
 import dev.yernur.moneytracker.data.db.MIGRATION_4_5
 import dev.yernur.moneytracker.data.db.MIGRATION_5_6
 import dev.yernur.moneytracker.data.db.MIGRATION_6_7
+import dev.yernur.moneytracker.data.db.MIGRATION_7_8
 import dev.yernur.moneytracker.data.feedback.CrashLog
 import dev.yernur.moneytracker.data.importer.ImportRepository
 import dev.yernur.moneytracker.data.security.AppLock
@@ -140,7 +141,7 @@ class MoneyApp : Application() {
         val version = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
         val demo = getSharedPreferences(MODE_PREFS, MODE_PRIVATE).getBoolean(DEMO_KEY, false)
         val dbName = if (demo) DEMO_DB_NAME else DB_NAME
-        val db = Room.databaseBuilder(this, AppDatabase::class.java, dbName).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build()
+        val db = Room.databaseBuilder(this, AppDatabase::class.java, dbName).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build()
         AppContainer(
             db,
             AppSettings(getSharedPreferences("settings", MODE_PRIVATE)),

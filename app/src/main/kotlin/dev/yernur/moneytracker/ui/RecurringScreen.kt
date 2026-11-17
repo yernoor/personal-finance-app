@@ -1,6 +1,7 @@
 package dev.yernur.moneytracker.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.NotificationsNone
@@ -96,7 +98,7 @@ class RecurringViewModel(db: AppDatabase, settings: AppSettings, bills: BillRepo
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RecurringScreen(onMove: (key: String) -> Unit = {}) {
+fun RecurringScreen(onMove: (key: String) -> Unit = {}, onAdd: () -> Unit = {}) {
     val container = LocalAppContainer.current
     val vm = appViewModel { RecurringViewModel(it.db, it.settings, it.bills) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -135,6 +137,8 @@ fun RecurringScreen(onMove: (key: String) -> Unit = {}) {
                     onReminder = { reminderFor = bill }, onEnd = { endFor = bill }, onMove = { onMove(bill.key) },
                 )
             }
+
+            MissingBillCard(onAdd)
 
             if (s.duplicates.isNotEmpty()) Text("Possible duplicates", style = MaterialTheme.typography.titleMedium)
             s.duplicates.forEach { pair ->
@@ -225,6 +229,22 @@ private fun BillCard(bill: Bill, onFixed: () -> Unit, onReminder: () -> Unit, on
                 ButtonIcon(Icons.Outlined.Flag); Text("Set when it ends", fontWeight = FontWeight.Medium)
             }
         }
+    }
+}
+
+/** Under the detected bills: why one can be missing, and the way to add it by hand (ManualBillScreen). */
+@Composable
+private fun MissingBillCard(onAdd: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().border(1.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp)).padding(16.dp).testTag("recurring-missing"),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text("Missing a bill?", style = MaterialTheme.typography.titleSmall)
+        Text(
+            "Bills with changing amounts, skipped months or no comment aren't found automatically. Pick their payments yourself.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Button(onAdd, Modifier.height(44.dp).testTag("recurring-add")) { ButtonIcon(Icons.Outlined.Add); Text("Add a bill by hand") }
     }
 }
 

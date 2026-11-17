@@ -78,6 +78,39 @@ class BillsTest {
     }
 
     @Test
+    fun aBillAddedByHand_isListed_withoutASteadyRun() {
+        // A skipped August and a 27% price change: not detected, but listed once added by hand, with its next payment after today.
+        val water = listOf(tx("2026-07-06", "Water", 549_000, "rent"), tx("2026-09-04", "water", 699_000, "rent"))
+        assertTrue(bills(water, emptyList(), categories, emptyList(), today).isEmpty())
+        val added = BillEntity("comment:water", "Water", "rent", 624_000, manual = true)
+        val bill = bills(water, emptyList(), categories, listOf(added), today).single()
+        assertEquals(699_000L, bill.item.amount)
+        assertEquals(2, bill.item.months)
+        assertEquals(LocalDate.of(2026, 12, 4), bill.item.next)
+        assertEquals(27, bill.item.priceChangePercent)
+    }
+
+    @Test
+    fun addingByHand_setsTheCommentOnAll_movesThem_andUndoTakesTheBillAway() = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java).allowMainThreadQueries().build()
+        db.accountDao().upsert(AccountEntity("main", "Main", "KZT", "cash", null, 0, null, false, true, false, false, "", ""))
+        listOf(category("util", "Utilities"), category("net", "Internet")).forEach { db.categoryDao().upsert(it) }
+        fun entity(uid: String, comment: String?) = TransactionEntity(uid, TransactionType.Expense, "main", "util", 699_000, null, null, 699_000, "KZT", "2026-11-04", comment, "c", "c")
+        db.transactionDao().upsert(entity("a", "wifi"))
+        db.transactionDao().upsert(entity("b", null))
+        val repo = BillRepository(db, LedgerRepository(db), flowOf(today))
+        repo.addManual("Internet ", listOf("a", "b"), "net", "Internet", setComment = true, amount = 699_000)
+        assertEquals(listOf("Internet", "Internet"), listOf("a", "b").map { db.transactionDao().get(it)!!.comment }) // "wifi" replaced too
+        assertEquals("net", db.transactionDao().get("a")!!.categoryUid)
+        assertTrue(db.billDao().get("comment:internet")!!.manual)
+        assertEquals("Added Internet · moved 2 to Internet", repo.lastMove.value!!.message)
+        repo.undo(repo.lastMove.value!!)
+        assertEquals("wifi", db.transactionDao().get("a")!!.comment)
+        assertEquals("util", db.transactionDao().get("a")!!.categoryUid)
+        assertNull(db.billDao().get("comment:internet"))
+    }
+
+    @Test
     fun movingOffers_theSameComment_andUncommentedLookAlikes_only() {
         val item = bills(rows, emptyList(), categories, emptyList(), today).single().item
         val inRent = rows + listOf(
