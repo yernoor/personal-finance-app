@@ -46,7 +46,8 @@ private class MonthEntry(val amount: Long, val date: LocalDate, val categoryUid:
  * Recurring expenses, found two ways, biggest first. [rows] must cover about [RECURRING_MONTHS_BACK] months.
  * - By comment (trimmed, case-insensitive): the same comment in at least [RECURRING_MIN_MONTHS] consecutive months; two in a month, the larger counts.
  * - By category: a category's monthly total in at least [RECURRING_MIN_MONTHS] consecutive months, at most [RECURRING_MAX_PAYMENTS_PER_MONTH]
- *   payments a month on average (rent, an installment; not groceries). Skipped when a comment item already covers that category at a similar amount.
+ *   payments a month on average (rent, an installment; not groceries). Skipped when any comment item lives in that category, so a mixed category
+ *   (rent, internet, utility commented in Utilities) is not counted twice; an uncommented bill there needs a comment or its own category.
  * Either way the run ends this month or last month and every month is within [RECURRING_AMOUNT_TOLERANCE_PERCENT] of the run's median.
  */
 fun detectRecurring(rows: List<TxFull>, reminders: List<ReminderEntity>, today: LocalDate, categoryTitles: Map<String, String> = emptyMap()): List<RecurringItem> {
@@ -63,10 +64,9 @@ fun detectRecurring(rows: List<TxFull>, reminders: List<ReminderEntity>, today: 
     val byCategory = expenses.filter { it.categoryUid != null }.groupBy { it.categoryUid!! }.mapNotNull { (uid, group) ->
         val perMonth = group.groupBy(::month).mapValues { (_, l) -> MonthEntry(l.sumOf { it.amount }, l.maxOf { LocalDate.parse(it.date) }, uid, l.size) }
         val title = categoryTitles[uid] ?: return@mapNotNull null
+        if (byComment.any { it.categoryUid == uid }) return@mapNotNull null
         val found = recurringRun(perMonth, thisMonth, true) ?: return@mapNotNull null
-        val latest = found.last().amount
-        val covered = byComment.any { it.categoryUid == uid && abs(it.amount - latest) * 100 <= latest * RECURRING_AMOUNT_TOLERANCE_PERCENT }
-        if (covered) null else item(found, title, title.trim().lowercase() in reminderTitles, true)
+        item(found, title, title.trim().lowercase() in reminderTitles, true)
     }
     return (byComment + byCategory).sortedByDescending { it.amount }
 }

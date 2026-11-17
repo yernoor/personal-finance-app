@@ -47,6 +47,17 @@ class RecurringTest {
     }
 
     @Test
+    fun aMixedCategory_isNotCountedTwice_whenItsPartsAreSimilar() {
+        // rent, internet and utility, about 100,000 each, all commented, all in Utilities: three items, not a fourth for the category
+        val rows = listOf("08", "09", "10").flatMap { m ->
+            listOf(tx("2026-$m-01", "Rent", 10_000_000, category = "util"), tx("2026-$m-05", "Internet", 9_500_000, category = "util"), tx("2026-$m-10", "Utility", 10_500_000, category = "util"))
+        }
+        val items = detectRecurring(rows, emptyList(), today, mapOf("util" to "Utilities"))
+        assertEquals(setOf("Rent", "Internet", "Utility"), items.map { it.title }.toSet())
+        assertEquals(30_000_000L, items.sumOf { it.amount })
+    }
+
+    @Test
     fun aCommentItem_isNotListedAgainForItsCategory() {
         val rows = listOf("08", "09", "10").map { m -> tx("2026-$m-01", "Rent", 30_000_000, category = "home") }
         val items = detectRecurring(rows, emptyList(), today, mapOf("home" to "House"))
