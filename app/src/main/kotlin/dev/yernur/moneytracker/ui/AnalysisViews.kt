@@ -124,7 +124,7 @@ private fun AnalysisView(onOpenCategory: (String) -> Unit, onOpenRecurring: () -
         MonthlyCard(analysis)
         if (analysis.insights.isNotEmpty()) InsightsCard(analysis.insights, categories)
         Text("Category trends", style = MaterialTheme.typography.titleMedium)
-        Text("Change is this month's pace against the 3-month average.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Change is this month's pace against the 3-month average (last month for fixed bills).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         analysis.categories.forEach { TrendRow(it, categories[it.categoryUid], onOpenCategory) }
         AppCard(Modifier.fillMaxWidth().clickable(onClick = onOpenRecurring).testTag("open-recurring")) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -205,7 +205,7 @@ private fun InsightsCard(insights: List<Insight>, categories: Map<String?, Categ
             insights.forEach {
                 val name = categories[it.categoryUid]?.title ?: "A category"
                 Text(
-                    if (it.kind == InsightKind.Rise) "$name is on pace for ${it.percent}% more than its 3-month average."
+                    if (it.kind == InsightKind.Rise) "$name is on pace for ${it.percent}% more than its 3-month average (last month for fixed bills)."
                     else "$name has dropped three months in a row.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
