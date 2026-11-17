@@ -169,8 +169,11 @@ class AppFlowTest {
     @Test
     fun accountsScreen_totalSkipsHiddenAccounts() {
         tap("tab-accounts")
-        waitForText("Freedom USD")
+        waitForText("Main") // the "In total" list
         compose.onNodeWithTag("total").assertIsDisplayed() // 0 on an empty ledger
+        compose.onAllNodesWithText("Deposit").assertCountEquals(0)
+        tap("accounts-hidden") // accounts left out of the total have their own list
+        waitForText("Freedom USD")
         compose.onNodeWithText("Deposit").assertIsDisplayed()
     }
 

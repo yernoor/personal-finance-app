@@ -193,6 +193,16 @@ class PhoneScreenFlowTest {
     }
 
     @Test
+    fun accounts_swipeBetweenInTotalAndHidden() {
+        tap("tab-accounts")
+        compose.onNodeWithTag("accounts-shown").assertIsSelected()
+        compose.onRoot().performTouchInput { swipeLeft() }
+        compose.onNodeWithTag("accounts-hidden").assertIsSelected()
+        compose.onRoot().performTouchInput { swipeRight() }
+        compose.onNodeWithTag("accounts-shown").assertIsSelected()
+    }
+
+    @Test
     fun holdingThePeriodLabel_opensACalendar() {
         tap("tab-history")
         compose.onNodeWithTag("period-label").performTouchInput { longClick() }

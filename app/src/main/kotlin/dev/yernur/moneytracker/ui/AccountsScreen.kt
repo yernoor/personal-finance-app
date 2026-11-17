@@ -18,7 +18,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.SwapHoriz
-import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -81,7 +80,9 @@ class AccountsViewModel(db: AppDatabase, rates: Flow<Map<Pair<String, String>, D
 fun AccountsScreen(onOpen: (String) -> Unit, onNew: () -> Unit, onNewTransfer: () -> Unit) {
     val vm = appViewModel { AccountsViewModel(it.db, it.fx.allRates) }
     val state by vm.state.collectAsStateWithLifecycle()
-    Column(Modifier.fillMaxSize()) {
+    var hidden by remember { mutableStateOf(false) } // which list: counted in the Total, or hidden from it
+    val swipe = rememberSwipeSteps()
+    Column(Modifier.fillMaxSize().swipeSteps(swipe) { by -> (by > 0 != hidden).also { if (it) hidden = by > 0 } }) {
         Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Total", style = MaterialTheme.typography.labelLarge)
             RollingMoney(state.counted, { Money.format(it, DEFAULT_CURRENCY) }, Modifier.testTag("total"), MaterialTheme.typography.headlineMedium)
@@ -97,8 +98,12 @@ fun AccountsScreen(onOpen: (String) -> Unit, onNew: () -> Unit, onNewTransfer: (
                 }
             }
         }
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = LocalChromeInset.current)) {
-            items(state.rows, key = { it.account.uid }) { row ->
+        SlidingSegmented(
+            listOf("In total", "Hidden"), if (hidden) 1 else 0, listOf("accounts-shown", "accounts-hidden"), { hidden = it == 1 },
+            Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
+        LazyColumn(Modifier.weight(1f).swipeShift(swipe), contentPadding = PaddingValues(bottom = LocalChromeInset.current)) {
+            items(state.rows.filter { it.account.ignoreInBalance == hidden }, key = { it.account.uid }) { row ->
                 ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
                     modifier = Modifier.clickable { onOpen(row.account.uid) },
@@ -106,7 +111,6 @@ fun AccountsScreen(onOpen: (String) -> Unit, onNew: () -> Unit, onNewTransfer: (
                     headlineContent = { Text(row.account.title.ifBlank { "Main" }) },
                     trailingContent = {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (row.account.ignoreInBalance) Icon(Icons.Outlined.VisibilityOff, "Hidden from total")
                             RollingMoney(row.balance, { Money.format(it, row.account.currencyCode) })
                         }
                     },
