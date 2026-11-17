@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
@@ -217,7 +216,7 @@ internal fun MoveToChips(name: String, categories: List<CategoryEntity>, target:
         categories.forEach { c ->
             FilterChip(
                 target == c.uid, { onPick(c.uid) }, { Text(c.title) },
-                leadingIcon = { Box(Modifier.size(12.dp).background(themedColor(c.color), CircleShape)) },
+                leadingIcon = { IconBadge(c.icon, c.color, size = 24.dp) },
                 modifier = Modifier.testTag("move-to-${c.title}"),
             )
         }
