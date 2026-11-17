@@ -5,7 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
@@ -212,7 +211,7 @@ internal fun PaymentRow(row: TxFull, on: Boolean, guess: Boolean, tag: String, o
 /**
  * Where a bill's payments go. Two big tiles first: [keepLabel] (when given: leave them where they are, selected while [target] is null, with
  * [keepCategory]'s icon) and "New: [name]" ([onNew]). The other [categories] sit in a block that expands, drawn with the add screen's
- * [CategoryTile] (icon over its name); it opens by itself when one of them is the target (a category just made with New comes back picked).
+ * [CategoryTile] (icon over its name). It starts folded and opens only on a tap; folded, its header names the one picked.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -221,7 +220,6 @@ internal fun MoveToPicker(
     keepLabel: String? = null, keepCategory: CategoryEntity? = null,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(target) { if (target != null) expanded = true }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (keepLabel != null) BigTile(target == null, keepLabel, "move-keep", Modifier.weight(1f), { onPick(null) }) {
