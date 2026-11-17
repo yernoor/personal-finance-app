@@ -35,8 +35,8 @@ class TrendsTest {
         // a and b have about one payment a month, so both are one-offs: counted as spent (410,000), not stretched to 1,271,000
         assertEquals(410_000L, result.bars.last().projected)
         assertNull(result.bars.first().projected)
-        assertEquals(440_000L, result.average) // (100 + 90 + 680 + 670 + 660) thousand / 5
-        assertEquals(-7, result.projectedChangePercent) // (410,000 - 440,000) / 440,000 = -6.8%
+        assertEquals(670_000L, result.average) // the last 3 full months: (680 + 670 + 660) thousand / 3
+        assertEquals(-39, result.projectedChangePercent) // (410,000 - 670,000) / 670,000 = -38.8%
     }
 
     @Test

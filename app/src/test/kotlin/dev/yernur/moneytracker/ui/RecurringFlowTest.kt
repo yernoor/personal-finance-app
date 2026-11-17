@@ -66,8 +66,8 @@ class RecurringFlowTest {
 
     private fun openScreen() {
         compose.onNodeWithTag("tab-analysis").performClick()
-        waitFor("open-recurring")
-        compose.onNodeWithTag("open-recurring").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // not a touch: the scrolled-to row sits under the floating bar
+        waitFor("analysis-tab-Recurring")
+        compose.onNodeWithTag("analysis-tab-Recurring").performClick()
         waitFor("recurring")
     }
 
@@ -87,7 +87,7 @@ class RecurringFlowTest {
         assertEquals(2, pairs().size)
         val newer = pairs().maxWith(compareBy({ it.created }, { it.uid })) // same order the detection uses
         waitFor("duplicate-${newer.uid}")
-        compose.onNodeWithTag("duplicate-delete").performScrollTo().performClick()
+        compose.onNodeWithTag("duplicate-delete").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // under the floating bar: not a touch
         gone("duplicate-${newer.uid}")
         assertEquals(1, pairs().size)
         assertTrue(runBlocking { db.transactionDao().get(newer.uid) }!!.isRemoved) // a tombstone, not a hard delete
@@ -97,7 +97,7 @@ class RecurringFlowTest {
     fun keepBoth_isRemembered() {
         openScreen()
         waitFor("duplicate-keep")
-        compose.onNodeWithTag("duplicate-keep").performScrollTo().performClick()
+        compose.onNodeWithTag("duplicate-keep").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // under the floating bar: not a touch
         compose.waitUntil(5_000) { container.settings.keptDuplicates.value.size == 1 }
         assertEquals(2, runBlocking { db.transactionDao().getAll() }.count { it.comment == "Lunch" && !it.isRemoved })
     }
@@ -106,9 +106,9 @@ class RecurringFlowTest {
     fun makeFixed_setsTheCategory_andTappingAgainUndoesIt() {
         openScreen()
         waitFor("fixed-Gym")
-        compose.onNodeWithTag("fixed-Gym").performScrollTo().performClick()
+        compose.onNodeWithTag("fixed-Gym").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // under the floating bar: not a touch
         compose.waitUntil(5_000) { runBlocking { db.categoryDao().get("food")!!.projectionMode } == ProjectionMode.Fixed }
-        compose.onNodeWithTag("fixed-Gym").performScrollTo().performClick()
+        compose.onNodeWithTag("fixed-Gym").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // under the floating bar: not a touch
         compose.waitUntil(5_000) { runBlocking { db.categoryDao().get("food")!!.projectionMode } == ProjectionMode.Auto }
     }
 
@@ -116,7 +116,7 @@ class RecurringFlowTest {
     fun settingAnEnd_showsHowManyArePaid() {
         openScreen()
         waitFor("ends-Gym")
-        compose.onNodeWithTag("ends-Gym").performScrollTo().performClick()
+        compose.onNodeWithTag("ends-Gym").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // under the floating bar: not a touch
         waitFor("end-sheet")
         compose.onNodeWithTag("end-save").performClick()
         compose.waitUntil(5_000) { compose.onAllNodesWithText("3 of 9 paid").fetchSemanticsNodes().isNotEmpty() } // 3 seen + 6 left (the default)
@@ -127,7 +127,7 @@ class RecurringFlowTest {
         runBlocking { db.categoryDao().insertAll(listOf(CategoryEntity("sport", "Sport", TransactionType.Expense, "cafe", null, 0, null, null, 1, false, "", ""))) }
         openScreen()
         waitFor("move-Gym") // Gym is inside Food, next to the lunches
-        compose.onNodeWithTag("move-Gym").performScrollTo().performClick()
+        compose.onNodeWithTag("move-Gym").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // under the floating bar: not a touch
         waitFor("move-to-Sport")
         compose.onNodeWithTag("move-to-Sport").performClick()
         compose.onNodeWithTag("move-go").performClick()

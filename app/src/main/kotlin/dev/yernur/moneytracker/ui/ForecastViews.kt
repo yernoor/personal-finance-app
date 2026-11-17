@@ -64,85 +64,31 @@ fun WarningKind.text(): String = when (this) {
     WarningKind.Average -> "3-month average passes the limit"
 }
 
-/** Projections for the current month: an overall card, then every category with its limit and warnings. */
-@Composable
-fun ForecastView(forecast: Forecast, categories: Map<String?, CategoryEntity>, onOpenCategory: (String) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + LocalChromeInset.current), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item {
-            ForecastOverview(forecast)
-        }
-        items(forecast.categories, key = { it.categoryUid ?: "none" }) { row ->
-            CategoryForecastCard(row, categories[row.categoryUid], onOpenCategory)
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun CategoryForecastCard(row: CategoryForecast, category: CategoryEntity?, onOpen: (String) -> Unit) {
-    val warned = row.warnings.isNotEmpty()
-    AppCard(
-        Modifier.fillMaxWidth().testTag("forecast-${row.categoryUid ?: "none"}")
-            .clickable(enabled = row.categoryUid != null) { onOpen(row.categoryUid!!) },
-        colors = CardDefaults.cardColors(containerColor = if (warned) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                IconBadge(category?.icon, category?.color, size = 36.dp)
-                Text(category?.title ?: "Balance correction", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                Text(money(row.spent))
-            }
-            if (row.limit != null) {
-                val bar = row.limit * row.threshold / 100
-                LinearProgressIndicator(
-                    progress = { (row.spent.toFloat() / bar.coerceAtLeast(1)).coerceIn(0f, 1f) }, Modifier.fillMaxWidth(),
-                    color = if (warned) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                )
-                Text("Limit ${money(row.limit)}" + if (row.threshold != 100) " · warns at ${row.threshold}%" else "", style = MaterialTheme.typography.bodySmall)
-            }
-            Text(
-                "On track for ${money(row.runRate)}" + (row.average?.let { " · 3-month average ${money(it)}" } ?: ""),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            // Plain labels, not chips: there is nothing to tap.
-            if (row.warnings.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                row.warnings.sorted().forEach {
-                    Text(
-                        it.text(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 5.dp),
-                    )
-                }
-            }
-            if (row.oneOff) Text("One-off: the month's total counts only the ${money(row.spent)} spent", style = MaterialTheme.typography.bodySmall)
-            else if (!row.inOverall) Text("Not in the overall figure (set to Never)", style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
-
 /** The month's figure split for the bar: spent on regular categories, one-offs (spent, not projected), and the projected rest. */
 data class ForecastSplit(val regular: Long, val oneOffs: Long, val toCome: Long, val average: Long?) {
     val total get() = regular + oneOffs + toCome
 }
 
-fun forecastSplit(f: Forecast) = ForecastSplit(
-    f.spentIncluded, f.oneOffSpent, (f.runRateIncluded - f.spentIncluded).coerceAtLeast(0), f.averageIncluded?.takeIf { it > 0 },
+/** [average]: what the month is compared with (Analysis: the last 3 full months of all spending, the line on the monthly bars). */
+fun forecastSplit(f: Forecast, average: Long?) = ForecastSplit(
+    f.spentIncluded, f.oneOffSpent, (f.runRateIncluded - f.spentIncluded).coerceAtLeast(0), average?.takeIf { it > 0 },
 )
 
 /**
- * The top of Forecast: the month's figure big, its change against the 3-month average as a pill, and one bar of where it comes from
+ * The top of Analysis's month card: the month's figure big, its change against [average] as a pill, and one bar of where it comes from
  * (spent, one-offs, still to come) with the average marked on it. Amounts sit in a short legend instead of sentences.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ForecastOverview(f: Forecast) {
-    val split = forecastSplit(f)
+fun MonthSummary(f: Forecast, average: Long?) {
+    val split = forecastSplit(f, average)
     val scheme = MaterialTheme.colorScheme
     val spentColor = scheme.primary
     val oneOffColor = scheme.tertiary
     val toComeColor = scheme.primary.copy(alpha = 0.28f)
     val markColor = scheme.onSurface
-    AppCard(Modifier.fillMaxWidth().testTag("forecast-overall")) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    run {
+        Column(Modifier.fillMaxWidth().testTag("forecast-overall"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("On track · day ${f.daysElapsed} of ${f.daysInMonth}", style = MaterialTheme.typography.labelLarge, color = scheme.onSurfaceVariant)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(Money.formatRounded(f.projected, DEFAULT_CURRENCY), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.testTag("forecast-total"))

@@ -139,12 +139,10 @@ class ReportsFlowTest {
     }
 
     @Test
-    fun forecastTab_listsTheCategoryWithItsLimitAndWarning() {
-        compose.onNodeWithTag("tab-analysis").performClick()
-        compose.onNodeWithTag("analysis-tab-Forecast").performClick()
+    fun overview_showsTheMonth_andTheCategoryLimitWarning() {
+        compose.onNodeWithTag("tab-analysis").performClick() // Overview: the old Forecast tab's figures are on it now
         waitForText("Over the limit")
         compose.onNodeWithTag("forecast-overall").assertIsDisplayed()
-        compose.onNodeWithText("Limit ₸1,000").assertIsDisplayed()
     }
 
     @Test

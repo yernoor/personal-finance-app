@@ -316,7 +316,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             }
             screen("charts") { ChartsScreen(onOpenTransaction = { nav.navigate(entryRoute(it)) }) }
             screen("analysis") {
-                AnalysisScreen(onOpenCategory = { nav.navigate("category/$it?type=Expense") }, onOpenTrend = { nav.navigate("trend/$it") }, onOpenRecurring = { nav.navigate("recurring") })
+                AnalysisScreen(onOpenTrend = { nav.navigate("trend/$it") }, onMove = { nav.navigate("move/${android.net.Uri.encode(it)}") })
             }
             screen("accounts") {
                 AccountsScreen(
@@ -352,7 +352,6 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             screen("trend/{uid}", arguments = listOf(navArgument("uid") { type = NavType.StringType })) { entry ->
                 CategoryTrendScreen(entry.arguments?.getString("uid").orEmpty(), onBack = { nav.popBackStack() }, onOpenTransaction = { nav.navigate(entryRoute(it)) })
             }
-            screen("recurring") { RecurringScreen(onMove = { nav.navigate("move/${android.net.Uri.encode(it)}") }) { nav.popBackStack() } }
             screen("afford") { AffordScreen(onBack = { nav.popBackStack() }, onLogExpense = { nav.navigate(entryRoute()) }) }
             screen("sync") { SyncScreen { nav.popBackStack() } }
             screen("updates") { UpdatesScreen { nav.popBackStack() } }

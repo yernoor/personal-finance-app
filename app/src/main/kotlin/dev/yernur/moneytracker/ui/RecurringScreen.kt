@@ -90,13 +90,13 @@ class RecurringViewModel(db: AppDatabase, settings: AppSettings, bills: BillRepo
 }
 
 /**
- * Recurring bills and possible duplicates (Analysis -> Recurring costs). Each bill is a card with what can be done about it: make its category
+ * Recurring bills and possible duplicates (Analysis -> Recurring). Each bill is a card with what can be done about it: make its category
  * a fixed monthly bill, set a reminder, set when it ends, and, for a bill found inside a category that holds other spending, move its
  * payments to a category of its own ([onMove], with the bill's key). Design: the "Recurring bills" mock-up.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RecurringScreen(onMove: (key: String) -> Unit = {}, onBack: () -> Unit) {
+fun RecurringScreen(onMove: (key: String) -> Unit = {}) {
     val container = LocalAppContainer.current
     val vm = appViewModel { RecurringViewModel(it.db, it.settings, it.bills) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -111,18 +111,10 @@ fun RecurringScreen(onMove: (key: String) -> Unit = {}, onBack: () -> Unit) {
         val result = snackbar.showSnackbar(done.message, actionLabel = "Undo", duration = SnackbarDuration.Short)
         if (result == SnackbarResult.ActionPerformed) container.bills.undo(done) else container.bills.lastMove.value = null
     }
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbar) },
-        topBar = {
-            AppTopBar(
-                title = { Text("Recurring and duplicates") },
-                navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-            )
-        },
-    ) { padding ->
+    // Part of the Analysis tab (its Recurring segment): no app bar of its own; the Scaffold is there for the Undo snackbar.
+    Scaffold(snackbarHost = { SnackbarHost(snackbar, Modifier.padding(bottom = LocalChromeInset.current)) /* above the floating bar */ }, containerColor = Color.Transparent, contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0)) { padding ->
         val s = state ?: return@Scaffold
-        Column(Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp).testTag("recurring"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 8.dp, bottom = 24.dp + LocalChromeInset.current).testTag("recurring"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             AppCard(Modifier.fillMaxWidth().testTag("recurring-total"), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("Recurring each month", style = MaterialTheme.typography.labelLarge)

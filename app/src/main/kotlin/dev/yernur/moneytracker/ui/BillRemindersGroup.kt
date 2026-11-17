@@ -44,7 +44,7 @@ fun BillRemindersGroup() {
         modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
     )
     if (withReminder.isEmpty()) Text(
-        "No bill reminders yet. Set one from Analysis → Recurring costs.", style = MaterialTheme.typography.bodyMedium,
+        "No bill reminders yet. Set one from Analysis → Recurring.", style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).testTag("bill-reminders-empty"),
     )
     withReminder.forEach { bill ->

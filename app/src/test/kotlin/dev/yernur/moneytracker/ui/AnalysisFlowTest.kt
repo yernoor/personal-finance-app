@@ -53,7 +53,7 @@ class AnalysisFlowTest {
     fun analysisTab_showsTheMonthlyCard_andACategoryRowOpensItsTrend() {
         compose.onNodeWithTag("tab-analysis").performClick()
         waitFor("analysis-monthly")
-        compose.onNodeWithTag("analysis-average").assertIsDisplayed()
+        waitFor("forecast-total") // the month's figure tops the card
         waitFor("trend-cafe")
         compose.onNodeWithTag("trend-cafe").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // not a touch: the scrolled-to row sits under the floating bar
         waitFor("category-trend")

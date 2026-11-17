@@ -9,6 +9,8 @@ import java.time.YearMonth
 
 /** Rules: docs/FEATURES.md, "Analysis rules". Amounts are default-currency minor units. */
 const val ANALYSIS_MONTHS = 6
+/** The average the month is compared with (owner's choice 2026-11-18): reacts to a changed bill faster than six months would. */
+const val AVERAGE_MONTHS = 3
 const val DETAIL_MONTHS = 12
 
 /** A category must be this much above its average (percent) and by this amount (5,000.00) to be called out. */
@@ -36,7 +38,7 @@ data class Insight(val kind: InsightKind, val categoryUid: String, val percent: 
 
 data class Analysis(
     val bars: List<MonthBar>,
-    /** Mean of the full months shown that are not before the first month with spending; null when there is none. */
+    /** Mean of the last [AVERAGE_MONTHS] full months (not before the first month with spending); null when there is none. The same 3 months as limits and warnings. */
     val average: Long?,
     /** The projected current month against [average], in percent; null without an average. */
     val projectedChangePercent: Int?,
@@ -51,7 +53,7 @@ fun analysis(rows: List<TxLite>, forecast: Forecast, today: LocalDate): Analysis
     val bars = months.mapIndexed { i, b ->
         MonthBar(YearMonth.from(b.range.from), b.expense, if (i == months.lastIndex) projected else null)
     }
-    val fullMonths = bars.dropLast(1).dropWhile { it.spent == 0L }
+    val fullMonths = bars.dropLast(1).dropWhile { it.spent == 0L }.takeLast(AVERAGE_MONTHS)
     val average = if (fullMonths.isEmpty()) null else divideRounded(fullMonths.sumOf { it.spent }, fullMonths.size.toLong())
 
     val forecastBy = forecast.categories.associateBy { it.categoryUid }

@@ -39,6 +39,9 @@ Target device: Android 16 (API 36) -> `minSdk = 36` is possible; owner to confir
 - Warning when `primary > limit * threshold` (threshold default 100%, configurable globally and per category).
   Optional setting (default off): also warn when the secondary exceeds the limit. Show on the home screen and as a notification.
 - Overall projection excludes one-off categories (owner decision). Rule of thumb: fewer than 2 operations per month.
+  Changed 2026-11-18 (owner): Analysis has two segments, **Overview** (the former Trends and Forecast tabs merged: one month card with the bar
+  summary and six monthly bars against one average, Worth a look with limit warnings and rises/falls, one category list with limit bars) and
+  **Recurring** (bills, reminders, ends, moving payments, duplicates). The average is the last **3** full months everywhere (was 6 on Trends).
   Changed 2026-11-18 (owner): the month's figure is one number on every screen (Forecast "On track for", the Trends dashed bar and its
   change against the average, the widget's "on pace for"): regular categories at their pace **plus what one-offs have cost so far**
   (real spending that will not recur, so not projected). Categories set to Never stay out entirely.
