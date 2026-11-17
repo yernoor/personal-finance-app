@@ -53,8 +53,10 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _ratesAttemptAt = MutableStateFlow(prefs?.getLong(RATES_ATTEMPT_AT, 0L)?.takeIf { it > 0 })
     private val _availableUpdate = MutableStateFlow(prefs?.getString(AVAILABLE_UPDATE, null))
     private val _googleConnected = MutableStateFlow(prefs?.getBoolean(GOOGLE_CONNECTED, false) ?: false)
-    private val _animationsOff = MutableStateFlow(
-        prefs?.getString(ANIMATIONS_OFF, null)?.split(',')?.mapNotNull(AnimationKind::byId)?.toSet().orEmpty(),
+    // Before 2026-11-17 there were five animation switches; turning off screen transitions is the closest to reduced motion.
+    private val _reduceMotion = MutableStateFlow(
+        prefs?.takeIf { it.contains(REDUCE_MOTION) }?.getBoolean(REDUCE_MOTION, false)
+            ?: (prefs?.getString(OLD_ANIMATIONS_OFF, null)?.split(',')?.contains("screens") ?: false),
     )
     private val _glass = MutableStateFlow(prefs?.getBoolean(GLASS, false) ?: false)
     private val warned = HashSet<String>(prefs?.getStringSet(WARNED, emptySet()).orEmpty())
@@ -297,12 +299,12 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         prefs?.edit()?.putString(GLASS_ICON_STYLE, style.name)?.apply()
     }
 
-    /** The animations switched off in More; everything else animates. */
-    val animationsOff: StateFlow<Set<AnimationKind>> = _animationsOff
+    /** Reduce motion (More): slides become quick fades and balances do not roll. */
+    val reduceMotion: StateFlow<Boolean> = _reduceMotion
 
-    fun setAnimation(kind: AnimationKind, on: Boolean) {
-        _animationsOff.value = if (on) _animationsOff.value - kind else _animationsOff.value + kind
-        prefs?.edit()?.putString(ANIMATIONS_OFF, _animationsOff.value.joinToString(",") { it.id })?.apply()
+    fun setReduceMotion(on: Boolean) {
+        _reduceMotion.value = on
+        prefs?.edit()?.putBoolean(REDUCE_MOTION, on)?.apply()
     }
 
     /** Experimental liquid glass look (floating glass bar, add button, sheets, dialogs). Off by default. */
@@ -379,7 +381,8 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val WARNED = "warned"
         private const val HISTORY_PERIOD = "historyPeriod"
         private const val NAV_TABS = "navTabs"
-        private const val ANIMATIONS_OFF = "animationsOff"
+        private const val OLD_ANIMATIONS_OFF = "animationsOff"
+        private const val REDUCE_MOTION = "reduceMotion"
         private const val GLASS = "glass"
         private const val WIDGET_STYLE = "widgetStyle"
         private const val WIDGET_GLASS = "widgetGlass" // old two-switch settings, read once to pick the style

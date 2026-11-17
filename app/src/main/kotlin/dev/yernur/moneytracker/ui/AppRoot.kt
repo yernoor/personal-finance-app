@@ -1,6 +1,5 @@
 package dev.yernur.moneytracker.ui
 
-import dev.yernur.moneytracker.data.AnimationKind
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.EnterExitState
@@ -202,8 +201,8 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     fun tabOut(from: NavBackStackEntry, to: NavBackStackEntry) = slideOutHorizontally(tween(MOVE_MS, easing = slideEasing)) { -it * tabDirection(from, to) }
 
     val glass by settings.glass.collectAsStateWithLifecycle()
-    val animationsOff by settings.animationsOff.collectAsStateWithLifecycle()
-    val slides = AnimationKind.Screens !in animationsOff // off: screens just fade, so a swap is still there but nothing travels
+    val reduceMotion by settings.reduceMotion.collectAsStateWithLifecycle()
+    val slides = !reduceMotion // reduced: screens just fade, so a swap is still there but nothing travels
     val scheme = MaterialTheme.colorScheme
     val darkTheme = isDarkSurface()
     val glow = remember(scheme.surface, scheme.primary, darkTheme) { Glow.of(scheme.surface, scheme.primary, darkTheme) }
@@ -216,7 +215,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
 
     GlassScaffoldTheme(glass) {
     CompositionLocalProvider(
-        LocalAnimationsOff provides animationsOff, LocalGlass provides glass, LocalGlow provides (if (glass) glow else null), LocalChromeInset provides if (tab != null) GlassBarInset else 0.dp,
+        LocalReduceMotion provides reduceMotion, LocalGlass provides glass, LocalGlow provides (if (glass) glow else null), LocalChromeInset provides if (tab != null) GlassBarInset else 0.dp,
         LocalIconStyle provides if (glass) glassIconSetting else iconSetting, // glass allows only glass-style icons
         LocalAccentHue provides accentHue,
     ) {

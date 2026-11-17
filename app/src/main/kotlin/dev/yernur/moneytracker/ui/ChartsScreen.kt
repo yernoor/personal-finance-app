@@ -1,6 +1,13 @@
 package dev.yernur.moneytracker.ui
 
-import dev.yernur.moneytracker.data.AnimationKind
+import kotlinx.coroutines.withTimeoutOrNull
+
+import kotlinx.coroutines.flow.first
+
+import kotlinx.coroutines.launch
+
+import androidx.compose.runtime.rememberCoroutineScope
+
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.outlined.ExpandLess
@@ -152,21 +159,26 @@ fun ChartsScreen(onOpenTransaction: (String) -> Unit = {}) {
     val unit by vm.unit.collectAsStateWithLifecycle()
     val page by vm.page.collectAsStateWithLifecycle()
     val cues = rememberCueTracker(unit, -page.toLong()) // older pages are further from the present
-    val periodFade = periodFade(unit to page)
+    val swipe = rememberSwipeSteps()
+    val scope = rememberCoroutineScope()
+    /** A new zoom or chart tab slides in like any other change of what is shown; stepping along the bars slides the bars themselves. */
+    fun slide(dir: Int, change: () -> Unit) = scope.launch {
+        swipe.go(dir) { change(); withTimeoutOrNull(400) { vm.data.first { it?.unit == vm.unit.value } }; true }
+    }
 
     // A swipe moves the selected bar (left: newer, right: older); the bars slide along by themselves, so the screen does not move.
-    Column(Modifier.fillMaxSize().swipeSteps(rememberSwipeSteps(), travel = false) { by -> vm.step(by) }) {
+    Column(Modifier.fillMaxSize().swipeSteps(swipe, travel = false) { by -> vm.step(by) }) {
         // Same header as History: the period slicer on top, then what to show underneath.
         run {
             val units = listOf(PeriodUnit.Day, PeriodUnit.Week, PeriodUnit.Month, PeriodUnit.Year)
             SlidingSegmented(
-                units.map { it.name }, units.indexOf(unit), units.map { "zoom-${it.name}" }, { vm.zoom(units[it]) },
+                units.map { it.name }, units.indexOf(unit), units.map { "zoom-${it.name}" }, { i -> slide((i - units.indexOf(unit)).coerceIn(-1, 1)) { vm.zoom(units[i]) } },
                 Modifier.padding(horizontal = 16.dp),
             )
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton({ vm.turnPage(1) }, modifier = Modifier.testTag("chart-older")) { Icon(Icons.Outlined.ChevronLeft, "Older") }
                 Text(
-                    data?.let { windowTitle(it) }.orEmpty(), Modifier.weight(1f).graphicsLayer { alpha = periodFade }, textAlign = TextAlign.Center,
+                    data?.let { windowTitle(it) }.orEmpty(), Modifier.weight(1f), textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.titleMedium,
                 )
                 IconButton({ vm.turnPage(-1) }, enabled = page > 0, modifier = Modifier.testTag("chart-newer")) { Icon(Icons.Outlined.ChevronRight, "Newer") }
@@ -174,10 +186,10 @@ fun ChartsScreen(onOpenTransaction: (String) -> Unit = {}) {
         }
         val tabs = ChartTab.entries
         SlidingSegmented(
-            tabs.map { it.label }, tabs.indexOf(vm.tab), tabs.map { "chart-tab-${it.name}" }, { vm.tab = tabs[it] },
+            tabs.map { it.label }, tabs.indexOf(vm.tab), tabs.map { "chart-tab-${it.name}" }, { i -> slide((i - tabs.indexOf(vm.tab)).coerceIn(-1, 1)) { vm.tab = tabs[i] } },
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.swipeShift(swipe).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             data?.let { chart -> ChartBody(chart, vm.tab, cues, vm.selected, onSelect = { vm.selected = it }, onOpenTransaction) }
             Spacer(Modifier.height(LocalChromeInset.current))
         }
@@ -216,7 +228,7 @@ private fun ChartBody(chart: ChartData, tab: ChartTab, cues: CueTracker, selecte
             }
         }
     }
-    BarChart(groups, chart.buckets.map { label(chart.unit, it.range) }, selected, onSelect, tab, cues)
+    BarChart(groups, chart.buckets.map { label(chart.unit, it.range) }, selected, onSelect, cues)
 
     val bucket = chart.buckets[selected]
     Text(periodTitle(chart.unit, bucket.range), style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("bucket-title"))
@@ -250,7 +262,7 @@ private fun AmountRow(label: String, amount: Long, color: Color) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.size(12.dp).clip(CircleShape).background(color))
         Text(label, Modifier.weight(1f))
-        RollingMoney(amount, { Money.format(it, DEFAULT_CURRENCY) }, changeKind = AnimationKind.PeriodSwitch)
+        RollingMoney(amount, { Money.format(it, DEFAULT_CURRENCY) }, roll = false) // follows the picked bar, not an edit
     }
 }
 

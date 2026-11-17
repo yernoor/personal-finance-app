@@ -1,6 +1,9 @@
 package dev.yernur.moneytracker.ui
 
-import dev.yernur.moneytracker.data.AnimationKind
+import kotlinx.coroutines.launch
+
+import androidx.compose.runtime.rememberCoroutineScope
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -102,9 +105,11 @@ fun AnalysisScreen(onOpenCategory: (String) -> Unit, onOpenTrend: (String) -> Un
     val forecast by vm.forecast.collectAsStateWithLifecycle()
     val categories = vm.state.collectAsStateWithLifecycle().value?.second.orEmpty()
     val swipe = rememberSwipeSteps()
+    val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize().swipeSteps(swipe) { by -> AnalysisTab.entries.getOrNull(tab.ordinal + by)?.let { tab = it } != null }) {
         SlidingSegmented(
-            AnalysisTab.entries.map { it.label }, tab.ordinal, AnalysisTab.entries.map { "analysis-tab-${it.name}" }, { tab = AnalysisTab.entries[it] },
+            AnalysisTab.entries.map { it.label }, tab.ordinal, AnalysisTab.entries.map { "analysis-tab-${it.name}" },
+            { i -> if (i != tab.ordinal) scope.launch { swipe.go(i - tab.ordinal) { tab = AnalysisTab.entries[i]; true } } },
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
         androidx.compose.foundation.layout.Box(Modifier.weight(1f).swipeShift(swipe)) {
@@ -171,31 +176,22 @@ private fun MonthlyBars(bars: List<MonthBar>, average: Long?) {
     val bar = MaterialTheme.colorScheme.primary
     val line = MaterialTheme.colorScheme.onSurface
     val summary = bars.joinToString("; ") { "${it.month}: ${money(it.projected ?: it.spent)}" }
-    // The bars grow up from the bottom, one after the other, whenever the Analysis tab opens or its data changes
-    val drawIn = animated(AnimationKind.Charts)
-    val grow = remember { Animatable(if (drawIn) 0f else 1f) }
-    LaunchedEffect(bars) {
-        if (!drawIn) return@LaunchedEffect
-        grow.snapTo(0f)
-        grow.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
-    }
     Canvas(Modifier.fillMaxWidth().height(140.dp).semantics { contentDescription = "Monthly expenses. $summary" }) {
         val top = maxOf(bars.maxOf { maxOf(it.spent, it.projected ?: 0) }, average ?: 0, 1L).toFloat()
         val slot = size.width / bars.size
         val width = slot * 0.6f
         val dash = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
-        fun height(value: Long, progress: Float = 1f) = size.height * value / top * progress
+        fun height(value: Long) = size.height * value / top
         bars.forEachIndexed { i, b ->
-            val progress = staggered(grow.value, i, bars.size)
             val x = slot * i + (slot - width) / 2
             if (b.projected != null) {
-                drawRoundRect(bar, Offset(x, size.height - height(b.projected, progress)), Size(width, height(b.projected, progress)), CornerRadius(6f), style = Stroke(2.dp.toPx(), pathEffect = dash))
+                drawRoundRect(bar, Offset(x, size.height - height(b.projected)), Size(width, height(b.projected)), CornerRadius(6f), style = Stroke(2.dp.toPx(), pathEffect = dash))
             }
-            drawRoundRect(bar, Offset(x, size.height - height(b.spent, progress)), Size(width, height(b.spent, progress)), CornerRadius(6f))
+            drawRoundRect(bar, Offset(x, size.height - height(b.spent)), Size(width, height(b.spent)), CornerRadius(6f))
         }
         if (average != null) {
             val y = size.height - height(average)
-            drawLine(line.copy(alpha = grow.value), Offset(0f, y), Offset(size.width, y), strokeWidth = 1.5.dp.toPx(), pathEffect = dash)
+            drawLine(line, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.5.dp.toPx(), pathEffect = dash)
         }
     }
 }

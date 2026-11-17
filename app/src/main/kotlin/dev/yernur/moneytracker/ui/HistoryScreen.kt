@@ -1,7 +1,6 @@
 package dev.yernur.moneytracker.ui
 
 import androidx.compose.ui.graphics.graphicsLayer
-import dev.yernur.moneytracker.data.AnimationKind
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -40,6 +39,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -302,6 +302,9 @@ class HistoryViewModel(
     fun jumpTo(day: LocalDate) {
         anchor.value = day
     }
+
+    /** Waits (briefly) until the rows of the period now picked have loaded, so they slide in with it instead of filling in after. */
+    suspend fun awaitRows() = withTimeoutOrNull(400) { state.first { it.range == unit.value.rangeOf(anchor.value) } }
 }
 
 /** Open History on [unit] (the current one) showing the income side or the expenses side. */
@@ -329,46 +332,48 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
     }
     val slices = remember(state.groups, chartIncome) { chartSlices(state.groups, chartIncome) }
     val dayFormat = DateTimeFormatter.ofPattern("EEE, MMM d")
-    val cues = rememberCueTracker(unit, range.from.toEpochDay())
-    val periodFade = periodFade(unit to range, cues)
-
     val swipe = rememberSwipeSteps()
+    val scope = rememberCoroutineScope()
+    /** Every change of what History shows slides the same way (see [SwipeSteps]): later periods and right-hand segments come in from the right. */
+    fun slide(dir: Int, change: () -> Unit) = scope.launch { swipe.go(dir) { change(); vm.awaitRows(); true } }
+    fun step(by: Int) = if (by > 0 && range.to >= LocalDate.now()) null else slide(by) { vm.shift(by.toLong()) }
     var calendar by remember { mutableStateOf(false) }
-    if (calendar) PeriodCalendar(range.from, onDismiss = { calendar = false }) { calendar = false; vm.jumpTo(it) }
+    if (calendar) PeriodCalendar(range.from, onDismiss = { calendar = false }) { day ->
+        calendar = false
+        slide(day.compareTo(range.from).coerceIn(-1, 1)) { vm.jumpTo(day) }
+    }
     // A swipe steps the period: left to the next one (not past today), right to the one before.
     Column(Modifier.fillMaxSize().swipeSteps(swipe) { by ->
         if (by > 0 && range.to >= LocalDate.now()) return@swipeSteps false
-        cues.quietNext()
-        val next = unit.rangeOf(unit.shift(range.from, by.toLong()))
         vm.shift(by.toLong())
-        withTimeoutOrNull(400) { vm.state.first { it.range == next } } // slide the new day in with its rows, not empty then filling
+        vm.awaitRows()
         true
     }) {
         val units = PeriodUnit.entries
         SlidingSegmented(
-            units.map { it.name }, units.indexOf(unit), units.map { "period-${it.name}" }, { vm.zoom(units[it]) },
+            units.map { it.name }, units.indexOf(unit), units.map { "period-${it.name}" }, { i -> slide((i - units.indexOf(unit)).coerceIn(-1, 1)) { vm.zoom(units[i]) } },
             Modifier.padding(horizontal = 16.dp),
         )
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton({ vm.shift(-1) }, modifier = Modifier.testTag("prev-period")) { Icon(Icons.Outlined.ChevronLeft, "Previous") }
+            IconButton({ step(-1) }, modifier = Modifier.testTag("prev-period")) { Icon(Icons.Outlined.ChevronLeft, "Previous") }
             Text(
                 periodTitle(unit, range), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center,
                 // Tap: back to today. Hold: pick a day on a calendar.
-                modifier = Modifier.weight(1f).graphicsLayer { alpha = periodFade }
-                    .combinedClickable(onLongClick = { calendar = true }) { vm.jumpToToday() }.testTag("period-label"),
+                modifier = Modifier.weight(1f)
+                    .combinedClickable(onLongClick = { calendar = true }) { if (LocalDate.now() !in range) slide(1) { vm.jumpToToday() } }.testTag("period-label"),
             )
-            IconButton({ vm.shift(1) }, enabled = range.to < LocalDate.now(), modifier = Modifier.testTag("next-period")) { Icon(Icons.Outlined.ChevronRight, "Next") }
+            IconButton({ step(1) }, enabled = range.to < LocalDate.now(), modifier = Modifier.testTag("next-period")) { Icon(Icons.Outlined.ChevronRight, "Next") }
         }
         // Same header as Charts: period slicer, period row, then what to show underneath.
         SlidingSegmented(
-            listOf("Expenses", "Income"), if (chartIncome) 1 else 0, listOf("chart-expenses", "chart-income"), { chartIncome = it == 1 },
+            listOf("Expenses", "Income"), if (chartIncome) 1 else 0, listOf("chart-expenses", "chart-income"), { i -> if ((i == 1) != chartIncome) slide(if (i == 1) 1 else -1) { chartIncome = i == 1 } },
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
         // No +income / -expense line here (owner request 2026-11-13): the ring below already shows the chosen side's total.
         // Pinned above the list: scrolling the list shrinks the ring into the bar first (nestedScroll), so there is no toggle button.
-        HistoryChart(slices, chartIncome, collapse, cues, Modifier.swipeShift(swipe).padding(horizontal = 16.dp, vertical = 8.dp))
+        HistoryChart(slices, chartIncome, collapse, Modifier.swipeShift(swipe).padding(horizontal = 16.dp, vertical = 8.dp))
         // Bottom padding keeps the last row's amount clear of the add button.
-        LazyColumn(Modifier.weight(1f).swipeShift(swipe).graphicsLayer { alpha = periodFade }.nestedScroll(collapse).testTag("history-list"), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
+        LazyColumn(Modifier.weight(1f).swipeShift(swipe).nestedScroll(collapse).testTag("history-list"), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
             item(key = "search") {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(query, { vm.query.value = it }, label = { Text("Search") }, singleLine = true, modifier = Modifier.weight(1f).testTag("search"))

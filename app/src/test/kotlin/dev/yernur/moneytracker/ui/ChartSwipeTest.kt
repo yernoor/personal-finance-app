@@ -31,7 +31,7 @@ class ChartSwipeTest {
 
     @Test
     fun strip_keepsTheSharedBars_andAddsTheIncomingOne() {
-        fun slot(label: String, v: Long) = BarSlot(1f, label, listOf(listOf(BarSegment(v, Color.Red))))
+        fun slot(label: String, v: Long) = BarSlot(label, listOf(listOf(BarSegment(v, Color.Red))))
         val now = BarShape(listOf(slot("Nov", 1), slot("Oct", 2), slot("Sep", 3)), 1)
         val older = BarShape(listOf(slot("Oct", 2), slot("Sep", 3), slot("Aug", 9)), 1)
         val strip = barStrip(now, older, PeriodCue.Earlier)!!

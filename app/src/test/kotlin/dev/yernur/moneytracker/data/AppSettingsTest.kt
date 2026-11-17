@@ -3,6 +3,8 @@ package dev.yernur.moneytracker.data
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -160,13 +162,18 @@ class AppSettingsTest {
     }
 
     @Test
-    fun everyAnimationIsOnByDefault_andOffSwitchesAreRemembered() {
+    fun reduceMotion_isOffByDefault_andRemembered() {
         prefs.edit().clear().commit()
-        assertEquals(emptySet<AnimationKind>(), AppSettings(prefs).animationsOff.value)
+        assertFalse(AppSettings(prefs).reduceMotion.value)
+        AppSettings(prefs).setReduceMotion(true)
+        assertTrue(AppSettings(prefs).reduceMotion.value)
+    }
 
-        AppSettings(prefs).setAnimation(AnimationKind.CountUp, false)
-        AppSettings(prefs).setAnimation(AnimationKind.Charts, false)
-        AppSettings(prefs).setAnimation(AnimationKind.Charts, true)
-        assertEquals(setOf(AnimationKind.CountUp), AppSettings(prefs).animationsOff.value) // RollChange stays on: only the count up is off
+    @Test
+    fun screenTransitionsSwitchedOffBefore_becomesReduceMotion() {
+        prefs.edit().clear().putString("animationsOff", "countUp,screens").commit()
+        assertTrue(AppSettings(prefs).reduceMotion.value)
+        prefs.edit().clear().putString("animationsOff", "countUp").commit()
+        assertFalse(AppSettings(prefs).reduceMotion.value)
     }
 }
