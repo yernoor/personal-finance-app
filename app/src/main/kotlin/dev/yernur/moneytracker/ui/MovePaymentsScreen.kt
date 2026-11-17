@@ -33,7 +33,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.toMutableStateList
@@ -61,6 +60,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Moving one recurring bill's payments out of the category they share (Internet out of Rent). */
 class MovePaymentsViewModel(db: AppDatabase, private val bills: BillRepository, private val key: String) : ViewModel() {
@@ -95,11 +96,14 @@ class MovePaymentsViewModel(db: AppDatabase, private val bills: BillRepository, 
         before = categories.value.map { it.uid }.toSet()
     }
 
-    suspend fun move(): Boolean {
-        val b = bill ?: return false
-        val to = categories.value.firstOrNull { it.uid == target } ?: return false
-        bills.move(b, picked.toList(), to.uid, to.title, addComment)
-        return true
+    /** Moves the ticked payments, then [onDone] on the main thread (navigation must not run on Room's transaction thread). */
+    fun move(onDone: () -> Unit) {
+        val b = bill ?: return
+        val to = categories.value.firstOrNull { it.uid == target } ?: return
+        viewModelScope.launch {
+            bills.move(b, picked.toList(), to.uid, to.title, addComment)
+            withContext(Dispatchers.Main) { onDone() }
+        }
     }
 }
 
@@ -115,7 +119,6 @@ private val rowDate = DateTimeFormatter.ofPattern("MMM d, yyyy")
 fun MovePaymentsScreen(key: String, onNewCategory: (name: String) -> Unit, onDone: () -> Unit) {
     val vm = appViewModel(key = "move-$key") { MovePaymentsViewModel(it.db, it.bills, key) }
     val categories by vm.categories.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
     val bill = vm.bill
     Scaffold(
         topBar = {
@@ -131,7 +134,7 @@ fun MovePaymentsScreen(key: String, onNewCategory: (name: String) -> Unit, onDon
             val ready = chosen.isNotEmpty() && vm.target != null
             Box(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(16.dp)) {
                 Button(
-                    { scope.launch { if (vm.move()) onDone() } }, Modifier.fillMaxWidth().height(52.dp).testTag("move-go"), enabled = ready,
+                    { vm.move(onDone) }, Modifier.fillMaxWidth().height(52.dp).testTag("move-go"), enabled = ready,
                 ) {
                     Text(
                         when {

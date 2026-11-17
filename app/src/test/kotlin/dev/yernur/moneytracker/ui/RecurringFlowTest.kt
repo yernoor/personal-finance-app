@@ -1,5 +1,9 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.ui.test.onNodeWithText
+
+import dev.yernur.moneytracker.data.db.ProjectionMode
+
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.runtime.CompositionLocalProvider
@@ -96,5 +100,41 @@ class RecurringFlowTest {
         compose.onNodeWithTag("duplicate-keep").performScrollTo().performClick()
         compose.waitUntil(5_000) { container.settings.keptDuplicates.value.size == 1 }
         assertEquals(2, runBlocking { db.transactionDao().getAll() }.count { it.comment == "Lunch" && !it.isRemoved })
+    }
+
+    @Test
+    fun makeFixed_setsTheCategory_andTappingAgainUndoesIt() {
+        openScreen()
+        waitFor("fixed-Gym")
+        compose.onNodeWithTag("fixed-Gym").performScrollTo().performClick()
+        compose.waitUntil(5_000) { runBlocking { db.categoryDao().get("food")!!.projectionMode } == ProjectionMode.Fixed }
+        compose.onNodeWithTag("fixed-Gym").performScrollTo().performClick()
+        compose.waitUntil(5_000) { runBlocking { db.categoryDao().get("food")!!.projectionMode } == ProjectionMode.Auto }
+    }
+
+    @Test
+    fun settingAnEnd_showsHowManyArePaid() {
+        openScreen()
+        waitFor("ends-Gym")
+        compose.onNodeWithTag("ends-Gym").performScrollTo().performClick()
+        waitFor("end-sheet")
+        compose.onNodeWithTag("end-save").performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("3 of 9 paid").fetchSemanticsNodes().isNotEmpty() } // 3 seen + 6 left (the default)
+    }
+
+    @Test
+    fun movingTheGymOutOfFood_movesItsPayments_andUndoPutsThemBack() {
+        runBlocking { db.categoryDao().insertAll(listOf(CategoryEntity("sport", "Sport", TransactionType.Expense, "cafe", null, 0, null, null, 1, false, "", ""))) }
+        openScreen()
+        waitFor("move-Gym") // Gym is inside Food, next to the lunches
+        compose.onNodeWithTag("move-Gym").performScrollTo().performClick()
+        waitFor("move-to-Sport")
+        compose.onNodeWithTag("move-to-Sport").performClick()
+        compose.onNodeWithTag("move-go").performClick()
+        compose.waitUntil(5_000) { runBlocking { db.transactionDao().getAll() }.count { it.categoryUid == "sport" } == 3 }
+        assertEquals(2, runBlocking { db.transactionDao().getAll() }.count { it.categoryUid == "food" }) // the lunches stay
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Undo").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Undo").performClick()
+        compose.waitUntil(5_000) { runBlocking { db.transactionDao().getAll() }.count { it.categoryUid == "food" } == 5 }
     }
 }
