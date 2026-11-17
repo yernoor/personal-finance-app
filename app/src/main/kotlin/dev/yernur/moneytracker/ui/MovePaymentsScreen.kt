@@ -202,13 +202,19 @@ internal fun PaymentRow(row: TxFull, on: Boolean, guess: Boolean, tag: String, o
 
 /**
  * Where a bill's payments go: "New: [name]" ([onNew]), then [categories]. With [keepLabel], a first chip leaves them where they are
- * (selected while [target] is null).
+ * (selected while [target] is null), with [keepCategory]'s icon.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun MoveToChips(name: String, categories: List<CategoryEntity>, target: String?, onNew: () -> Unit, onPick: (String?) -> Unit, keepLabel: String? = null) {
+internal fun MoveToChips(
+    name: String, categories: List<CategoryEntity>, target: String?, onNew: () -> Unit, onPick: (String?) -> Unit,
+    keepLabel: String? = null, keepCategory: CategoryEntity? = null,
+) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (keepLabel != null) FilterChip(target == null, { onPick(null) }, { Text(keepLabel) }, modifier = Modifier.testTag("move-keep"))
+        if (keepLabel != null) FilterChip(
+            target == null, { onPick(null) }, { Text(keepLabel) },
+            leadingIcon = keepCategory?.let { c -> { IconBadge(c.icon, c.color, size = 24.dp) } }, modifier = Modifier.testTag("move-keep"),
+        )
         FilterChip(
             false, onNew, { Text("New: $name") },
             leadingIcon = { Icon(Icons.Outlined.Add, null, Modifier.size(18.dp)) }, modifier = Modifier.testTag("move-new"),

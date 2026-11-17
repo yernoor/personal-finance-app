@@ -151,7 +151,8 @@ class RecurringFlowTest {
         compose.onNodeWithTag("manual-row-${lunch.uid}").performScrollTo().performClick() // its twin looks alike: ticked too
         compose.onNodeWithTag("manual-next").performClick()
         waitFor("manual-name")
-        compose.onNodeWithText("Add bill", substring = true).assertIsDisplayed() // named "Lunch" from the comment, kept in Food
+        compose.onNodeWithText("Payments · 2").assertIsDisplayed() // step 2's ticks, listed again as on the Move payments screen
+        compose.onNodeWithText("Add bill · 2 payments", substring = true).assertIsDisplayed() // named "Lunch" from the comment, kept in Food
         compose.onNodeWithTag("manual-next").performClick()
         waitFor("recurring-Lunch")
         assertTrue(runBlocking { db.billDao().get("comment:lunch") }!!.manual)

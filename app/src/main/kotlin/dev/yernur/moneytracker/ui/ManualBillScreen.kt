@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -29,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -135,7 +135,12 @@ class ManualBillViewModel(db: AppDatabase, private val bills: BillRepository, to
     fun monthly(): Long = perMonth().values.let { if (it.isEmpty()) 0 else it.sum() / it.size }
 
     /** Step 3 starts with the most used comment of the ticked payments, else the category's name. */
+    /** The payments ticked when step 3 opened: its list, which can still be unticked there. */
+    var placed by mutableStateOf<List<TxFull>>(emptyList())
+        private set
+
     fun toNaming(categories: List<CategoryEntity>) {
+        placed = chosen
         if (name.isBlank()) name = chosen.mapNotNull { it.comment?.trim()?.takeIf(String::isNotEmpty) }.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key
             ?: categories.firstOrNull { it.uid == source }?.title.orEmpty()
         step = 3
@@ -204,7 +209,11 @@ fun ManualBillScreen(onNewCategory: (name: String) -> Unit, onDone: () -> Unit) 
                 val (label, ready) = when (vm.step) {
                     1 -> "Next: pick payments" to (vm.source != null || vm.all)
                     2 -> (if (chosen.isEmpty()) "Tick the bill's payments" else "Next: name it") to chosen.isNotEmpty()
-                    else -> (if (vm.name.isBlank()) "Enter a name" else "Add bill · ≈ ${money(vm.monthly())}/mo") to vm.name.isNotBlank()
+                    else -> when {
+                        chosen.isEmpty() -> "Select payments" to false
+                        vm.name.isBlank() -> "Enter a name" to false
+                        else -> "Add bill · ${chosen.size} payment${if (chosen.size == 1) "" else "s"} · ≈ ${money(vm.monthly())}/mo" to true
+                    }
                 }
                 Button(
                     { when (vm.step) { 1 -> vm.step = 2; 2 -> vm.toNaming(categories); else -> vm.add(onDone) } },
@@ -291,23 +300,35 @@ private fun MonthStrip(months: List<YearMonth>, totals: Map<YearMonth, Long>) {
 
 private fun androidx.compose.foundation.lazy.LazyListScope.placeStep(vm: ManualBillViewModel, categories: List<CategoryEntity>, onNew: () -> Unit) {
     val source = categories.firstOrNull { it.uid == vm.source }
+    // Laid out like the Move payments screen: where from, where to, which payments, the comment.
+    item {
+        val others = source != null && vm.inSource.any { it.uid !in vm.picked }
+        Note(
+            (source?.let { "From ${it.title}" + if (others) ", which also has other payments." else "." } ?: "From several categories.") +
+                " Its other payments are not listed and stay where they are.",
+        )
+    }
     item {
         OutlinedTextField(vm.name, { vm.name = it }, Modifier.fillMaxWidth().testTag("manual-name"), label = { Text("Bill name") }, singleLine = true)
-    }
-    // The same nudge the bill card gives a bill inside a shared category.
-    if (source != null && vm.inSource.any { it.uid !in vm.picked }) item {
-        Text(
-            "${source.title} also has other payments. A category of its own keeps ${vm.name.trim().ifEmpty { "the bill" }} apart in charts and lets the forecast count it as a fixed bill.",
-            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(14.dp)).padding(12.dp),
-            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer,
-        )
     }
     item { Text("Move to", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp)) }
     item {
         MoveToChips(
             vm.name.trim().ifEmpty { "bill" }, categories.filter { it.uid != vm.source }, vm.target, onNew, { vm.target = it },
-            keepLabel = source?.let { "Keep in ${it.title}" } ?: "Keep where they are",
+            keepLabel = source?.let { "Keep in ${it.title}" } ?: "Keep where they are", keepCategory = source,
         )
+    }
+    item {
+        Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Payments · ${vm.chosen.size}", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+            TextButton({ vm.picked.clear(); vm.picked.addAll(vm.placed.map { it.uid }) }) { Text("Select all") }
+            TextButton({ vm.picked.clear() }) { Text("None") }
+        }
+    }
+    items(vm.placed, key = { "placed-${it.uid}" }) { row ->
+        PaymentRow(row, row.uid in vm.picked, row.uid in vm.guessed, "manual-placed-${row.uid}") {
+            if (row.uid in vm.picked) vm.picked.remove(row.uid) else vm.picked.add(row.uid)
+        }
     }
     item {
         val n = vm.chosen.size
