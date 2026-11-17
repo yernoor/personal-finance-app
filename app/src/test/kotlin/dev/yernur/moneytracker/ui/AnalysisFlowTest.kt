@@ -1,5 +1,9 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.ui.test.assertTextEquals
+
+import androidx.compose.ui.test.performTextInput
+
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.runtime.CompositionLocalProvider
@@ -59,5 +63,15 @@ class AnalysisFlowTest {
         waitFor("category-trend")
         compose.onNodeWithTag("trend-projected").assertIsDisplayed()
         waitFor("trend-op-" + runBlocking { db.transactionDao().getAll() }.first { it.comment == "Lunch" }.uid)
+    }
+
+    @Test
+    fun theAffordCard_onOverview_answersWithAVerdict() {
+        compose.onNodeWithTag("tab-analysis").performClick()
+        waitFor("afford-card-price")
+        compose.onNodeWithTag("afford-card-price").performScrollTo().performTextInput("1000000") // far more than the main account holds
+        compose.onNodeWithTag("afford-card-check").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        waitFor("afford-card-verdict")
+        compose.onNodeWithTag("afford-card-verdict").assertTextEquals("NO")
     }
 }

@@ -107,7 +107,7 @@ class MoreSections : androidx.lifecycle.ViewModel() {
 }
 
 @Composable
-fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onFeedback: () -> Unit, onCompound: () -> Unit, onWealth: () -> Unit, onAfford: () -> Unit, onOpenTab: (NavTab) -> Unit) {
+fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onFeedback: () -> Unit, onCompound: () -> Unit, onWealth: () -> Unit, onOpenTab: (NavTab) -> Unit) {
     var showWalletConsent by remember { mutableStateOf(false) }
     var showWalletAccount by remember { mutableStateOf(false) }
     var showHistoryPeriod by remember { mutableStateOf(false) }
@@ -200,12 +200,6 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
             modifier = Modifier.clickable(onClick = onCompound).testTag("open-compound"),
             leadingContent = { Icon(Icons.Outlined.Calculate, null) }, headlineContent = { Text("Compound interest") },
             supportingContent = { Text("Where a balance and monthly savings end up") },
-        )
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable(onClick = onAfford).testTag("open-afford"),
-            leadingContent = { Icon(Icons.Outlined.ShoppingCart, null) }, headlineContent = { Text("Can I afford this?") },
-            supportingContent = { Text("Check a purchase against your balance, limits and goals") },
         )
         if ("categories" !in navbar || "tags" !in navbar) SectionHeader("Manage")
         if ("categories" !in navbar) ListItem(

@@ -316,7 +316,10 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             }
             screen("charts") { ChartsScreen(onOpenTransaction = { nav.navigate(entryRoute(it)) }) }
             screen("analysis") {
-                AnalysisScreen(onOpenTrend = { nav.navigate("trend/$it") }, onMove = { nav.navigate("move/${android.net.Uri.encode(it)}") })
+                AnalysisScreen(
+                    onOpenTrend = { nav.navigate("trend/$it") }, onMove = { nav.navigate("move/${android.net.Uri.encode(it)}") },
+                    onAffordDetails = { price -> nav.navigate("afford?price=${android.net.Uri.encode(price)}") },
+                )
             }
             screen("accounts") {
                 AccountsScreen(
@@ -343,7 +346,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                     onCategories = { nav.navigate("categories") }, onTags = { nav.navigate("tags") },
                     onNavbar = { nav.navigate("navbar-settings") }, onHomeLayout = { nav.navigate("home-settings") },
                     onSync = { nav.navigate("sync") }, onUpdates = { nav.navigate("updates") }, onFeedback = { nav.navigate("feedback") },
-                    onCompound = { nav.navigate("compound") }, onWealth = { nav.navigate("wealth") }, onAfford = { nav.navigate("afford") }, onOpenTab = { nav.navigate(it.id) },
+                    onCompound = { nav.navigate("compound") }, onWealth = { nav.navigate("wealth") }, onOpenTab = { nav.navigate(it.id) },
                 )
             }
             screen("wealth") {
@@ -358,7 +361,9 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             screen("trend/{uid}", arguments = listOf(navArgument("uid") { type = NavType.StringType })) { entry ->
                 CategoryTrendScreen(entry.arguments?.getString("uid").orEmpty(), onBack = { nav.popBackStack() }, onOpenTransaction = { nav.navigate(entryRoute(it)) })
             }
-            screen("afford") { AffordScreen(onBack = { nav.popBackStack() }, onLogExpense = { nav.navigate(entryRoute()) }) }
+            screen("afford?price={price}", arguments = listOf(navArgument("price") { type = NavType.StringType; defaultValue = "" })) { entry ->
+                AffordScreen(entry.arguments?.getString("price").orEmpty(), onBack = { nav.popBackStack() }, onLogExpense = { nav.navigate(entryRoute()) })
+            }
             screen("sync") { SyncScreen { nav.popBackStack() } }
             screen("updates") { UpdatesScreen { nav.popBackStack() } }
             screen("feedback") { FeedbackScreen { nav.popBackStack() } }

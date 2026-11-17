@@ -42,6 +42,8 @@ Target device: Android 16 (API 36) -> `minSdk = 36` is possible; owner to confir
   Changed 2026-11-18 (owner): Analysis has two segments, **Overview** (the former Trends and Forecast tabs merged: one month card with the bar
   summary and six monthly bars against one average, Worth a look with limit warnings and rises/falls, one category list with limit bars) and
   **Recurring** (bills, reminders, ends, moving payments, duplicates). The average is the last **3** full months everywhere (was 6 on Trends).
+  "Can I afford it?" moved from More to a card on Overview under the month card (owner's choice 2026-11-18): price in, verdict out (main account,
+  no category); Details opens the full screen with the price filled in.
   Changed 2026-11-18 (owner): the month's figure is one number on every screen (Forecast "On track for", the Trends dashed bar and its
   change against the average, the widget's "on pace for"): regular categories at their pace **plus what one-offs have cost so far**
   (real spending that will not recur, so not projected). Categories set to Never stay out entirely.

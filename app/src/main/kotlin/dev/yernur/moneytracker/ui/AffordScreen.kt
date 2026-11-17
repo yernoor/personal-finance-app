@@ -59,7 +59,7 @@ fun AffordResult.headline(categoryTitle: String?): String = when (verdict) {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun AffordScreen(onBack: () -> Unit, onLogExpense: () -> Unit) {
+fun AffordScreen(initialPrice: String = "", onBack: () -> Unit, onLogExpense: () -> Unit) {
     val container = LocalAppContainer.current
     val scope = rememberCoroutineScope()
     val categories by remember { container.db.categoryDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
@@ -67,7 +67,7 @@ fun AffordScreen(onBack: () -> Unit, onLogExpense: () -> Unit) {
     val expenseCategories = categories.filter { it.type == TransactionType.Expense && !it.isArchived }.sortedBy { it.position }
     val usable = accounts.filter { it.isActive && !it.isArchived }
 
-    var price by rememberSaveable { mutableStateOf("") }
+    var price by rememberSaveable { mutableStateOf(initialPrice) } // from the Overview card's Details
     var categoryUid by rememberSaveable { mutableStateOf<String?>(null) }
     var accountUid by rememberSaveable { mutableStateOf<String?>(null) }
     var result by remember { mutableStateOf<AffordResult?>(null) }
