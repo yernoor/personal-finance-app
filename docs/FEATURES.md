@@ -309,6 +309,10 @@ stored its own tab choice keeps it: add Analysis in More -> Navigation bar.
 - Category trend: delta = current run-rate vs the mean of the previous (up to) 3 full months, shown only when that mean is not zero, at least 10 days of the month have passed, and something was spent in the category this month (a pace of 0 says nothing). The sparkline draws the unfinished month at its pace. Insights: a category at least 25% above its average (and at least 5,000 above), and a category that fell three months in a row.
 - Weekday pattern: expenses of the last 3 full months by day of week.
 - Recurring: an expense comment (trimmed, case-insensitive) seen in at least 3 consecutive months, amounts within 20% of the median. Price change = latest amount differs from the previous one by 5% or more. "Has a reminder" = a reminder with the same title.
+  Added 2026-11-18 (owner): also by **category**, for bills typed without a comment (an installment): a category's monthly total in at least 3
+  consecutive months, within 20% of the median, averaging at most 3 payments a month (so Groceries is not a bill); not listed again when a comment
+  item already covers that category at a similar amount. Each item offers **Make it a fixed bill** (sets its category's projection to Fixed monthly
+  bill) or shows "Fixed bill ✓". Still not built: Add reminder (reminders never notify yet), and an end date for installments (needs a new column).
 - Duplicate: same type, account, category, account-currency amount and date, created within 10 minutes of each other. Keep both / delete the second (soft delete through the ledger).
 
 ## Other / unverified, decide later

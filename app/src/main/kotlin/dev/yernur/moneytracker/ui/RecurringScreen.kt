@@ -1,5 +1,13 @@
 package dev.yernur.moneytracker.ui
 
+import dev.yernur.moneytracker.data.db.ProjectionMode
+
+import androidx.compose.foundation.layout.height
+
+import androidx.compose.foundation.layout.PaddingValues
+
+import androidx.compose.material3.TextButton
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -65,7 +73,8 @@ class RecurringViewModel(db: AppDatabase, settings: AppSettings, today: LocalDat
         combine(
             db.transactionDao().observeFull(from, today.toString()), db.reminderDao().observeAllLive(), db.categoryDao().observeAll(), settings.keptDuplicates,
         ) { rows, reminders, categories, kept ->
-            RecurringState(detectRecurring(rows, reminders, today), findDuplicates(rows, kept), categories.associateBy<CategoryEntity, String?> { it.uid })
+            val titles = categories.filter { !it.isRemoved }.associate { it.uid to it.title }
+            RecurringState(detectRecurring(rows, reminders, today, titles), findDuplicates(rows, kept), categories.associateBy<CategoryEntity, String?> { it.uid })
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     }
 }
@@ -95,9 +104,14 @@ fun RecurringScreen(onBack: () -> Unit) {
                 }
             }
             Text("Detected recurring", style = MaterialTheme.typography.titleMedium)
-            Text("The same comment and a similar amount in at least 3 months in a row.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("A similar amount at least 3 months in a row: the same comment, or a category paid once or twice a month.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (s.recurring.isEmpty()) Text("Nothing detected yet.", modifier = Modifier.testTag("recurring-empty"))
-            s.recurring.forEach { RecurringRow(it) }
+            s.recurring.forEach { item ->
+                val category = s.categories[item.categoryUid]
+                RecurringRow(item, category) { // a fixed bill is projected as last month's amount (Projection.kt), which is what a recurring cost is
+                    if (category != null) scope.launch { container.ledger.saveCategory(category.copy(projectionMode = ProjectionMode.Fixed)) }
+                }
+            }
 
             if (s.duplicates.isNotEmpty()) Text("Possible duplicates", style = MaterialTheme.typography.titleMedium)
             s.duplicates.forEach { pair ->
@@ -112,12 +126,22 @@ fun RecurringScreen(onBack: () -> Unit) {
     }
 }
 
+/** One recurring cost; [onMakeFixed] turns its category into a fixed monthly bill (offered only when it is not one yet). */
 @Composable
-private fun RecurringRow(item: RecurringItem) {
+private fun RecurringRow(item: RecurringItem, category: CategoryEntity?, onMakeFixed: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).testTag("recurring-${item.title}"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.weight(1f)) {
             Text(item.title, style = MaterialTheme.typography.bodyLarge)
-            Text("Monthly · next about ${item.next}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                "${item.months} months · next about ${item.next}" + if (!item.byCategory && category != null) " · ${category.title}" else "",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (category != null) {
+                if (category.projectionMode == ProjectionMode.Fixed) Text("Fixed bill ✓", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                else TextButton(onMakeFixed, contentPadding = PaddingValues(0.dp), modifier = Modifier.height(32.dp).testTag("make-fixed-${item.title}")) {
+                    Text("Make it a fixed bill", style = MaterialTheme.typography.labelLarge)
+                }
+            }
         }
         Column(horizontalAlignment = Alignment.End) {
             Text(money(item.amount), style = MaterialTheme.typography.bodyLarge)
