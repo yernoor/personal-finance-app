@@ -115,7 +115,10 @@ import kotlin.math.roundToInt
 
 /** How much wider the chosen tab is than the others (it shows its label; the others only their icon). */
 private const val CHOSEN_WEIGHT = 2.3f
-private val barSpring = spring<Float>(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow)
+// Stiff enough that the bar reshapes (wide chosen tab <-> equal slots while scrubbing) in about a quarter of a second.
+private val barSpring = spring<Float>(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium)
+private const val SCRUB_SHAPE_MS = 120
+private const val LABEL_MS = 150
 
 /**
  * The bottom bar as a floating pill: the chosen tab opens up to icon and label while the others shrink to their icon, and one highlight
@@ -168,10 +171,10 @@ fun FloatingTabBar(tabs: List<NavTab>, selected: NavTab, onSelect: (NavTab) -> U
             val highlightW = remember { Animatable(restW) }
             val slotW = widthPx / tabs.size
             val x = scrubX
-            if (x != null) LaunchedEffect(x) { // follows the finger at once; only the width eases to one slot
-                highlightX.snapTo((x - slotW / 2).coerceIn(0f, widthPx - slotW))
-                highlightW.animateTo(slotW, tween(160))
-            } else LaunchedEffect(restX, restW) {
+            // Scrubbing: the width narrows to one slot once, quickly (restarting it on every finger move made it crawl), and x follows the finger.
+            if (scrubbing) LaunchedEffect(Unit) { highlightW.animateTo(slotW, tween(SCRUB_SHAPE_MS)) }
+            if (x != null) LaunchedEffect(x) { highlightX.snapTo((x - slotW / 2).coerceIn(0f, widthPx - slotW)) }
+            else LaunchedEffect(restX, restW) {
                 launch { highlightX.animateTo(restX, barSpring) }
                 highlightW.animateTo(restW, barSpring)
             }
@@ -195,7 +198,10 @@ fun FloatingTabBar(tabs: List<NavTab>, selected: NavTab, onSelect: (NavTab) -> U
                     ) {
                         val pop by animateFloatAsState(if (on && scrubbing) 1.18f else 1f, barSpring, label = "tab-pop")
                         Icon(tab.icon, if (on) null else tab.label, Modifier.size(22.dp).graphicsLayer { scaleX = pop; scaleY = pop }, tint = tint)
-                        AnimatedVisibility(on && !scrubbing, enter = fadeIn() + expandHorizontally(), exit = fadeOut() + shrinkHorizontally()) {
+                        AnimatedVisibility(
+                            on && !scrubbing, enter = fadeIn(tween(LABEL_MS)) + expandHorizontally(tween(LABEL_MS)),
+                            exit = fadeOut(tween(LABEL_MS / 2)) + shrinkHorizontally(tween(LABEL_MS)),
+                        ) {
                             Row {
                                 Spacer(Modifier.width(8.dp))
                                 Text(tab.label, maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelLarge, color = tint)
