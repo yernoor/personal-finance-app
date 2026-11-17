@@ -1,5 +1,9 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+
+import androidx.compose.foundation.background
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,7 +19,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -91,8 +94,14 @@ private fun CategoryForecastCard(row: CategoryForecast, category: CategoryEntity
                 "On track for ${money(row.runRate)}" + (row.average?.let { " · 3-month average ${money(it)}" } ?: ""),
                 style = MaterialTheme.typography.bodyMedium,
             )
-            if (row.warnings.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                row.warnings.sorted().forEach { SuggestionChip({}, label = { Text(it.text()) }) }
+            // Plain labels, not chips: there is nothing to tap.
+            if (row.warnings.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                row.warnings.sorted().forEach {
+                    Text(
+                        it.text(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 5.dp),
+                    )
+                }
             }
             if (!row.inOverall) Text("Not in the overall figure (one-off)", style = MaterialTheme.typography.bodySmall)
         }
