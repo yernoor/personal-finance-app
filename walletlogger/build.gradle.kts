@@ -17,6 +17,7 @@ android {
 
     testOptions {
         unitTests.isIncludeAndroidResources = true
+        unitTests.all { it.jvmArgs("--enable-native-access=ALL-UNNAMED") } // Robolectric loads its native runtime: allowed, so JDK 25 does not warn
     }
 }
 

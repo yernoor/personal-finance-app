@@ -45,6 +45,8 @@ android {
 
     testOptions {
         unitTests.isIncludeAndroidResources = true
+        // Robolectric loads its native runtime and Glance's protobuf uses sun.misc.Unsafe: allowed explicitly, so JDK 25 does not warn on every run.
+        unitTests.all { it.jvmArgs("--enable-native-access=ALL-UNNAMED", "--sun-misc-unsafe-memory-access=allow") }
     }
 
     // Exported Room schemas feed the migration test (Robolectric reads them as assets). Debug builds only; ~30 KB.
