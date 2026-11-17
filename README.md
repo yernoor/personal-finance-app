@@ -152,4 +152,4 @@ Stack: Kotlin, Jetpack Compose + Material 3, Room, WorkManager, hand-wired DI. M
 
 ## Status
 
-Version 0.8.0. Unit tests and the debug build pass; the live Google round trip and the app on a physical phone are not yet verified. The wealth data lives on the phone only (it is not in the Google Sheet); use *Back up to a file* for it. Not built: Apps Script `onEdit` stamping, sync conflict log, regular-payment reminders, per-card Wallet account mapping (planned, see [docs/FEATURES.md](docs/FEATURES.md)).
+Version 0.8.0. Unit tests and the debug build pass; the live Google round trip and the app on a physical phone are not yet verified. The wealth data lives on the phone only (it is not in the Google Sheet); use *Back up to a file* for it. Not built: Apps Script `onEdit` stamping, sync conflict log, per-card Wallet account mapping (planned, see [docs/FEATURES.md](docs/FEATURES.md)).
