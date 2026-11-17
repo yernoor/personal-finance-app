@@ -407,10 +407,16 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     }
 }
 
-/** To a tab. The tab left behind is dropped with its state (picked date, page, sub-tab), so coming back opens it fresh on today. */
-private fun NavHostController.navigateTop(route: String) = navigate(route) {
-    popUpTo(graph.findStartDestination().id)
-    launchSingleTop = true
+/**
+ * To a tab. The tab left behind is dropped with its state (picked date, page, sub-tab), so coming back opens it fresh on today.
+ * Already there: nothing (re-tapping the open tab used to rebuild it and replay the slide in).
+ */
+private fun NavHostController.navigateTop(route: String) {
+    if (currentDestination?.route == route) return
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id)
+        launchSingleTop = true
+    }
 }
 
 /** A destination with its own opaque background, so the screen underneath never shows through while a back swipe slides this one away. */
