@@ -17,7 +17,8 @@ import dev.yernur.moneytracker.data.AnimationKind
 import dev.yernur.moneytracker.data.PeriodUnit
 
 /** How the shown period just changed: sets which small movement goes with the morph. */
-enum class PeriodCue { None, ZoomOut, ZoomIn, Earlier, Later }
+/** [Swap]: the change came with its own movement (a swipe slides the content): show the new values at once, no glide. */
+enum class PeriodCue { None, ZoomOut, ZoomIn, Earlier, Later, Swap }
 
 /** A bigger unit pulls the chart back, a smaller one pushes in; the same unit slides the way you are going. [pos] grows towards the present. */
 fun periodCue(from: PeriodUnit, fromPos: Long, to: PeriodUnit, toPos: Long): PeriodCue = when {
@@ -33,10 +34,21 @@ const val PERIOD_MS = 450
 /** Remembers the period it saw last, so a change of unit or position can be told apart from a change of data. */
 class CueTracker(private var unit: PeriodUnit, private var pos: Long) {
     private var pending = PeriodCue.None
+    private var quiet = false
+    /** Whether the last period change was a [PeriodCue.Swap]. */
+    var swapped = false
+        private set
+
+    /** The next period change brings its own movement: mark it [PeriodCue.Swap]. */
+    fun quietNext() {
+        quiet = true
+    }
 
     fun update(newUnit: PeriodUnit, newPos: Long) {
         if (newUnit == unit && newPos == pos) return
-        pending = periodCue(unit, pos, newUnit, newPos)
+        swapped = quiet
+        pending = if (quiet) PeriodCue.Swap else periodCue(unit, pos, newUnit, newPos)
+        quiet = false
         unit = newUnit
         pos = newPos
     }
@@ -70,7 +82,7 @@ class Morph<T>(initial: T, private val blend: (T, T, Float) -> T) {
         if (next == target) return
         from = shown
         target = next
-        if (!animate) {
+        if (!animate || newCue == PeriodCue.Swap) {
             cue = PeriodCue.None
             progress.snapTo(1f)
             return
@@ -90,18 +102,18 @@ fun Modifier.periodCue(cue: PeriodCue, progress: () -> Float): Modifier = graphi
         PeriodCue.ZoomIn -> { scaleX = 1f + 0.12f * left; scaleY = scaleX }
         PeriodCue.Earlier -> translationX = -18.dp.toPx() * left
         PeriodCue.Later -> translationX = 18.dp.toPx() * left
-        PeriodCue.None -> Unit
+        PeriodCue.None, PeriodCue.Swap -> Unit
     }
 }
 
-/** 0.35 -> 1 each time [key] changes (not on first show): for the list and labels that belong to a period. Always 1 with the switch off. */
+/** 0.35 -> 1 each time [key] changes (not on first show): for the list and labels that belong to a period. Always 1 with the switch off, or when [cues] says the change was a swipe. */
 @Composable
-fun periodFade(key: Any?): Float {
+fun periodFade(key: Any?, cues: CueTracker? = null): Float {
     val on = animated(AnimationKind.PeriodSwitch)
     val fade = remember { Animatable(1f) }
     var first by remember { mutableStateOf(true) }
     LaunchedEffect(key) {
-        if (first || !on) { first = false; fade.snapTo(1f); return@LaunchedEffect }
+        if (first || !on || cues?.swapped == true) { first = false; fade.snapTo(1f); return@LaunchedEffect }
         fade.snapTo(0.35f)
         fade.animateTo(1f, tween(PERIOD_MS, easing = FastOutSlowInEasing))
     }

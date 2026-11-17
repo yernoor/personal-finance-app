@@ -86,6 +86,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** One line of the history: a transaction or a transfer, already formatted. */
 data class HistoryRow(
@@ -187,6 +189,8 @@ fun groupByCategory(rows: List<HistoryRow>): List<HistoryGroup> =
     }.sortedByDescending { it.total }
 
 data class HistoryState(
+    /** The period these rows are for; null before the first load. */
+    val range: DateRange? = null,
     val rows: List<HistoryRow> = emptyList(),
     val income: Long = 0,
     val expense: Long = 0,
@@ -273,7 +277,7 @@ class HistoryViewModel(
             }
             val byType = transactions.groupBy { it.type }.mapValues { (_, list) -> list.sumOf { it.amountInDefaultCurrency ?: 0L } }
             HistoryState(
-                rows.sortedWith(compareByDescending<HistoryRow> { it.date }.thenByDescending { it.created }),
+                r, rows.sortedWith(compareByDescending<HistoryRow> { it.date }.thenByDescending { it.created }),
                 byType[TransactionType.Income] ?: 0, byType[TransactionType.Expense] ?: 0,
             )
         }
@@ -326,13 +330,20 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
     val slices = remember(state.groups, chartIncome) { chartSlices(state.groups, chartIncome) }
     val dayFormat = DateTimeFormatter.ofPattern("EEE, MMM d")
     val cues = rememberCueTracker(unit, range.from.toEpochDay())
-    val periodFade = periodFade(unit to range)
+    val periodFade = periodFade(unit to range, cues)
 
     val swipe = rememberSwipeSteps()
     var calendar by remember { mutableStateOf(false) }
     if (calendar) PeriodCalendar(range.from, onDismiss = { calendar = false }) { calendar = false; vm.jumpTo(it) }
     // A swipe steps the period: left to the next one (not past today), right to the one before.
-    Column(Modifier.fillMaxSize().swipeSteps(swipe) { by -> if (by > 0 && range.to >= LocalDate.now()) false else { vm.shift(by.toLong()); true } }) {
+    Column(Modifier.fillMaxSize().swipeSteps(swipe) { by ->
+        if (by > 0 && range.to >= LocalDate.now()) return@swipeSteps false
+        cues.quietNext()
+        val next = unit.rangeOf(unit.shift(range.from, by.toLong()))
+        vm.shift(by.toLong())
+        withTimeoutOrNull(400) { vm.state.first { it.range == next } } // slide the new day in with its rows, not empty then filling
+        true
+    }) {
         val units = PeriodUnit.entries
         SlidingSegmented(
             units.map { it.name }, units.indexOf(unit), units.map { "period-${it.name}" }, { vm.zoom(units[it]) },
