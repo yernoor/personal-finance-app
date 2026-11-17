@@ -1,5 +1,9 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+
+import androidx.compose.ui.text.rememberTextMeasurer
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animate
@@ -177,7 +181,7 @@ fun HistoryChart(
                 Modifier.fillMaxWidth().height(lerp(expanded, COLLAPSED_DP, f).dp).clipToBounds().periodCue(morph.cue) { morph.progress.value }.semantics { contentDescription = summary },
                 contentAlignment = Alignment.TopCenter,
             ) {
-                if (f < 1f) Ring(shape.spans, shownTotal, drawn, expanded - RING_MARGIN_DP, Modifier.graphicsLayer {
+                if (f < 1f) Ring(shape.spans, shownTotal, Money.format(target.total, DEFAULT_CURRENCY), drawn, expanded - RING_MARGIN_DP, Modifier.graphicsLayer {
                     // fades and lifts away while the bar takes over
                     alpha = (1f - f * 1.6f).coerceIn(0f, 1f)
                     translationY = -f * 60.dp.toPx()
@@ -215,12 +219,31 @@ private fun Bar(spans: List<Span>, total: String, drawn: Float) {
     }
 }
 
+/** Ring stroke as a share of the ring's size; the hole is what is left. */
+private const val RING_STROKE = 0.14f
+/** The total may use this share of the hole's width, so it clears the ring's inner edge with a little air. */
+private const val HOLE_FILL = 0.82f
+
+/** How much to shrink text [textWidth] wide so it fits the hole of a ring [ringSize] across (1 = it fits as it is). */
+internal fun ringTextScale(textWidth: Float, ringSize: Float): Float {
+    val room = ringSize * (1f - 2 * RING_STROKE) * HOLE_FILL
+    return if (textWidth <= room) 1f else room / textWidth
+}
+
+/** [total] is drawn; [fitTo] (the period's final total, not the rolling one) sets the size, so the text does not pulse while digits roll. */
 @Composable
-private fun Ring(spans: List<Span>, total: String, drawn: Float, sizeDp: Float, modifier: Modifier) {
+private fun Ring(spans: List<Span>, total: String, fitTo: String, drawn: Float, sizeDp: Float, modifier: Modifier) {
     val colors = spans.map { themedColor(it.colorKey) }
+    val style = MaterialTheme.typography.headlineSmall
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val scale = remember(fitTo, sizeDp, style, density) {
+        ringTextScale(measurer.measure(fitTo, style, softWrap = false, maxLines = 1).size.width.toFloat(), with(density) { sizeDp.dp.toPx() })
+    }
+    val fitted by animateFloatAsState(scale, label = "ring-total-scale") // a new period with more digits eases down instead of jumping
     Box(modifier.size(sizeDp.dp).testTag("history-chart-ring"), contentAlignment = Alignment.Center) {
         Canvas(Modifier.size(sizeDp.dp)) {
-            val stroke = size.minDimension * 0.14f
+            val stroke = size.minDimension * RING_STROKE
             val gap = if (spans.size > 1) 1.5f else 0f // a hairline between neighbours so equal colors do not merge
             spans.forEachIndexed { i, span ->
                 val shown = (drawn - span.start).coerceIn(0f, span.width) // sweeps clockwise from the top as the chart draws in
@@ -232,6 +255,6 @@ private fun Ring(spans: List<Span>, total: String, drawn: Float, sizeDp: Float, 
                 }
             }
         }
-        Text(total, style = MaterialTheme.typography.headlineSmall)
+        Text(total, style = style.copy(fontSize = style.fontSize * fitted), maxLines = 1, softWrap = false, modifier = Modifier.testTag("history-chart-total"))
     }
 }

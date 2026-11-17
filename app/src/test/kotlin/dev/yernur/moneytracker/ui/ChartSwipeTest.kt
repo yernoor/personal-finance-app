@@ -41,3 +41,15 @@ class ChartSwipeTest {
         assertNull(barStrip(now, older, PeriodCue.ZoomOut))
     }
 }
+
+class RingTextScaleTest {
+    @Test
+    fun shortTotal_keepsItsSize() = assertEquals(1f, ringTextScale(textWidth = 100f, ringSize = 400f), 0f)
+
+    @Test
+    fun longTotal_shrinksToTheHole() {
+        // 400 across: the hole is 288, the text may use 82% of it
+        val scale = ringTextScale(textWidth = 400f, ringSize = 400f)
+        assertEquals(400f * 0.72f * 0.82f, 400f * scale, 0.01f)
+    }
+}
