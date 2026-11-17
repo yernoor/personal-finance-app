@@ -47,7 +47,7 @@ data class Analysis(
 fun analysis(rows: List<TxLite>, forecast: Forecast, today: LocalDate): Analysis {
     val ranges = PeriodUnit.Month.lastRanges(today, ANALYSIS_MONTHS)
     val months = buckets(rows, ranges)
-    val projected = forecast.categories.sumOf { it.runRate }
+    val projected = forecast.projected // the same figure as the Forecast tab
     val bars = months.mapIndexed { i, b ->
         MonthBar(YearMonth.from(b.range.from), b.expense, if (i == months.lastIndex) projected else null)
     }

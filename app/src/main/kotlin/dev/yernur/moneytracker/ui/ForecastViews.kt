@@ -48,14 +48,19 @@ fun ForecastView(forecast: Forecast, categories: Map<String?, CategoryEntity>, o
             AppCard(Modifier.fillMaxWidth().testTag("forecast-overall")) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("This month, day ${forecast.daysElapsed} of ${forecast.daysInMonth}", style = MaterialTheme.typography.labelLarge)
-                    Text("On track for ${money(forecast.runRateIncluded)}", style = MaterialTheme.typography.headlineSmall)
-                    Text("Spent so far ${money(forecast.spentIncluded)}", style = MaterialTheme.typography.bodyMedium)
+                    Text("On track for ${money(forecast.projected)}", style = MaterialTheme.typography.headlineSmall)
+                    Text("Spent so far ${money(forecast.spentIncluded + forecast.oneOffSpent)}", style = MaterialTheme.typography.bodyMedium)
+                    if (forecast.oneOffSpent > 0) Text(
+                        "Includes one-offs as spent so far, not projected: ${money(forecast.oneOffSpent)}",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     Text(
                         forecast.averageIncluded?.let { "3-month average ${money(it)}" } ?: "3-month average: not enough history",
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    if (forecast.spentAll != forecast.spentIncluded) Text(
-                        "Left out of these totals: one-off categories (${money(forecast.spentAll - forecast.spentIncluded)} spent)",
+                    val never = forecast.spentAll - forecast.spentIncluded - forecast.oneOffSpent
+                    if (never > 0) Text(
+                        "Left out: categories set to Never (${money(never)} spent)",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -103,7 +108,8 @@ private fun CategoryForecastCard(row: CategoryForecast, category: CategoryEntity
                     )
                 }
             }
-            if (!row.inOverall) Text("Not in the overall figure (one-off)", style = MaterialTheme.typography.bodySmall)
+            if (row.oneOff) Text("One-off: the month's total counts only the ${money(row.spent)} spent", style = MaterialTheme.typography.bodySmall)
+            else if (!row.inOverall) Text("Not in the overall figure (set to Never)", style = MaterialTheme.typography.bodySmall)
         }
     }
 }

@@ -26,6 +26,8 @@ data class CategoryForecast(
     val threshold: Int,
     val operationsPerMonth: Double,
     val inOverall: Boolean,
+    /** An Automatic category with too few payments to project: in the overall figure only as what it has cost so far. */
+    val oneOff: Boolean,
     val warnings: Set<WarningKind>,
 )
 
@@ -41,6 +43,10 @@ data class Forecast(
     val categories: List<CategoryForecast>,
 ) {
     val warnings get() = categories.filter { it.warnings.isNotEmpty() }
+    /** What one-off categories have cost so far this month: real spending, but it will not recur, so it is not projected. */
+    val oneOffSpent get() = categories.filter { it.oneOff }.sumOf { it.spent }
+    /** The month's figure everywhere (Forecast, Trends, widget): regular categories at their pace plus one-offs as spent. Never categories are out. */
+    val projected get() = runRateIncluded + oneOffSpent
 }
 
 /** [MIN_OPERATIONS_PER_MONTH] is the owner's rule of thumb for "one-off". */
@@ -88,20 +94,22 @@ fun forecast(
         // A bill that changed (rent 140k -> 300k) is judged by its newest amount, so a 3-month mean does not flag it as a rise for three months.
         val lastMonth = previousOps.filter { YearMonth.from(LocalDate.parse(it.date)) == month.minusMonths(1) }.sumOf { it.amount }.takeIf { it > 0 }
         val average = if (fixed) lastMonth ?: mean else mean
+        val ops = if (monthsBack == 0) (current.count { it.categoryUid == uid }).toDouble() else previousOps.size.toDouble() / monthsBack
+        val threshold = category?.warnThresholdPercent ?: defaultThreshold
+        val limit = category?.limitAmount?.takeIf { it > 0 }
+        val mode = category?.projectionMode ?: ProjectionMode.Auto
+        val inOverall = when (mode) {
+            ProjectionMode.Include, ProjectionMode.Fixed -> true
+            ProjectionMode.Exclude -> false
+            ProjectionMode.Auto -> ops >= MIN_OPERATIONS_PER_MONTH
+        }
+        val oneOff = mode == ProjectionMode.Auto && !inOverall
         val runRate = when {
             fixed -> maxOf(spent, average ?: spent) // paid on day 2 or not yet: either way the month costs about one bill
             daysElapsed >= daysInMonth -> spent
             else -> divideRounded(spent * daysInMonth, daysElapsed.toLong())
         }
-        val ops = if (monthsBack == 0) (current.count { it.categoryUid == uid }).toDouble() else previousOps.size.toDouble() / monthsBack
-        val threshold = category?.warnThresholdPercent ?: defaultThreshold
-        val limit = category?.limitAmount?.takeIf { it > 0 }
-        val inOverall = when (category?.projectionMode ?: ProjectionMode.Auto) {
-            ProjectionMode.Include, ProjectionMode.Fixed -> true
-            ProjectionMode.Exclude -> false
-            ProjectionMode.Auto -> ops >= MIN_OPERATIONS_PER_MONTH
-        }
-        CategoryForecast(uid, spent, runRate, average, limit, threshold, ops, inOverall, warningsFor(limit, threshold, spent, runRate, average, daysElapsed))
+        CategoryForecast(uid, spent, runRate, average, limit, threshold, ops, inOverall, oneOff, warningsFor(limit, threshold, spent, runRate, average, daysElapsed))
     }.filter { it.spent > 0 || (it.average ?: 0) > 0 || it.limit != null }
         // Warned categories first, then the biggest.
         .sortedWith(compareByDescending<CategoryForecast> { it.warnings.isNotEmpty() }.thenByDescending { maxOf(it.runRate, it.average ?: 0) })

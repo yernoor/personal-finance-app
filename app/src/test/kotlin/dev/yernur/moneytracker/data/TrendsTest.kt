@@ -32,10 +32,11 @@ class TrendsTest {
         assertEquals(YearMonth.of(2026, 5), result.bars.first().month)
         assertEquals(YearMonth.of(2026, 10), result.bars.last().month)
         assertEquals(410_000L, result.bars.last().spent)
-        assertEquals(1_271_000L, result.bars.last().projected) // a: 10,000 / 10 * 31 = 31,000; b: 400,000 / 10 * 31 = 1,240,000
+        // a and b have about one payment a month, so both are one-offs: counted as spent (410,000), not stretched to 1,271,000
+        assertEquals(410_000L, result.bars.last().projected)
         assertNull(result.bars.first().projected)
         assertEquals(440_000L, result.average) // (100 + 90 + 680 + 670 + 660) thousand / 5
-        assertEquals(189, result.projectedChangePercent) // (1,271,000 - 440,000) / 440,000 = 188.9%
+        assertEquals(-7, result.projectedChangePercent) // (410,000 - 440,000) / 440,000 = -6.8%
     }
 
     @Test

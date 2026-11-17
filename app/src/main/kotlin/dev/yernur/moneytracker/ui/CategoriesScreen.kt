@@ -182,7 +182,7 @@ private val PROJECTION_MODES = listOf(
 
 /** What each choice does to the month's projection (data/Projection.kt), in the owner's words. */
 fun projectionModeHelp(mode: ProjectionMode): String = when (mode) {
-    ProjectionMode.Auto -> "Counted when it has at least 2 payments a month on average; rarer, one-off spending is left out of the overall figure."
+    ProjectionMode.Auto -> "Projected when it has at least 2 payments a month on average; rarer, one-off spending counts only as what it has cost so far."
     ProjectionMode.Include -> "Always counted, projected from this month's pace (spent so far ÷ days passed × days in the month)."
     ProjectionMode.Exclude -> "Left out of the overall projection and of Wealth's average monthly spending. Its own card still shows."
     ProjectionMode.Fixed -> "A bill paid about once a month, like rent or utilities: projected as last month's amount (or what is already paid, if more), and compared with last month."

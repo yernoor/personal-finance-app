@@ -39,6 +39,9 @@ Target device: Android 16 (API 36) -> `minSdk = 36` is possible; owner to confir
 - Warning when `primary > limit * threshold` (threshold default 100%, configurable globally and per category).
   Optional setting (default off): also warn when the secondary exceeds the limit. Show on the home screen and as a notification.
 - Overall projection excludes one-off categories (owner decision). Rule of thumb: fewer than 2 operations per month.
+  Changed 2026-11-18 (owner): the month's figure is one number on every screen (Forecast "On track for", the Trends dashed bar and its
+  change against the average, the widget's "on pace for"): regular categories at their pace **plus what one-offs have cost so far**
+  (real spending that will not recur, so not projected). Categories set to Never stay out entirely.
 - **Fixed monthly bill** (category setting, added 2026-11-17 for rent and utilities): projected as last month's amount (or what is already spent, if more)
   instead of the linear pace, always in the overall projection, and its trend compares against last month rather than the 3-month mean, so a changed
   bill (rent 140k -> 300k) reads as the new normal at once. Older app versions cannot read this mode from a restored backup.
