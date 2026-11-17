@@ -15,6 +15,8 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.hasText
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import dev.yernur.moneytracker.AppContainer
@@ -128,6 +130,8 @@ class RecurringFlowTest {
         openScreen()
         waitFor("move-Gym") // Gym is inside Food, next to the lunches
         compose.onNodeWithTag("move-Gym").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // under the floating bar: not a touch
+        waitFor("move-others")
+        compose.onNodeWithTag("move-others").performClick() // other categories start folded under the Keep and New tiles
         waitFor("move-to-Sport")
         compose.onNodeWithTag("move-to-Sport").performClick()
         compose.onNodeWithTag("move-go").performClick()
@@ -151,6 +155,7 @@ class RecurringFlowTest {
         compose.onNodeWithTag("manual-row-${lunch.uid}").performScrollTo().performClick() // its twin looks alike: ticked too
         compose.onNodeWithTag("manual-next").performClick()
         waitFor("manual-name")
+        compose.onNodeWithTag("manual-bill").performScrollToNode(hasText("Payments · 2")) // below the Move to tiles on the test's small screen
         compose.onNodeWithText("Payments · 2").assertIsDisplayed() // step 2's ticks, listed again as on the Move payments screen
         compose.onNodeWithText("Add bill · 2 payments", substring = true).assertIsDisplayed() // named "Lunch" from the comment, kept in Food
         compose.onNodeWithTag("manual-next").performClick()

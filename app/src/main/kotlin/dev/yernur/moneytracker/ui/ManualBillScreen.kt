@@ -169,7 +169,7 @@ private fun money(minor: Long) = Money.formatRounded(minor, DEFAULT_CURRENCY)
 
 /**
  * Recurring -> "Add a bill by hand", for a bill the detection missed (amounts that vary, a skipped month, no comment). Three steps on one
- * screen: the category, the payments, then a name and where they live. Step 3 uses the Move payments screen's pieces ([MoveToChips],
+ * screen: the category, the payments, then a name and where they live. Step 3 uses the Move payments screen's pieces ([MoveToPicker],
  * [CommentCheck], [PaymentRow]). Design: the "Manual recurring bill" canvas.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -313,7 +313,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.placeStep(vm: ManualB
     }
     item { Text("Move to", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp)) }
     item {
-        MoveToChips(
+        MoveToPicker(
             vm.name.trim().ifEmpty { "bill" }, categories.filter { it.uid != vm.source }, vm.target, onNew, { vm.target = it },
             keepLabel = source?.let { "Keep in ${it.title}" } ?: "Keep where they are", keepCategory = source,
         )

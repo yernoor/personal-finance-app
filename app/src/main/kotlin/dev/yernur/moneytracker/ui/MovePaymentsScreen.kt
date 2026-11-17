@@ -1,5 +1,14 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,7 +30,6 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import dev.yernur.moneytracker.data.AccentPalette
 import dev.yernur.moneytracker.data.Bill
 import dev.yernur.moneytracker.data.BillRepository
 import dev.yernur.moneytracker.data.DEFAULT_CURRENCY
@@ -157,7 +166,7 @@ fun MovePaymentsScreen(key: String, onNewCategory: (name: String) -> Unit, onDon
             }
             item { Text("Move to", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp)) }
             item {
-                MoveToChips(bill.item.title, categories.filter { it.uid != bill.item.categoryUid }, vm.target, { vm.expectNewCategory(); onNewCategory(bill.item.title) }, { vm.target = it })
+                MoveToPicker(bill.item.title, categories.filter { it.uid != bill.item.categoryUid }, vm.target, { vm.expectNewCategory(); onNewCategory(bill.item.title) }, { vm.target = it })
             }
             item {
                 Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -201,31 +210,57 @@ internal fun PaymentRow(row: TxFull, on: Boolean, guess: Boolean, tag: String, o
 }
 
 /**
- * Where a bill's payments go: "New: [name]" ([onNew]), then [categories]. With [keepLabel], a first chip leaves them where they are
- * (selected while [target] is null), with [keepCategory]'s icon.
+ * Where a bill's payments go. Two big tiles first: [keepLabel] (when given: leave them where they are, selected while [target] is null, with
+ * [keepCategory]'s icon) and "New: [name]" ([onNew]). The other [categories] sit in a block that expands, drawn with the add screen's
+ * [CategoryTile] (icon over its name); it opens by itself when one of them is the target (a category just made with New comes back picked).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun MoveToChips(
+internal fun MoveToPicker(
     name: String, categories: List<CategoryEntity>, target: String?, onNew: () -> Unit, onPick: (String?) -> Unit,
     keepLabel: String? = null, keepCategory: CategoryEntity? = null,
 ) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (keepLabel != null) FilterChip(
-            target == null, { onPick(null) }, { Text(keepLabel) },
-            leadingIcon = keepCategory?.let { c -> { IconBadge(c.icon, c.color, size = 24.dp) } }, modifier = Modifier.testTag("move-keep"),
-        )
-        FilterChip(
-            false, onNew, { Text("New: $name") },
-            leadingIcon = { Icon(Icons.Outlined.Add, null, Modifier.size(18.dp)) }, modifier = Modifier.testTag("move-new"),
-        )
-        categories.forEach { c ->
-            FilterChip(
-                target == c.uid, { onPick(c.uid) }, { Text(c.title) },
-                leadingIcon = { IconBadge(c.icon, c.color, size = 24.dp) },
-                modifier = Modifier.testTag("move-to-${c.title}"),
-            )
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(target) { if (target != null) expanded = true }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (keepLabel != null) BigTile(target == null, keepLabel, "move-keep", Modifier.weight(1f), { onPick(null) }) {
+                if (keepCategory != null) IconBadge(keepCategory.icon, keepCategory.color, size = 48.dp)
+                else IconBadge("other", null, size = 48.dp)
+            }
+            BigTile(false, "New: $name", "move-new", Modifier.weight(1f), onNew) { IconBadge("add", AccentPalette.KEYS.first(), size = 48.dp) }
         }
+        if (categories.isNotEmpty()) {
+            val picked = categories.firstOrNull { it.uid == target }
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { expanded = !expanded }.padding(vertical = 8.dp).testTag("move-others"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Other categories" + (picked?.let { " · ${it.title}" } ?: ""), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
+                Icon(if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, if (expanded) "Less" else "More")
+            }
+            AnimatedVisibility(expanded) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    categories.forEach { c -> Box(Modifier.testTag("move-to-${c.title}")) { CategoryTile(c, target == c.uid) { onPick(c.uid) } } }
+                }
+            }
+        }
+    }
+}
+
+/** A large choice: icon over a label, in a tinted rounded box; [selected] gets the primary outline. */
+@Composable
+private fun BigTile(selected: Boolean, label: String, tag: String, modifier: Modifier, onClick: () -> Unit, icon: @Composable () -> Unit) {
+    val shape = RoundedCornerShape(16.dp)
+    Column(
+        modifier.clip(shape)
+            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow)
+            .border(if (selected) 2.dp else 1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, shape)
+            .clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 14.dp).testTag(tag),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        icon()
+        Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 2, textAlign = TextAlign.Center)
     }
 }
 
