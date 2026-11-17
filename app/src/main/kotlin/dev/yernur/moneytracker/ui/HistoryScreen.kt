@@ -295,6 +295,13 @@ class HistoryViewModel(
 
     fun shift(by: Long) = anchor.update { unit.value.shift(it, by) }
 
+    /** One period along, but never past the one holding today; false when there is none. Checks the period now, not the one last drawn. */
+    fun step(by: Int): Boolean {
+        if (by > 0 && unit.value.rangeOf(anchor.value).to >= today()) return false
+        shift(by.toLong())
+        return true
+    }
+
     fun jumpToToday() {
         anchor.value = today()
     }
@@ -304,7 +311,9 @@ class HistoryViewModel(
     }
 
     /** Waits (briefly) until the rows of the period now picked have loaded, so they slide in with it instead of filling in after. */
-    suspend fun awaitRows() = withTimeoutOrNull(400) { state.first { it.range == unit.value.rangeOf(anchor.value) } }
+    suspend fun awaitRows() {
+        withTimeoutOrNull(400) { state.first { it.range == unit.value.rangeOf(anchor.value) } }
+    }
 }
 
 /** Open History on [unit] (the current one) showing the income side or the expenses side. */
@@ -333,22 +342,16 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
     val slices = remember(state.groups, chartIncome) { chartSlices(state.groups, chartIncome) }
     val dayFormat = DateTimeFormatter.ofPattern("EEE, MMM d")
     val swipe = rememberSwipeSteps()
-    val scope = rememberCoroutineScope()
     /** Every change of what History shows slides the same way (see [SwipeSteps]): later periods and right-hand segments come in from the right. */
-    fun slide(dir: Int, change: () -> Unit) = scope.launch { swipe.go(dir) { change(); vm.awaitRows(); true } }
-    fun step(by: Int) = if (by > 0 && range.to >= LocalDate.now()) null else slide(by) { vm.shift(by.toLong()) }
+    fun slide(dir: Int, change: () -> Unit) = swipe.go(dir, { change(); true }, vm::awaitRows)
+    fun step(by: Int) = swipe.go(by, { vm.step(by) }, vm::awaitRows)
     var calendar by remember { mutableStateOf(false) }
     if (calendar) PeriodCalendar(range.from, onDismiss = { calendar = false }) { day ->
         calendar = false
         slide(day.compareTo(range.from).coerceIn(-1, 1)) { vm.jumpTo(day) }
     }
     // A swipe steps the period: left to the next one (not past today), right to the one before.
-    Column(Modifier.fillMaxSize().swipeSteps(swipe) { by ->
-        if (by > 0 && range.to >= LocalDate.now()) return@swipeSteps false
-        vm.shift(by.toLong())
-        vm.awaitRows()
-        true
-    }) {
+    Column(Modifier.fillMaxSize().swipeSteps(swipe, ready = vm::awaitRows) { by -> vm.step(by) }) {
         val units = PeriodUnit.entries
         SlidingSegmented(
             units.map { it.name }, units.indexOf(unit), units.map { "period-${it.name}" }, { i -> slide((i - units.indexOf(unit)).coerceIn(-1, 1)) { vm.zoom(units[i]) } },
