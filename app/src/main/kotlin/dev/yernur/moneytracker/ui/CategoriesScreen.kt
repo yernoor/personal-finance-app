@@ -57,14 +57,17 @@ fun CategoriesScreen(onOpen: (uid: String) -> Unit, onNew: (TransactionType) -> 
     Scaffold(contentWindowInsets = embeddedInsets(embedded), topBar = {
         if (!embedded) AppTopBar(title = { Text("Categories") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
     }) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
-            val tabs = listOf(TransactionType.Expense, TransactionType.Income)
+        val tabs = listOf(TransactionType.Expense, TransactionType.Income)
+        val swipe = rememberSwipeSteps()
+        // Swipe or tap: Expenses and Income slide like every other switch (SwipeSteps).
+        Column(Modifier.padding(padding).fillMaxSize().swipeSteps(swipe) { by -> tabs.getOrNull(tabs.indexOf(tab) + by)?.also { tab = it } != null }) {
             SlidingSegmented(
-                listOf("Expenses", "Income"), tabs.indexOf(tab), tabs.map { "tab-$it" }, { tab = tabs[it] },
+                listOf("Expenses", "Income"), tabs.indexOf(tab), tabs.map { "tab-$it" },
+                { i -> if (tabs[i] != tab) swipe.go(i - tabs.indexOf(tab), { (tabs[i] != tab).also { tab = tabs[i] } }) },
                 Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
             FlowRow(
-                Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + LocalChromeInset.current),
+                Modifier.swipeShift(swipe).verticalScroll(rememberScrollState()).padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + LocalChromeInset.current),
                 horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 categories.filter { it.type == tab && !it.isArchived }.forEach { c -> CategoryTile(c, selected = false) { onOpen(c.uid) } }

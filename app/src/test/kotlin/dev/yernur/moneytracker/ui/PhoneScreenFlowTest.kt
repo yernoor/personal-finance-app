@@ -381,4 +381,16 @@ class PhoneScreenFlowTest {
         eventually { compose.onAllNodesWithTag("amount").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("kind-Transfer").assertIsSelected()
     }
+
+    @Test
+    fun categories_swipeBetweenExpensesAndIncome() {
+        tap("more")
+        compose.onNodeWithTag("open-categories").performScrollTo().performClick()
+        eventually { compose.onAllNodesWithTag("tab-Expense").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("tab-Expense").assertIsSelected()
+        compose.onRoot().performTouchInput { swipeLeft() }
+        eventually { runCatching { compose.onNodeWithTag("tab-Income").assertIsSelected() }.isSuccess }
+        compose.onRoot().performTouchInput { swipeRight() }
+        eventually { runCatching { compose.onNodeWithTag("tab-Expense").assertIsSelected() }.isSuccess }
+    }
 }
