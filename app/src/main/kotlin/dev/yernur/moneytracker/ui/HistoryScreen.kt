@@ -1,7 +1,6 @@
 package dev.yernur.moneytracker.ui
 
 import androidx.compose.ui.graphics.graphicsLayer
-import dev.yernur.moneytracker.data.AnimationKind
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,6 +16,13 @@ import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.SwapHoriz
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,6 +39,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -68,7 +75,9 @@ import dev.yernur.moneytracker.data.db.TransactionType
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -77,6 +86,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** One line of the history: a transaction or a transfer, already formatted. */
 data class HistoryRow(
@@ -178,6 +189,8 @@ fun groupByCategory(rows: List<HistoryRow>): List<HistoryGroup> =
     }.sortedByDescending { it.total }
 
 data class HistoryState(
+    /** The period these rows are for; null before the first load. */
+    val range: DateRange? = null,
     val rows: List<HistoryRow> = emptyList(),
     val income: Long = 0,
     val expense: Long = 0,
@@ -188,9 +201,11 @@ data class HistoryState(
 @OptIn(ExperimentalCoroutinesApi::class)
 class HistoryViewModel(
     db: AppDatabase, settings: AppSettings,
-    /** Told the shown period, so the entry form can default to it. */
-    private val onRange: (DateRange) -> Unit = {},
+    /** Told the shown period, so the entry form can default to it; null once History is closed. */
+    private val onRange: (DateRange?) -> Unit = {},
     private val today: () -> LocalDate = LocalDate::now,
+    /** Today, emitting again when the day changes (AppContainer.today). */
+    days: Flow<LocalDate> = emptyFlow(),
 ) : ViewModel() {
     /** Day, week, month or year; starts as the configured default and can be zoomed from the screen. */
     val unit = MutableStateFlow(settings.historyPeriod.value)
@@ -210,7 +225,17 @@ class HistoryViewModel(
                 anchor.value = today()
             }
         }
+        // Left open overnight: a period that showed today moves on to the new today; one picked in the past stays.
+        viewModelScope.launch {
+            var seen = today()
+            days.collect { day ->
+                if (day != seen && seen in unit.value.rangeOf(anchor.value)) anchor.value = day
+                seen = day
+            }
+        }
     }
+
+    override fun onCleared() = onRange(null)
 
     private val periodData = range.flatMapLatest { r ->
         val from = r.from.toString()
@@ -252,7 +277,7 @@ class HistoryViewModel(
             }
             val byType = transactions.groupBy { it.type }.mapValues { (_, list) -> list.sumOf { it.amountInDefaultCurrency ?: 0L } }
             HistoryState(
-                rows.sortedWith(compareByDescending<HistoryRow> { it.date }.thenByDescending { it.created }),
+                r, rows.sortedWith(compareByDescending<HistoryRow> { it.date }.thenByDescending { it.created }),
                 byType[TransactionType.Income] ?: 0, byType[TransactionType.Expense] ?: 0,
             )
         }
@@ -273,6 +298,13 @@ class HistoryViewModel(
     fun jumpToToday() {
         anchor.value = today()
     }
+
+    fun jumpTo(day: LocalDate) {
+        anchor.value = day
+    }
+
+    /** Waits (briefly) until the rows of the period now picked have loaded, so they slide in with it instead of filling in after. */
+    suspend fun awaitRows() = withTimeoutOrNull(400) { state.first { it.range == unit.value.rangeOf(anchor.value) } }
 }
 
 /** Open History on [unit] (the current one) showing the income side or the expenses side. */
@@ -280,7 +312,7 @@ data class HistoryRequest(val unit: PeriodUnit, val income: Boolean)
 
 @Composable
 fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
-    val vm = appViewModel { HistoryViewModel(it.db, it.settings, { r -> it.historyRange.value = r }) }
+    val vm = appViewModel { HistoryViewModel(it.db, it.settings, { r -> it.historyRange.value = r }, days = it.today) }
     val state by vm.state.collectAsStateWithLifecycle()
     val unit by vm.unit.collectAsStateWithLifecycle()
     val range by vm.range.collectAsStateWithLifecycle(DateRange(LocalDate.now(), LocalDate.now()))
@@ -300,33 +332,48 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
     }
     val slices = remember(state.groups, chartIncome) { chartSlices(state.groups, chartIncome) }
     val dayFormat = DateTimeFormatter.ofPattern("EEE, MMM d")
-    val cues = rememberCueTracker(unit, range.from.toEpochDay())
-    val periodFade = periodFade(unit to range)
-
-    Column(Modifier.fillMaxSize()) {
+    val swipe = rememberSwipeSteps()
+    val scope = rememberCoroutineScope()
+    /** Every change of what History shows slides the same way (see [SwipeSteps]): later periods and right-hand segments come in from the right. */
+    fun slide(dir: Int, change: () -> Unit) = scope.launch { swipe.go(dir) { change(); vm.awaitRows(); true } }
+    fun step(by: Int) = if (by > 0 && range.to >= LocalDate.now()) null else slide(by) { vm.shift(by.toLong()) }
+    var calendar by remember { mutableStateOf(false) }
+    if (calendar) PeriodCalendar(range.from, onDismiss = { calendar = false }) { day ->
+        calendar = false
+        slide(day.compareTo(range.from).coerceIn(-1, 1)) { vm.jumpTo(day) }
+    }
+    // A swipe steps the period: left to the next one (not past today), right to the one before.
+    Column(Modifier.fillMaxSize().swipeSteps(swipe) { by ->
+        if (by > 0 && range.to >= LocalDate.now()) return@swipeSteps false
+        vm.shift(by.toLong())
+        vm.awaitRows()
+        true
+    }) {
         val units = PeriodUnit.entries
         SlidingSegmented(
-            units.map { it.name }, units.indexOf(unit), units.map { "period-${it.name}" }, { vm.zoom(units[it]) },
+            units.map { it.name }, units.indexOf(unit), units.map { "period-${it.name}" }, { i -> slide((i - units.indexOf(unit)).coerceIn(-1, 1)) { vm.zoom(units[i]) } },
             Modifier.padding(horizontal = 16.dp),
         )
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton({ vm.shift(-1) }, modifier = Modifier.testTag("prev-period")) { Icon(Icons.Outlined.ChevronLeft, "Previous") }
+            IconButton({ step(-1) }, modifier = Modifier.testTag("prev-period")) { Icon(Icons.Outlined.ChevronLeft, "Previous") }
             Text(
                 periodTitle(unit, range), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f).graphicsLayer { alpha = periodFade }.clickable { vm.jumpToToday() }.testTag("period-label"), // tap to jump back to today
+                // Tap: back to today. Hold: pick a day on a calendar.
+                modifier = Modifier.weight(1f)
+                    .combinedClickable(onLongClick = { calendar = true }) { if (LocalDate.now() !in range) slide(1) { vm.jumpToToday() } }.testTag("period-label"),
             )
-            IconButton({ vm.shift(1) }, enabled = range.to < LocalDate.now(), modifier = Modifier.testTag("next-period")) { Icon(Icons.Outlined.ChevronRight, "Next") }
+            IconButton({ step(1) }, enabled = range.to < LocalDate.now(), modifier = Modifier.testTag("next-period")) { Icon(Icons.Outlined.ChevronRight, "Next") }
         }
         // Same header as Charts: period slicer, period row, then what to show underneath.
         SlidingSegmented(
-            listOf("Expenses", "Income"), if (chartIncome) 1 else 0, listOf("chart-expenses", "chart-income"), { chartIncome = it == 1 },
+            listOf("Expenses", "Income"), if (chartIncome) 1 else 0, listOf("chart-expenses", "chart-income"), { i -> if ((i == 1) != chartIncome) slide(if (i == 1) 1 else -1) { chartIncome = i == 1 } },
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
         // No +income / -expense line here (owner request 2026-11-13): the ring below already shows the chosen side's total.
         // Pinned above the list: scrolling the list shrinks the ring into the bar first (nestedScroll), so there is no toggle button.
-        HistoryChart(slices, chartIncome, collapse, cues, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        HistoryChart(slices, chartIncome, collapse, Modifier.swipeShift(swipe).padding(horizontal = 16.dp, vertical = 8.dp))
         // Bottom padding keeps the last row's amount clear of the add button.
-        LazyColumn(Modifier.weight(1f).graphicsLayer { alpha = periodFade }.nestedScroll(collapse).testTag("history-list"), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
+        LazyColumn(Modifier.weight(1f).swipeShift(swipe).nestedScroll(collapse).testTag("history-list"), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
             item(key = "search") {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(query, { vm.query.value = it }, label = { Text("Search") }, singleLine = true, modifier = Modifier.weight(1f).testTag("search"))
@@ -464,4 +511,23 @@ private fun TransferLine(row: HistoryRow, onOpen: (uid: String, isTransfer: Bool
         Spacer(Modifier.weight(1f))
         Text(row.amount, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
     }
+}
+
+/** Picks the day History jumps to (it keeps the zoom: a week view shows that day's week). Days after today cannot be picked. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PeriodCalendar(shown: LocalDate, onDismiss: () -> Unit, onPick: (LocalDate) -> Unit) {
+    val utc = java.time.ZoneOffset.UTC
+    val todayMillis = LocalDate.now().atStartOfDay().toInstant(utc).toEpochMilli()
+    val state = rememberDatePickerState(
+        initialSelectedDateMillis = shown.atStartOfDay().toInstant(utc).toEpochMilli(),
+        selectableDates = object : SelectableDates { override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis <= todayMillis },
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton({ state.selectedDateMillis?.let { onPick(java.time.Instant.ofEpochMilli(it).atZone(utc).toLocalDate()) } ?: onDismiss() }, Modifier.testTag("calendar-ok")) { Text("Show") }
+        },
+        dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
+    ) { DatePicker(state, Modifier.testTag("period-calendar")) }
 }

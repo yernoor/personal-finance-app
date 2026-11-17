@@ -1,6 +1,5 @@
 package dev.yernur.moneytracker.ui
 
-import dev.yernur.moneytracker.data.AnimationKind
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.EnterExitState
@@ -18,6 +17,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.runtime.SideEffect
@@ -167,6 +167,13 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     }
     CrashPrompt(onReport = { nav.navigate("feedback/crash") })
     val container = LocalAppContainer.current
+    LaunchedEffect(container) { // open past midnight: screens move on to the new day (coming back to the app does the same, in MainActivity.onStart)
+        while (true) {
+            val now = java.time.LocalDateTime.now()
+            delay(java.time.Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay()).toMillis() + 1_000)
+            container.refreshToday()
+        }
+    }
     val settings = container.settings
     val tabIds by settings.navTabs.collectAsStateWithLifecycle()
     val tabs = tabIds.mapNotNull { id -> NavTab.entries.firstOrNull { it.id == id } }
@@ -188,10 +195,14 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     /** +1 when going to a tab further right in the bar, -1 to one further left. */
     fun tabDirection(from: NavBackStackEntry, to: NavBackStackEntry) =
         if (tabs.indexOfFirst { it.id == to.destination.route } >= tabs.indexOfFirst { it.id == from.destination.route }) 1 else -1
+    fun isTabSwap(from: NavBackStackEntry, to: NavBackStackEntry) = isTab(from) && isTab(to)
+    // Tab to tab, whether the nav library calls it a push or a pop (back to the first tab is a pop): a full-width slide the way the bar goes.
+    fun tabIn(from: NavBackStackEntry, to: NavBackStackEntry) = slideInHorizontally(tween(MOVE_MS, easing = slideEasing)) { it * tabDirection(from, to) }
+    fun tabOut(from: NavBackStackEntry, to: NavBackStackEntry) = slideOutHorizontally(tween(MOVE_MS, easing = slideEasing)) { -it * tabDirection(from, to) }
 
     val glass by settings.glass.collectAsStateWithLifecycle()
-    val animationsOff by settings.animationsOff.collectAsStateWithLifecycle()
-    val slides = AnimationKind.Screens !in animationsOff // off: screens just fade, so a swap is still there but nothing travels
+    val reduceMotion by settings.reduceMotion.collectAsStateWithLifecycle()
+    val slides = !reduceMotion // reduced: screens just fade, so a swap is still there but nothing travels
     val scheme = MaterialTheme.colorScheme
     val darkTheme = isDarkSurface()
     val glow = remember(scheme.surface, scheme.primary, darkTheme) { Glow.of(scheme.surface, scheme.primary, darkTheme) }
@@ -204,7 +215,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
 
     GlassScaffoldTheme(glass) {
     CompositionLocalProvider(
-        LocalAnimationsOff provides animationsOff, LocalGlass provides glass, LocalGlow provides (if (glass) glow else null), LocalChromeInset provides if (tab != null) GlassBarInset else 0.dp,
+        LocalReduceMotion provides reduceMotion, LocalGlass provides glass, LocalGlow provides (if (glass) glow else null), LocalChromeInset provides if (tab != null) GlassBarInset else 0.dp,
         LocalIconStyle provides if (glass) glassIconSetting else iconSetting, // glass allows only glass-style icons
         LocalAccentHue provides accentHue,
     ) {
@@ -265,12 +276,11 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             nav, startDestination = startRoute,
             // With glass the content runs under the floating bar (so there is something to blur); otherwise the bar owns that strip.
             modifier = if (glass) Modifier.layerBackdrop(backdrop) else Modifier,
-            // Between two tabs: both move the way you are going (right of the current tab slides in from the right) while fading, so it
-            // feels like the swipe. The add screen grows out of the add button. Into any other screen: slide forward while fading.
+            // Between two tabs: both move the way you are going (right of the current tab slides in from the right), like a pager. The add screen grows out of the add button. Into any other screen: slide forward while fading.
             enterTransition = {
                 when {
                     !slides -> fadeIn(tween(FADE_MS))
-                    isTab(initialState) && isTab(targetState) -> slideInHorizontally(tween(MOVE_MS, easing = slideEasing)) { it / 5 * tabDirection(initialState, targetState) } + fadeIn(tween(FADE_MS))
+                    isTabSwap(initialState, targetState) -> tabIn(initialState, targetState)
                     isAdd(targetState) -> scaleIn(tween(GROW_MS, easing = slideEasing), initialScale = 0.15f, transformOrigin = ADD_ORIGIN) + fadeIn(tween(FADE_MS))
                     else -> slideInHorizontally(tween(MOVE_MS, easing = slideEasing)) { it / 6 } + fadeIn(tween(MOVE_MS))
                 }
@@ -278,23 +288,25 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             exitTransition = {
                 when {
                     !slides -> fadeOut(tween(FADE_MS))
-                    isTab(initialState) && isTab(targetState) -> slideOutHorizontally(tween(MOVE_MS, easing = slideEasing)) { -it / 5 * tabDirection(initialState, targetState) } + fadeOut(tween(FADE_MS))
+                    isTabSwap(initialState, targetState) -> tabOut(initialState, targetState)
                     isAdd(targetState) -> scaleOut(tween(GROW_MS, easing = slideEasing), targetScale = 0.96f) + fadeOut(tween(FADE_MS))
                     else -> slideOutHorizontally(tween(MOVE_MS, easing = slideEasing)) { -it / 6 } + fadeOut(tween(MOVE_MS))
                 }
             },
             popEnterTransition = { // back (swipe or button), tabs included: opaque slides, a fade shows through the leaving screen
                 if (!slides) fadeIn(tween(FADE_MS))
+                else if (isTabSwap(initialState, targetState)) tabIn(initialState, targetState)
                 else if (isAdd(initialState)) scaleIn(tween(GROW_MS, easing = slideEasing), initialScale = 0.96f) + fadeIn(tween(FADE_MS))
                 else slideInHorizontally(tween(MOVE_MS, easing = slideEasing)) { -it / 6 }
             },
             popExitTransition = {
                 if (!slides) fadeOut(tween(FADE_MS))
+                else if (isTabSwap(initialState, targetState)) tabOut(initialState, targetState)
                 else if (isAdd(initialState)) scaleOut(tween(GROW_MS, easing = slideEasing), targetScale = 0.15f, transformOrigin = ADD_ORIGIN) + fadeOut(tween(MOVE_MS))
                 else slideOutHorizontally(tween(MOVE_MS, easing = slideEasing)) { it }
             },
             // The swipe gesture has its own defaults (scale down and fade, which shows the screen below through the one leaving): same slides as the button.
-            predictivePopEnterTransition = { slideInHorizontally { -it / 6 } },
+            predictivePopEnterTransition = { if (isTabSwap(initialState, targetState)) slideInHorizontally { -it } else slideInHorizontally { -it / 6 } },
             predictivePopExitTransition = { slideOutHorizontally { it } },
         ) {
             screen("home") { HomeScreen { request -> container.historyRequest.value = request; nav.navigateTop("history") } }
@@ -395,10 +407,10 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     }
 }
 
+/** To a tab. The tab left behind is dropped with its state (picked date, page, sub-tab), so coming back opens it fresh on today. */
 private fun NavHostController.navigateTop(route: String) = navigate(route) {
-    popUpTo(graph.findStartDestination().id) { saveState = true }
+    popUpTo(graph.findStartDestination().id)
     launchSingleTop = true
-    restoreState = true
 }
 
 /** A destination with its own opaque background, so the screen underneath never shows through while a back swipe slides this one away. */

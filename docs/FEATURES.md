@@ -39,6 +39,9 @@ Target device: Android 16 (API 36) -> `minSdk = 36` is possible; owner to confir
 - Warning when `primary > limit * threshold` (threshold default 100%, configurable globally and per category).
   Optional setting (default off): also warn when the secondary exceeds the limit. Show on the home screen and as a notification.
 - Overall projection excludes one-off categories (owner decision). Rule of thumb: fewer than 2 operations per month.
+- **Fixed monthly bill** (category setting, added 2026-11-17 for rent and utilities): projected as last month's amount (or what is already spent, if more)
+  instead of the linear pace, always in the overall projection, and its trend compares against last month rather than the 3-month mean, so a changed
+  bill (rent 140k -> 300k) reads as the new normal at once. Older app versions cannot read this mode from a restored backup.
   Implement as a computed default (a category with <2 operations per month on average over the trailing 3 full months
   is excluded) plus a per-category manual override. Excluded categories still get their own per-category projection.
   Exact averaging window is my assumption; owner to confirm.
@@ -391,7 +394,11 @@ BUILT and unit-tested; looked at on the emulator, not yet on the phone.
 
 ## Session 2026-11-11 (owner requests; unit tests and debug build pass, checked on the emulator: keyboard and screen close together, History totals roll on a period switch)
 - More is grouped into collapsible sections (Appearance, Animations, Home and History, Notifications, Automation, Privacy and security, Data and sync, About); one group is open at a time.
-- More -> Animations: one switch each for count up on opening, roll on change, chart draw-in, period switch and screen transitions (all on by default). A balance change within 1.5 s of the amount first showing counts as the data loading, not as a change.
+- More -> Appearance -> Reduce motion (animations simplified 2026-11-17, owner request: the effects were too many and inconsistent): one rule, **a change of what a screen shows slides**
+  (swipe, arrows and selector taps alike: out the way you go, in from the other side; Charts slides its bars one slot instead). No count up, no chart
+  draw-in, no morphs, fades or nudges on period changes. Balances still roll after an entry is added or edited. One **Reduce motion** switch turns slides
+  into quick fades and stops the rolling (it starts on if screen transitions had been switched off under the old five switches). A balance change within
+  1.5 s of the amount first showing counts as the data loading, not as a change.
 - Add screen: the keyboard closes in the same moment the screen shrinks away; the bottom bar keeps its height meanwhile.
 - Period switch (History ring and collapsed bar, Charts bars): slices and bars glide to the new shares, totals roll, a bigger unit pulls the chart back, a smaller one pushes in, the arrows nudge it sideways. Not checked frame by frame; only a mid-motion screenshot of the totals was taken.
 - These three changes were committed one each, but the docs for all three are in the last one.

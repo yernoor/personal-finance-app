@@ -30,7 +30,10 @@ import dev.yernur.moneytracker.data.wealth.FxRepository
 import dev.yernur.moneytracker.data.wealth.NbkRatesClient
 import dev.yernur.moneytracker.data.wealth.WealthRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -58,7 +61,13 @@ class AppContainer(
     /** Turns demo mode on or off; the app restarts on the other database. A no-op in tests. */
     val switchDemoMode: (Boolean) -> Unit = {},
 ) {
-    /** The period History is showing; a new entry defaults to its date. Null until History has been opened. */
+    private val dayTicks = kotlinx.coroutines.flow.MutableStateFlow(0)
+    /** Today, re-read whenever a screen starts watching and on each [refreshToday]: a screen left open overnight moves on to the new day. */
+    val today: kotlinx.coroutines.flow.Flow<LocalDate> = dayTicks.map { LocalDate.now() }.distinctUntilChanged()
+    /** Called when the app comes to the front and at midnight. */
+    fun refreshToday() = dayTicks.update { it + 1 }
+
+    /** The period History is showing; a new entry defaults to its date. Null while History is not open. */
     val historyRange = kotlinx.coroutines.flow.MutableStateFlow<dev.yernur.moneytracker.data.DateRange?>(null)
     /** A tap on a Home total asks History to open on that side (income or expenses) of the current period; History clears it once it has acted. */
     val historyRequest = kotlinx.coroutines.flow.MutableStateFlow<dev.yernur.moneytracker.ui.HistoryRequest?>(null)
@@ -67,7 +76,7 @@ class AppContainer(
         historyRange.value?.let { if (today in it) today else it.to } ?: today
 
     val importer = ImportRepository(db)
-    val forecasts = ForecastRepository(db, settings)
+    val forecasts = ForecastRepository(db, settings, today)
     val lock = AppLock(settings)
     val fx = FxRepository(db, settings, fxClient)
     val ledger = LedgerRepository(db, allRates = { fx.allRates.first() })

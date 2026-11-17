@@ -1,6 +1,13 @@
 package dev.yernur.moneytracker.ui
 
-import dev.yernur.moneytracker.data.AnimationKind
+import kotlinx.coroutines.withTimeoutOrNull
+
+import kotlinx.coroutines.flow.first
+
+import kotlinx.coroutines.launch
+
+import androidx.compose.runtime.rememberCoroutineScope
+
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.outlined.ExpandLess
@@ -62,7 +69,9 @@ import dev.yernur.moneytracker.data.shift
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -85,15 +94,28 @@ private fun barCount(unit: PeriodUnit) = when (unit) {
     PeriodUnit.Year -> 3
 }
 
+/**
+ * A swipe on Charts moves the selected bar one bucket ([by] +1 = newer, -1 = older) given [page] (0 = window ends today) and [selected]
+ * (index in a window of [count] bars, oldest first). The selection walks towards the middle first; from there the window slides along
+ * under it, so the bars already shown keep their place. Returns the new (page, selected), or null at the present.
+ */
+internal fun chartStep(page: Int, selected: Int, count: Int, by: Int): Pair<Int, Int>? {
+    val back = page + (count - 1 - selected) - by // buckets between the selected one and the newest
+    if (back < 0) return null
+    val newPage = (back - (count - 1 - count / 2)).coerceAtLeast(0)
+    return newPage to count - 1 - (back - newPage)
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
-class ChartsViewModel(db: AppDatabase, private val today: LocalDate = LocalDate.now()) : ViewModel() {
+/** [days] is today, emitting again when the day changes (AppContainer.today). */
+class ChartsViewModel(db: AppDatabase, days: Flow<LocalDate> = flowOf(LocalDate.now())) : ViewModel() {
     var tab by mutableStateOf(ChartTab.General)
     var selected by mutableIntStateOf(-1) // -1 = the newest bar
     val unit = MutableStateFlow(PeriodUnit.Month)
     /** 0 = the window ending today; each step moves the window back by one period (one month, one year, ...). */
     val page = MutableStateFlow(0)
 
-    val data: StateFlow<ChartData?> = combine(unit, page) { u, p -> u to p }.flatMapLatest { (u, p) ->
+    val data: StateFlow<ChartData?> = combine(unit, page, days) { u, p, today -> Triple(u, p, today) }.flatMapLatest { (u, p, today) ->
         val ranges = u.lastRanges(u.shift(today, -p.toLong()), barCount(u))
         val from = ranges.first().from.toString()
         val to = ranges.last().to.toString()
@@ -114,6 +136,15 @@ class ChartsViewModel(db: AppDatabase, private val today: LocalDate = LocalDate.
         unit.value = to
     }
 
+    /** See [chartStep]. */
+    fun step(by: Int): Boolean {
+        val count = barCount(unit.value)
+        val (newPage, newSelected) = chartStep(page.value, if (selected in 0 until count) selected else count - 1, count, by) ?: return false
+        selected = newSelected
+        page.value = newPage
+        return true
+    }
+
     fun turnPage(by: Int) {
         selected = -1
         page.value = (page.value + by).coerceAtLeast(0)
@@ -123,25 +154,31 @@ class ChartsViewModel(db: AppDatabase, private val today: LocalDate = LocalDate.
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ChartsScreen(onOpenTransaction: (String) -> Unit = {}) {
-    val vm = appViewModel { ChartsViewModel(it.db) }
+    val vm = appViewModel { ChartsViewModel(it.db, it.today) }
     val data by vm.data.collectAsStateWithLifecycle()
     val unit by vm.unit.collectAsStateWithLifecycle()
     val page by vm.page.collectAsStateWithLifecycle()
     val cues = rememberCueTracker(unit, -page.toLong()) // older pages are further from the present
-    val periodFade = periodFade(unit to page)
+    val swipe = rememberSwipeSteps()
+    val scope = rememberCoroutineScope()
+    /** A new zoom or chart tab slides in like any other change of what is shown; stepping along the bars slides the bars themselves. */
+    fun slide(dir: Int, change: () -> Unit) = scope.launch {
+        swipe.go(dir) { change(); withTimeoutOrNull(400) { vm.data.first { it?.unit == vm.unit.value } }; true }
+    }
 
-    Column(Modifier.fillMaxSize()) {
+    // A swipe moves the selected bar (left: newer, right: older); the bars slide along by themselves, so the screen does not move.
+    Column(Modifier.fillMaxSize().swipeSteps(swipe, travel = false) { by -> vm.step(by) }) {
         // Same header as History: the period slicer on top, then what to show underneath.
         run {
             val units = listOf(PeriodUnit.Day, PeriodUnit.Week, PeriodUnit.Month, PeriodUnit.Year)
             SlidingSegmented(
-                units.map { it.name }, units.indexOf(unit), units.map { "zoom-${it.name}" }, { vm.zoom(units[it]) },
+                units.map { it.name }, units.indexOf(unit), units.map { "zoom-${it.name}" }, { i -> slide((i - units.indexOf(unit)).coerceIn(-1, 1)) { vm.zoom(units[i]) } },
                 Modifier.padding(horizontal = 16.dp),
             )
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton({ vm.turnPage(1) }, modifier = Modifier.testTag("chart-older")) { Icon(Icons.Outlined.ChevronLeft, "Older") }
                 Text(
-                    data?.let { windowTitle(it) }.orEmpty(), Modifier.weight(1f).graphicsLayer { alpha = periodFade }, textAlign = TextAlign.Center,
+                    data?.let { windowTitle(it) }.orEmpty(), Modifier.weight(1f), textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.titleMedium,
                 )
                 IconButton({ vm.turnPage(-1) }, enabled = page > 0, modifier = Modifier.testTag("chart-newer")) { Icon(Icons.Outlined.ChevronRight, "Newer") }
@@ -149,10 +186,10 @@ fun ChartsScreen(onOpenTransaction: (String) -> Unit = {}) {
         }
         val tabs = ChartTab.entries
         SlidingSegmented(
-            tabs.map { it.label }, tabs.indexOf(vm.tab), tabs.map { "chart-tab-${it.name}" }, { vm.tab = tabs[it] },
+            tabs.map { it.label }, tabs.indexOf(vm.tab), tabs.map { "chart-tab-${it.name}" }, { i -> slide((i - tabs.indexOf(vm.tab)).coerceIn(-1, 1)) { vm.tab = tabs[i] } },
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.swipeShift(swipe).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             data?.let { chart -> ChartBody(chart, vm.tab, cues, vm.selected, onSelect = { vm.selected = it }, onOpenTransaction) }
             Spacer(Modifier.height(LocalChromeInset.current))
         }
@@ -191,7 +228,7 @@ private fun ChartBody(chart: ChartData, tab: ChartTab, cues: CueTracker, selecte
             }
         }
     }
-    BarChart(groups, chart.buckets.map { label(chart.unit, it.range) }, selected, onSelect, tab, cues)
+    BarChart(groups, chart.buckets.map { label(chart.unit, it.range) }, selected, onSelect, cues)
 
     val bucket = chart.buckets[selected]
     Text(periodTitle(chart.unit, bucket.range), style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("bucket-title"))
@@ -225,7 +262,7 @@ private fun AmountRow(label: String, amount: Long, color: Color) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.size(12.dp).clip(CircleShape).background(color))
         Text(label, Modifier.weight(1f))
-        RollingMoney(amount, { Money.format(it, DEFAULT_CURRENCY) }, changeKind = AnimationKind.PeriodSwitch)
+        RollingMoney(amount, { Money.format(it, DEFAULT_CURRENCY) }, roll = false) // follows the picked bar, not an edit
     }
 }
 

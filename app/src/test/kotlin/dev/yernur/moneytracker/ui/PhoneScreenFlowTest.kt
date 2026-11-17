@@ -21,6 +21,8 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.swipe
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performScrollTo
@@ -177,13 +179,44 @@ class PhoneScreenFlowTest {
     }
 
     @Test
-    fun swipingLeftAndRight_movesBetweenTabs() {
+    fun swipingOnHome_movesToTheNextTab_andOnHistory_stepsTheDay() {
         waitForText("Home") // starts on the first tab
         compose.onRoot().performTouchInput { swipeLeft() }
-        waitForText(periodTitle(PeriodUnit.Day, PeriodUnit.Day.rangeOf(today))) // History
+        waitForText(periodTitle(PeriodUnit.Day, PeriodUnit.Day.rangeOf(today))) // History, on today
+        compose.onRoot().performTouchInput { swipeRight() } // History has its own selector: a swipe steps the day, it does not leave the tab
+        waitForText(periodTitle(PeriodUnit.Day, PeriodUnit.Day.rangeOf(today.minusDays(1))))
+        compose.onRoot().performTouchInput { swipeLeft() }
+        waitForText(periodTitle(PeriodUnit.Day, PeriodUnit.Day.rangeOf(today)))
+        compose.onRoot().performTouchInput { swipeLeft() } // not past today
+        waitForText(periodTitle(PeriodUnit.Day, PeriodUnit.Day.rangeOf(today)))
+        compose.onNodeWithTag("tab-history").assertIsSelected()
+    }
+
+    @Test
+    fun accounts_swipeBetweenInTotalAndHidden() {
+        tap("tab-accounts")
+        compose.onNodeWithTag("accounts-shown").assertIsSelected()
+        compose.onRoot().performTouchInput { swipeLeft() }
+        compose.onNodeWithTag("accounts-hidden").assertIsSelected()
         compose.onRoot().performTouchInput { swipeRight() }
-        compose.onNodeWithTag("more").assertExists()
-        waitForText("Balance") // back on Home
+        compose.onNodeWithTag("accounts-shown").assertIsSelected()
+    }
+
+    @Test
+    fun holdingThePeriodLabel_opensACalendar() {
+        tap("tab-history")
+        compose.onNodeWithTag("period-label").performTouchInput { longClick() }
+        compose.onNodeWithTag("period-calendar").assertExists()
+    }
+
+    @Test
+    fun slidingAlongTheNavbar_opensEachTabItCrosses() {
+        waitForText("Balance")
+        val tabs = dev.yernur.moneytracker.data.AppSettings().navTabs.value
+        compose.onNodeWithTag("tab-bar").performTouchInput { swipe(centerLeft, centerRight, 600) }
+        compose.onNodeWithTag("tab-${tabs.last()}").assertIsSelected()
+        compose.onNodeWithTag("tab-bar").performTouchInput { swipe(centerRight, centerLeft, 600) }
+        compose.onNodeWithTag("tab-${tabs.first()}").assertIsSelected()
     }
 
     @Test

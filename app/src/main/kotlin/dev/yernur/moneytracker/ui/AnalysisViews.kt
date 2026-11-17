@@ -1,6 +1,9 @@
 package dev.yernur.moneytracker.ui
 
-import dev.yernur.moneytracker.data.AnimationKind
+import kotlinx.coroutines.launch
+
+import androidx.compose.runtime.rememberCoroutineScope
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -67,22 +70,28 @@ import dev.yernur.moneytracker.data.lastRanges
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
 private fun money(minor: Long) = Money.formatRounded(minor, DEFAULT_CURRENCY)
 
-class AnalysisViewModel(db: AppDatabase, forecasts: ForecastRepository, today: LocalDate = LocalDate.now()) : ViewModel() {
-    val state: StateFlow<Pair<Analysis, Map<String?, CategoryEntity>>?> = run {
+/** [days] is today, emitting again when the day changes (AppContainer.today). */
+@OptIn(ExperimentalCoroutinesApi::class)
+class AnalysisViewModel(db: AppDatabase, forecasts: ForecastRepository, days: Flow<LocalDate> = flowOf(LocalDate.now())) : ViewModel() {
+    val state: StateFlow<Pair<Analysis, Map<String?, CategoryEntity>>?> = days.flatMapLatest { today ->
         val ranges = PeriodUnit.Month.lastRanges(today, dev.yernur.moneytracker.data.ANALYSIS_MONTHS)
         combine(
             db.transactionDao().observeLite(ranges.first().from.toString(), today.toString()), forecasts.observe(), db.categoryDao().observeAll(),
         ) { rows, forecast, categories ->
             analysis(rows, forecast, today) to categories.associateBy<CategoryEntity, String?> { it.uid }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-    }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     val forecast: StateFlow<Forecast?> = forecasts.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }
 
@@ -92,23 +101,28 @@ enum class AnalysisTab(val label: String) { Trends("Trends"), Forecast("Forecast
 @Composable
 fun AnalysisScreen(onOpenCategory: (String) -> Unit, onOpenTrend: (String) -> Unit, onOpenRecurring: () -> Unit) {
     var tab by rememberSaveable { mutableStateOf(AnalysisTab.Trends) }
-    val vm = appViewModel { AnalysisViewModel(it.db, it.forecasts) }
+    val vm = appViewModel { AnalysisViewModel(it.db, it.forecasts, it.today) }
     val forecast by vm.forecast.collectAsStateWithLifecycle()
     val categories = vm.state.collectAsStateWithLifecycle().value?.second.orEmpty()
-    Column(Modifier.fillMaxSize()) {
+    val swipe = rememberSwipeSteps()
+    val scope = rememberCoroutineScope()
+    Column(Modifier.fillMaxSize().swipeSteps(swipe) { by -> AnalysisTab.entries.getOrNull(tab.ordinal + by)?.let { tab = it } != null }) {
         SlidingSegmented(
-            AnalysisTab.entries.map { it.label }, tab.ordinal, AnalysisTab.entries.map { "analysis-tab-${it.name}" }, { tab = AnalysisTab.entries[it] },
+            AnalysisTab.entries.map { it.label }, tab.ordinal, AnalysisTab.entries.map { "analysis-tab-${it.name}" },
+            { i -> if (i != tab.ordinal) scope.launch { swipe.go(i - tab.ordinal) { tab = AnalysisTab.entries[i]; true } } },
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
-        if (tab == AnalysisTab.Forecast) forecast?.let { ForecastView(it, categories, onOpenCategory) }
-        else AnalysisView(onOpenTrend, onOpenRecurring)
+        androidx.compose.foundation.layout.Box(Modifier.weight(1f).swipeShift(swipe)) {
+            if (tab == AnalysisTab.Forecast) forecast?.let { ForecastView(it, categories, onOpenCategory) }
+            else AnalysisView(onOpenTrend, onOpenRecurring)
+        }
     }
 }
 
 /** Six months of spending, what stands out, and every category's trend. */
 @Composable
 private fun AnalysisView(onOpenCategory: (String) -> Unit, onOpenRecurring: () -> Unit) {
-    val vm = appViewModel { AnalysisViewModel(it.db, it.forecasts) }
+    val vm = appViewModel { AnalysisViewModel(it.db, it.forecasts, it.today) }
     val state by vm.state.collectAsStateWithLifecycle()
     val (analysis, categories) = state ?: return
     Column(
@@ -118,7 +132,7 @@ private fun AnalysisView(onOpenCategory: (String) -> Unit, onOpenRecurring: () -
         MonthlyCard(analysis)
         if (analysis.insights.isNotEmpty()) InsightsCard(analysis.insights, categories)
         Text("Category trends", style = MaterialTheme.typography.titleMedium)
-        Text("Change is this month's pace against the 3-month average.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Change is this month's pace against the 3-month average (last month for fixed bills).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         analysis.categories.forEach { TrendRow(it, categories[it.categoryUid], onOpenCategory) }
         AppCard(Modifier.fillMaxWidth().clickable(onClick = onOpenRecurring).testTag("open-recurring")) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -162,31 +176,22 @@ private fun MonthlyBars(bars: List<MonthBar>, average: Long?) {
     val bar = MaterialTheme.colorScheme.primary
     val line = MaterialTheme.colorScheme.onSurface
     val summary = bars.joinToString("; ") { "${it.month}: ${money(it.projected ?: it.spent)}" }
-    // The bars grow up from the bottom, one after the other, whenever the Analysis tab opens or its data changes
-    val drawIn = animated(AnimationKind.Charts)
-    val grow = remember { Animatable(if (drawIn) 0f else 1f) }
-    LaunchedEffect(bars) {
-        if (!drawIn) return@LaunchedEffect
-        grow.snapTo(0f)
-        grow.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
-    }
     Canvas(Modifier.fillMaxWidth().height(140.dp).semantics { contentDescription = "Monthly expenses. $summary" }) {
         val top = maxOf(bars.maxOf { maxOf(it.spent, it.projected ?: 0) }, average ?: 0, 1L).toFloat()
         val slot = size.width / bars.size
         val width = slot * 0.6f
         val dash = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
-        fun height(value: Long, progress: Float = 1f) = size.height * value / top * progress
+        fun height(value: Long) = size.height * value / top
         bars.forEachIndexed { i, b ->
-            val progress = staggered(grow.value, i, bars.size)
             val x = slot * i + (slot - width) / 2
             if (b.projected != null) {
-                drawRoundRect(bar, Offset(x, size.height - height(b.projected, progress)), Size(width, height(b.projected, progress)), CornerRadius(6f), style = Stroke(2.dp.toPx(), pathEffect = dash))
+                drawRoundRect(bar, Offset(x, size.height - height(b.projected)), Size(width, height(b.projected)), CornerRadius(6f), style = Stroke(2.dp.toPx(), pathEffect = dash))
             }
-            drawRoundRect(bar, Offset(x, size.height - height(b.spent, progress)), Size(width, height(b.spent, progress)), CornerRadius(6f))
+            drawRoundRect(bar, Offset(x, size.height - height(b.spent)), Size(width, height(b.spent)), CornerRadius(6f))
         }
         if (average != null) {
             val y = size.height - height(average)
-            drawLine(line.copy(alpha = grow.value), Offset(0f, y), Offset(size.width, y), strokeWidth = 1.5.dp.toPx(), pathEffect = dash)
+            drawLine(line, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.5.dp.toPx(), pathEffect = dash)
         }
     }
 }

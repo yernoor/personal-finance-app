@@ -48,6 +48,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 
 data class HomeWarning(val title: String, val text: String)
@@ -78,15 +79,16 @@ class HomeViewModel(
     forecasts: ForecastRepository,
     settings: AppSettings,
     rates: Flow<Map<Pair<String, String>, Double>>,
-    private val today: () -> LocalDate = LocalDate::now,
+    /** Today, emitting again when the day changes (AppContainer.today). */
+    days: Flow<LocalDate> = flowOf(LocalDate.now()),
 ) : ViewModel() {
     private val summary = combine(db.accountDao().observeLive(), db.accountDao().observeBalances(), rates) { accounts, balances, rateTable ->
         summarize(accounts, balances.associate { it.uid to it.balance }, rateTable)
     }
 
     /** Totals and the biggest spending categories for the configured period (a month unless the owner changed it). */
-    private val period = settings.homeTotalsPeriod.flatMapLatest { unit ->
-        val range = unit.rangeOf(today())
+    private val period = combine(settings.homeTotalsPeriod, days) { unit, day -> unit to day }.flatMapLatest { (unit, day) ->
+        val range = unit.rangeOf(day)
         combine(db.transactionDao().observeLite(range.from.toString(), range.to.toString()), db.categoryDao().observeAll()) { rows, categories ->
             val byUid = categories.associateBy { it.uid }
             val expenses = rows.filter { it.type == TransactionType.Expense }
@@ -126,7 +128,7 @@ class HomeViewModel(
 @Composable
 fun HomeScreen(onOpenHistory: (HistoryRequest) -> Unit = {}) {
     val container = LocalAppContainer.current
-    val vm = appViewModel { HomeViewModel(it.db, it.forecasts, it.settings, it.fx.allRates) }
+    val vm = appViewModel { HomeViewModel(it.db, it.forecasts, it.settings, it.fx.allRates, it.today) }
     val state by vm.state.collectAsStateWithLifecycle()
     val cards by container.settings.homeCards.collectAsStateWithLifecycle()
     val showAll by container.settings.showAllAccounts.collectAsStateWithLifecycle()

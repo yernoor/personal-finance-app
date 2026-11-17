@@ -13,7 +13,8 @@ import androidx.room.PrimaryKey
 enum class TransactionType { Income, Expense }
 
 /** Whether a category counts toward the overall spending projection: Auto = by the "fewer than 2 operations a month" rule. */
-enum class ProjectionMode { Auto, Include, Exclude }
+/** Fixed: a bill paid about once a month (rent, utilities); it is projected as last month's amount, not stretched from the days so far. */
+enum class ProjectionMode { Auto, Include, Exclude, Fixed }
 
 @Entity(tableName = "account")
 data class AccountEntity(

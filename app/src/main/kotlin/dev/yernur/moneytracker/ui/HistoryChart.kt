@@ -1,6 +1,8 @@
 package dev.yernur.moneytracker.ui
 
-import androidx.compose.animation.core.Animatable
+
+import androidx.compose.ui.text.rememberTextMeasurer
+
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
@@ -22,7 +24,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -46,7 +47,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
-import dev.yernur.moneytracker.data.AnimationKind
 import dev.yernur.moneytracker.data.DEFAULT_CURRENCY
 import dev.yernur.moneytracker.data.Money
 import kotlin.math.roundToInt
@@ -64,30 +64,16 @@ fun chartSlices(groups: List<HistoryGroup>, income: Boolean): List<ChartSlice> {
     return shown.map { ChartSlice(it.title, it.iconColor, it.total, it.total.toFloat() / total) }
 }
 
-/** One slice as drawn: where it starts on the 0..1 circle or bar, and how wide it is. [key] ties a category in one period to the same one in the next. */
-data class Span(val key: String, val colorKey: Int?, val start: Float, val width: Float)
+/** One slice as drawn: where it starts on the 0..1 circle or bar, and how wide it is. */
+data class Span(val colorKey: Int?, val start: Float, val width: Float)
 
 /** What the chart draws: the slices, the total in the middle, and which side (expenses or income) they belong to. */
 data class ChartShape(val spans: List<Span>, val total: Long, val income: Boolean)
 
 fun chartShape(slices: List<ChartSlice>, income: Boolean): ChartShape {
     var at = 0f
-    val spans = slices.map { s -> Span("${s.title}|${s.colorKey}", s.colorKey, at, s.fraction).also { at += s.fraction } }
+    val spans = slices.map { s -> Span(s.colorKey, at, s.fraction).also { at += s.fraction } }
     return ChartShape(spans, slices.sumOf { it.amount }, income)
-}
-
-/** The same categories keep their color and slide and resize into their new shares; ones the new period lacks shrink away, new ones grow in. */
-fun blendShape(a: ChartShape, b: ChartShape, t: Float): ChartShape {
-    val spans = (b.spans.map { it.key } + a.spans.map { it.key }).distinct().map { key ->
-        val from = a.spans.firstOrNull { it.key == key }
-        val to = b.spans.firstOrNull { it.key == key }
-        when {
-            from != null && to != null -> Span(key, to.colorKey, lerp(from.start, to.start, t), lerp(from.width, to.width, t))
-            from != null -> Span(key, from.colorKey, from.start, lerp(from.width, 0f, t))
-            else -> Span(key, to!!.colorKey, to.start, lerp(0f, to.width, t))
-        }
-    }
-    return ChartShape(spans, rolled(a.total, b.total, t), b.income)
 }
 
 private const val COLLAPSED_DP = 46f
@@ -150,22 +136,13 @@ fun HistoryChart(
     slices: List<ChartSlice>,
     income: Boolean,
     collapse: ChartCollapse,
-    cues: CueTracker,
     modifier: Modifier = Modifier,
 ) {
     val f = collapse.fraction
     val total = Money.format(slices.sumOf { it.amount }, DEFAULT_CURRENCY)
     val summary = (if (income) "Income " else "Expenses ") + total + slices.joinToString("") { ", ${it.title} ${it.percent}%" }
-    // A new period (or an edit) glides from the old shares to the new; switching between expenses and income redraws instead (drawInProgress).
-    val target = remember(slices, income) { chartShape(slices, income) }
-    val morph = remember { Morph(target, ::blendShape) }
-    val glide = animated(AnimationKind.PeriodSwitch)
-    LaunchedEffect(target) {
-        morph.moveTo(target, animate = glide && target.income == morph.target.income && target.spans.isNotEmpty() && morph.target.spans.isNotEmpty(), newCue = cues.consume())
-    }
-    val shape = morph.shown
+    val shape = remember(slices, income) { chartShape(slices, income) } // a new period or side arrives with the screen's slide: no morph of its own
     val shownTotal = Money.format(shape.total, DEFAULT_CURRENCY)
-    val drawn = drawInProgress(income)
     val expanded = expandedDp(LocalConfiguration.current.screenHeightDp)
     AppCard(modifier.fillMaxWidth().testTag("history-chart")) {
         Column(Modifier.padding(12.dp)) {
@@ -174,64 +151,67 @@ fun HistoryChart(
                 return@Column
             }
             Box(
-                Modifier.fillMaxWidth().height(lerp(expanded, COLLAPSED_DP, f).dp).clipToBounds().periodCue(morph.cue) { morph.progress.value }.semantics { contentDescription = summary },
+                Modifier.fillMaxWidth().height(lerp(expanded, COLLAPSED_DP, f).dp).clipToBounds().semantics { contentDescription = summary },
                 contentAlignment = Alignment.TopCenter,
             ) {
-                if (f < 1f) Ring(shape.spans, shownTotal, drawn, expanded - RING_MARGIN_DP, Modifier.graphicsLayer {
+                if (f < 1f) Ring(shape.spans, shownTotal, expanded - RING_MARGIN_DP, Modifier.graphicsLayer {
                     // fades and lifts away while the bar takes over
                     alpha = (1f - f * 1.6f).coerceIn(0f, 1f)
                     translationY = -f * 60.dp.toPx()
                 })
-                if (f > 0f) Box(Modifier.align(Alignment.Center).graphicsLayer { alpha = ((f - 0.4f) * 1.7f).coerceIn(0f, 1f) }) { Bar(shape.spans, shownTotal, drawn) }
+                if (f > 0f) Box(Modifier.align(Alignment.Center).graphicsLayer { alpha = ((f - 0.4f) * 1.7f).coerceIn(0f, 1f) }) { Bar(shape.spans, shownTotal) }
             }
         }
     }
 }
 
-/** 0 -> 1 when the chart first shows and when switching between expenses and income (not when scrolled between ring and bar). */
 @Composable
-private fun drawInProgress(income: Boolean): Float {
-    val drawIn = animated(AnimationKind.Charts)
-    val progress = remember { Animatable(if (drawIn) 0f else 1f) }
-    LaunchedEffect(income) { // not on every data edit: adding an entry should not make the chart redraw from zero
-        if (!drawIn) return@LaunchedEffect
-        progress.snapTo(0f)
-        progress.animateTo(1f, tween(650, easing = FastOutSlowInEasing))
-    }
-    return progress.value
-}
-
-@Composable
-private fun Bar(spans: List<Span>, total: String, drawn: Float) {
+private fun Bar(spans: List<Span>, total: String) {
     val colors = spans.map { themedColor(it.colorKey) }
     Column(Modifier.fillMaxWidth().testTag("history-chart-bar"), horizontalAlignment = Alignment.CenterHorizontally) {
         Canvas(Modifier.fillMaxWidth().height(14.dp).clip(RoundedCornerShape(7.dp))) {
-            val reach = size.width * drawn // grows from the left, proportions unchanged
             spans.forEachIndexed { i, span ->
-                if (span.width > 0.002f) drawRect(colors[i], Offset(span.start * reach, 0f), Size(span.width * reach, size.height))
+                if (span.width > 0.002f) drawRect(colors[i], Offset(span.start * size.width, 0f), Size(span.width * size.width, size.height))
             }
         }
         Text(total, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
+/** Ring stroke as a share of the ring's size; the hole is what is left. */
+private const val RING_STROKE = 0.14f
+/** The total may use this share of the hole's width, so it clears the ring's inner edge with a little air. */
+private const val HOLE_FILL = 0.82f
+
+/** How much to shrink text [textWidth] wide so it fits the hole of a ring [ringSize] across (1 = it fits as it is). */
+internal fun ringTextScale(textWidth: Float, ringSize: Float): Float {
+    val room = ringSize * (1f - 2 * RING_STROKE) * HOLE_FILL
+    return if (textWidth <= room) 1f else room / textWidth
+}
+
+/** The total is shrunk to fit the ring's hole (see [ringTextScale]). */
 @Composable
-private fun Ring(spans: List<Span>, total: String, drawn: Float, sizeDp: Float, modifier: Modifier) {
+private fun Ring(spans: List<Span>, total: String, sizeDp: Float, modifier: Modifier) {
     val colors = spans.map { themedColor(it.colorKey) }
+    val style = MaterialTheme.typography.headlineSmall
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val scale = remember(total, sizeDp, style, density) {
+        ringTextScale(measurer.measure(total, style, softWrap = false, maxLines = 1).size.width.toFloat(), with(density) { sizeDp.dp.toPx() })
+    }
     Box(modifier.size(sizeDp.dp).testTag("history-chart-ring"), contentAlignment = Alignment.Center) {
         Canvas(Modifier.size(sizeDp.dp)) {
-            val stroke = size.minDimension * 0.14f
+            val stroke = size.minDimension * RING_STROKE
             val gap = if (spans.size > 1) 1.5f else 0f // a hairline between neighbours so equal colors do not merge
             spans.forEachIndexed { i, span ->
-                val shown = (drawn - span.start).coerceIn(0f, span.width) // sweeps clockwise from the top as the chart draws in
-                if (shown > 0.002f) {
+                if (span.width > 0.002f) {
                     drawArc(
-                        colors[i], -90f + 360f * span.start + gap / 2, (360f * shown - gap).coerceAtLeast(0.5f), useCenter = false,
+                        colors[i], -90f + 360f * span.start + gap / 2, (360f * span.width - gap).coerceAtLeast(0.5f), useCenter = false,
                         topLeft = Offset(stroke / 2, stroke / 2), size = Size(size.width - stroke, size.height - stroke), style = Stroke(stroke),
                     )
                 }
             }
         }
-        Text(total, style = MaterialTheme.typography.headlineSmall)
+        Text(total, style = style.copy(fontSize = style.fontSize * scale), maxLines = 1, softWrap = false, modifier = Modifier.testTag("history-chart-total"))
     }
 }

@@ -34,6 +34,20 @@ class ForecastTest {
     }
 
     @Test
+    fun fixedBill_isLastMonthsAmount_notStretchedFromTheDaysSoFar() {
+        val rent = category("rent", mode = ProjectionMode.Fixed)
+        // Rent went from 140,000 to 300,000 in September.
+        val history = listOf(expense("2026-07-02", "rent", 140_000), expense("2026-08-02", "rent", 140_000), expense("2026-09-02", "rent", 300_000))
+        val unpaid = run(history, listOf(rent)).categories.single()
+        assertEquals(300_000L, unpaid.runRate) // not paid yet this month: still expected
+        assertEquals(300_000L, unpaid.average) // judged against the new rent, not the 193,333 mean
+        assertTrue(unpaid.inOverall) // one payment a month is not a one-off for a fixed bill
+
+        val paid = run(history + expense("2026-10-02", "rent", 300_000), listOf(rent)).categories.single()
+        assertEquals(300_000L, paid.runRate) // a linear pace would say 300,000 / 10 * 31 = 930,000
+    }
+
+    @Test
     fun runRateWarning_waitsForTenDaysOfData() {
         val rows = listOf(expense("2026-10-02", "a", 60_000)) // pace: 60,000 / 3 * 31 = 620,000, far over the 100,000 limit
         val early = forecast(rows, listOf(category("a", limit = 100_000)), LocalDate.of(2026, 10, 3), longAgo, 100)

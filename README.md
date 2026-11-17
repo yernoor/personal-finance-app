@@ -85,7 +85,7 @@ Your data lives in a local database on the phone; the optional Google Sheet is a
 - Updates from GitHub releases inside the app, with release notes; the app saves a copy of your data first.
 
 **Look and feel**
-- Material 3 with the system accent color and dark mode, Inter type, a floating bottom bar, original icon artwork in several styles, customizable bottom bar and Home cards, swipe between tabs, per-effect animation switches, optional "liquid glass" look.
+- Material 3 with the system accent color and dark mode, Inter type, a floating bottom bar, original icon artwork in several styles, customizable bottom bar and Home cards, swipe between tabs, one consistent slide motion (with a Reduce motion switch), optional "liquid glass" look.
 - **Demo mode** (More → About): a separate database of made-up data, handy for screenshots or showing the app; your real data is never opened.
 - **Report a bug or suggest a feature** (More → App): opens a pre-filled GitHub issue in the browser; the app sends nothing itself.
 

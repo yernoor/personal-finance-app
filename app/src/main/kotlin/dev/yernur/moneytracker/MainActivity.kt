@@ -81,6 +81,7 @@ class MainActivity : FragmentActivity() {
     override fun onStart() {
         super.onStart()
         (application as MoneyApp).container.lock.onForeground()
+        (application as MoneyApp).container.refreshToday() // back after a night in memory: screens move on to today
     }
 
     /** Android 13+ needs a runtime grant before limit warnings can notify; ask on the first launch only. */

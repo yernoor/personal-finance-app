@@ -149,7 +149,7 @@ fun CategoryEditScreen(uid: String?, type: TransactionType, onBack: () -> Unit) 
                 )
                 Text("In the overall projection", style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(ProjectionMode.Auto to "Automatic", ProjectionMode.Include to "Always", ProjectionMode.Exclude to "Never").forEach { (m, label) ->
+                    listOf(ProjectionMode.Auto to "Automatic", ProjectionMode.Include to "Always", ProjectionMode.Exclude to "Never", ProjectionMode.Fixed to "Fixed monthly bill").forEach { (m, label) ->
                         FilterChip(vm.mode == m, { vm.mode = m }, label = { Text(label) }, modifier = Modifier.testTag("mode-$m"))
                     }
                 }
