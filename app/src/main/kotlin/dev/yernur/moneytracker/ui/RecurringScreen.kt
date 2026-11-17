@@ -131,7 +131,7 @@ fun RecurringScreen(onMove: (key: String) -> Unit = {}) {
             s.bills.forEach { bill ->
                 BillCard(
                     bill,
-                    onFixed = { scope.launch { container.bills.setFixed(bill, !bill.fixed) } },
+                    onFixed = { scope.launch { container.bills.toggleFixed(bill) } },
                     onReminder = { reminderFor = bill }, onEnd = { endFor = bill }, onMove = { onMove(bill.key) },
                 )
             }

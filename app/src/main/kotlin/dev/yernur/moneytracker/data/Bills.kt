@@ -17,6 +17,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.sync.withLock
 
 /** A detected recurring bill with what the owner set for it. */
 data class Bill(
@@ -107,10 +108,14 @@ class BillRepository(
         db.transactionDao().getFull(from(today), today.toString()), db.reminderDao().getLive(), db.categoryDao().getAll(), db.billDao().getAll(), today,
     )
 
-    /** Fixed monthly bill on, or back to Automatic. */
-    suspend fun setFixed(bill: Bill, fixed: Boolean) {
-        val category = bill.category ?: return
-        ledger.saveCategory(category.copy(projectionMode = if (fixed) ProjectionMode.Fixed else ProjectionMode.Auto))
+    /**
+     * Fixed monthly bill on, or back to Automatic, flipping what is saved now: a second tap before the card redrew must undo the first,
+     * not repeat it (seen as a flaky test on CI).
+     */
+    suspend fun toggleFixed(bill: Bill) = fixedLock.withLock {
+        val category = bill.category?.uid?.let { db.categoryDao().get(it) } ?: return
+        val fixed = category.projectionMode == ProjectionMode.Fixed
+        ledger.saveCategory(category.copy(projectionMode = if (fixed) ProjectionMode.Auto else ProjectionMode.Fixed))
     }
 
     suspend fun saveReminder(bill: Bill, daysBefore: Int, minuteOfDay: Int) =
@@ -148,6 +153,8 @@ class BillRepository(
 
     suspend fun moveCandidates(bill: Bill): MoveCandidates =
         moveCandidates(bill.item, bill.item.categoryUid?.let { db.transactionDao().getFullInCategory(it) }.orEmpty())
+
+    private val fixedLock = kotlinx.coroutines.sync.Mutex() // taps take turns: each reads what the one before saved
 
     /** The last move, until undone or dismissed: the Recurring page offers Undo for it after the move screen closes. */
     val lastMove = kotlinx.coroutines.flow.MutableStateFlow<MoveDone?>(null)
