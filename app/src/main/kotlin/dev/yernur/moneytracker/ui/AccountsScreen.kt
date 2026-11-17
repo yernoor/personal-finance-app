@@ -84,7 +84,6 @@ fun AccountsScreen(onOpen: (String) -> Unit, onNew: () -> Unit, onNewTransfer: (
     val state by vm.state.collectAsStateWithLifecycle()
     var hidden by remember { mutableStateOf(false) } // which list: counted in the Total, or hidden from it
     val swipe = rememberSwipeSteps()
-    val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize().swipeSteps(swipe) { by -> (by > 0 != hidden).also { if (it) hidden = by > 0 } }) {
         Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Total", style = MaterialTheme.typography.labelLarge)
@@ -102,7 +101,7 @@ fun AccountsScreen(onOpen: (String) -> Unit, onNew: () -> Unit, onNewTransfer: (
             }
         }
         SlidingSegmented(
-            listOf("In total", "Hidden"), if (hidden) 1 else 0, listOf("accounts-shown", "accounts-hidden"), { i -> if ((i == 1) != hidden) scope.launch { swipe.go(if (i == 1) 1 else -1) { hidden = i == 1; true } } },
+            listOf("In total", "Hidden"), if (hidden) 1 else 0, listOf("accounts-shown", "accounts-hidden"), { i -> if ((i == 1) != hidden) swipe.go(if (i == 1) 1 else -1, { ((i == 1) != hidden).also { hidden = i == 1 } }) },
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
         LazyColumn(Modifier.weight(1f).swipeShift(swipe), contentPadding = PaddingValues(bottom = LocalChromeInset.current)) {

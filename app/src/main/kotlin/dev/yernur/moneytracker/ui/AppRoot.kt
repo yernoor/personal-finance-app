@@ -389,10 +389,10 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 enter = slideInVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeIn(tween(FADE_MS)),
                 exit = slideOutVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeOut(tween(FADE_MS)),
             ) { FloatingTabBar(tabs, lastTab, onSelect = { nav.navigateTop(it.id) }, backdrop = glassBackdrop) }
-            val addMenu = remember { mutableStateOf(false) }
+            val addMenu = remember { AddMenuState() }
             val addShown = tab?.id == "home" || tab?.id == "history"
-            if (glass && addMenu.value && addShown) GlassAddMenu(backdrop, bottom = navInset + 88.dp + 60.dp + 12.dp, end = 16.dp, onDismiss = { addMenu.value = false }) {
-                addMenu.value = false
+            if (glass && addMenu.open && addShown) GlassAddMenu(backdrop, addMenu, bottom = navInset + 88.dp + 60.dp + 12.dp, end = 16.dp, onDismiss = { addMenu.open = false }) {
+                addMenu.open = false
                 nav.navigate(entryRoute(kind = it))
             }
             AnimatedVisibility(
@@ -407,10 +407,16 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     }
 }
 
-/** To a tab. The tab left behind is dropped with its state (picked date, page, sub-tab), so coming back opens it fresh on today. */
-private fun NavHostController.navigateTop(route: String) = navigate(route) {
-    popUpTo(graph.findStartDestination().id)
-    launchSingleTop = true
+/**
+ * To a tab. The tab left behind is dropped with its state (picked date, page, sub-tab), so coming back opens it fresh on today.
+ * Already there: nothing (re-tapping the open tab used to rebuild it and replay the slide in).
+ */
+private fun NavHostController.navigateTop(route: String) {
+    if (currentDestination?.route == route) return
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id)
+        launchSingleTop = true
+    }
 }
 
 /** A destination with its own opaque background, so the screen underneath never shows through while a back swipe slides this one away. */

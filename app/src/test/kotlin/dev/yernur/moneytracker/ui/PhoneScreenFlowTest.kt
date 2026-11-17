@@ -364,4 +364,53 @@ class PhoneScreenFlowTest {
         eventually { compose.onAllNodesWithTag("amount").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("kind-Income").assertIsSelected()
     }
+
+    @Test
+    fun holdingAdd_andSlidingOntoAPill_opensThatKindOnRelease() {
+        container.settings.setGlass(true) // glass draws the pills in the app's window, where the test can find them
+        compose.waitForIdle()
+        val add = compose.onNodeWithTag("add").fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithTag("add").performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(800) // held past the long press: the menu opens under the finger
+        compose.waitForIdle()
+        val pill = compose.onNodeWithTag("add-Transfer").fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithTag("add").performTouchInput {
+            moveTo(center + (pill.center - add.center)) // still the same finger, now over Transfer
+            up()
+        }
+        eventually { compose.onAllNodesWithTag("amount").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("kind-Transfer").assertIsSelected()
+    }
+
+    @Test
+    fun addScreen_swipesBetweenExpenseIncomeAndTransfer() {
+        tap("add")
+        eventually { compose.onAllNodesWithTag("amount").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("kind-Expense").assertIsSelected()
+        // Across the "Date" label row: the account and date rows scroll sideways themselves and keep a swipe that starts on them.
+        fun swipe(toLeft: Boolean) = compose.onRoot().performTouchInput {
+            val y = compose.onNodeWithText("Date").fetchSemanticsNode().boundsInRoot.center.y // moves: Transfer has more rows above it
+            val (from, to) = if (toLeft) right - 20f to left + 20f else left + 20f to right - 20f
+            swipe(androidx.compose.ui.geometry.Offset(from, y), androidx.compose.ui.geometry.Offset(to, y), 200)
+        }
+        swipe(toLeft = true)
+        eventually { runCatching { compose.onNodeWithTag("kind-Income").assertIsSelected() }.isSuccess }
+        swipe(toLeft = true)
+        eventually { runCatching { compose.onNodeWithTag("kind-Transfer").assertIsSelected() }.isSuccess }
+        swipe(toLeft = true) // nothing past Transfer
+        swipe(toLeft = false)
+        eventually { runCatching { compose.onNodeWithTag("kind-Income").assertIsSelected() }.isSuccess }
+    }
+
+    @Test
+    fun categories_swipeBetweenExpensesAndIncome() {
+        tap("more")
+        compose.onNodeWithTag("open-categories").performScrollTo().performClick()
+        eventually { compose.onAllNodesWithTag("tab-Expense").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("tab-Expense").assertIsSelected()
+        compose.onRoot().performTouchInput { swipeLeft() }
+        eventually { runCatching { compose.onNodeWithTag("tab-Income").assertIsSelected() }.isSuccess }
+        compose.onRoot().performTouchInput { swipeRight() }
+        eventually { runCatching { compose.onNodeWithTag("tab-Expense").assertIsSelected() }.isSuccess }
+    }
 }

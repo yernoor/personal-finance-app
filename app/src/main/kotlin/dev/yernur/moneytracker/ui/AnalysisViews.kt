@@ -1,6 +1,5 @@
 package dev.yernur.moneytracker.ui
 
-import kotlinx.coroutines.launch
 
 import androidx.compose.runtime.rememberCoroutineScope
 
@@ -105,11 +104,10 @@ fun AnalysisScreen(onOpenCategory: (String) -> Unit, onOpenTrend: (String) -> Un
     val forecast by vm.forecast.collectAsStateWithLifecycle()
     val categories = vm.state.collectAsStateWithLifecycle().value?.second.orEmpty()
     val swipe = rememberSwipeSteps()
-    val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize().swipeSteps(swipe) { by -> AnalysisTab.entries.getOrNull(tab.ordinal + by)?.let { tab = it } != null }) {
         SlidingSegmented(
             AnalysisTab.entries.map { it.label }, tab.ordinal, AnalysisTab.entries.map { "analysis-tab-${it.name}" },
-            { i -> if (i != tab.ordinal) scope.launch { swipe.go(i - tab.ordinal) { tab = AnalysisTab.entries[i]; true } } },
+            { i -> if (i != tab.ordinal) swipe.go(i - tab.ordinal, { (tab != AnalysisTab.entries[i]).also { tab = AnalysisTab.entries[i] } }) },
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
         androidx.compose.foundation.layout.Box(Modifier.weight(1f).swipeShift(swipe)) {

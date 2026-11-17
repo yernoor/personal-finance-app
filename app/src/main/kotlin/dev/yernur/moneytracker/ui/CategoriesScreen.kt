@@ -57,14 +57,17 @@ fun CategoriesScreen(onOpen: (uid: String) -> Unit, onNew: (TransactionType) -> 
     Scaffold(contentWindowInsets = embeddedInsets(embedded), topBar = {
         if (!embedded) AppTopBar(title = { Text("Categories") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
     }) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
-            val tabs = listOf(TransactionType.Expense, TransactionType.Income)
+        val tabs = listOf(TransactionType.Expense, TransactionType.Income)
+        val swipe = rememberSwipeSteps()
+        // Swipe or tap: Expenses and Income slide like every other switch (SwipeSteps).
+        Column(Modifier.padding(padding).fillMaxSize().swipeSteps(swipe) { by -> tabs.getOrNull(tabs.indexOf(tab) + by)?.also { tab = it } != null }) {
             SlidingSegmented(
-                listOf("Expenses", "Income"), tabs.indexOf(tab), tabs.map { "tab-$it" }, { tab = tabs[it] },
+                listOf("Expenses", "Income"), tabs.indexOf(tab), tabs.map { "tab-$it" },
+                { i -> if (tabs[i] != tab) swipe.go(i - tabs.indexOf(tab), { (tabs[i] != tab).also { tab = tabs[i] } }) },
                 Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
             FlowRow(
-                Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + LocalChromeInset.current),
+                Modifier.swipeShift(swipe).verticalScroll(rememberScrollState()).padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + LocalChromeInset.current),
                 horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 categories.filter { it.type == tab && !it.isArchived }.forEach { c -> CategoryTile(c, selected = false) { onOpen(c.uid) } }
@@ -149,10 +152,14 @@ fun CategoryEditScreen(uid: String?, type: TransactionType, onBack: () -> Unit) 
                 )
                 Text("In the overall projection", style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(ProjectionMode.Auto to "Automatic", ProjectionMode.Include to "Always", ProjectionMode.Exclude to "Never", ProjectionMode.Fixed to "Fixed monthly bill").forEach { (m, label) ->
+                    PROJECTION_MODES.forEach { (m, label) ->
                         FilterChip(vm.mode == m, { vm.mode = m }, label = { Text(label) }, modifier = Modifier.testTag("mode-$m"))
                     }
                 }
+                Text(
+                    projectionModeHelp(vm.mode), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("mode-help"),
+                )
             }
             Text("Icon", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -167,4 +174,16 @@ fun CategoryEditScreen(uid: String?, type: TransactionType, onBack: () -> Unit) 
     if (confirmDelete) ConfirmDialog("Delete this category? Existing entries keep it.", "Delete", { confirmDelete = false }) {
         confirmDelete = false; vm.delete(onBack)
     }
+}
+
+private val PROJECTION_MODES = listOf(
+    ProjectionMode.Auto to "Automatic", ProjectionMode.Include to "Always", ProjectionMode.Exclude to "Never", ProjectionMode.Fixed to "Fixed monthly bill",
+)
+
+/** What each choice does to the month's projection (data/Projection.kt), in the owner's words. */
+fun projectionModeHelp(mode: ProjectionMode): String = when (mode) {
+    ProjectionMode.Auto -> "Counted when it has at least 2 payments a month on average; rarer, one-off spending is left out of the overall figure."
+    ProjectionMode.Include -> "Always counted, projected from this month's pace (spent so far ÷ days passed × days in the month)."
+    ProjectionMode.Exclude -> "Left out of the overall projection and of Wealth's average monthly spending. Its own card still shows."
+    ProjectionMode.Fixed -> "A bill paid about once a month, like rent or utilities: projected as last month's amount (or what is already paid, if more), and compared with last month."
 }

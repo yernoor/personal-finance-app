@@ -160,10 +160,9 @@ fun ChartsScreen(onOpenTransaction: (String) -> Unit = {}) {
     val page by vm.page.collectAsStateWithLifecycle()
     val cues = rememberCueTracker(unit, -page.toLong()) // older pages are further from the present
     val swipe = rememberSwipeSteps()
-    val scope = rememberCoroutineScope()
     /** A new zoom or chart tab slides in like any other change of what is shown; stepping along the bars slides the bars themselves. */
-    fun slide(dir: Int, change: () -> Unit) = scope.launch {
-        swipe.go(dir) { change(); withTimeoutOrNull(400) { vm.data.first { it?.unit == vm.unit.value } }; true }
+    fun slide(dir: Int, change: () -> Unit) = swipe.go(dir, { change(); true }) {
+        withTimeoutOrNull(400) { vm.data.first { it?.unit == vm.unit.value } }
     }
 
     // A swipe moves the selected bar (left: newer, right: older); the bars slide along by themselves, so the screen does not move.
