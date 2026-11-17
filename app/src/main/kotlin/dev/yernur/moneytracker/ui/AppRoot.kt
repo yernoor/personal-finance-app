@@ -318,6 +318,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             screen("analysis") {
                 AnalysisScreen(
                     onOpenTrend = { nav.navigate("trend/$it") }, onMove = { nav.navigate("move/${android.net.Uri.encode(it)}") },
+                    onAddBill = { nav.navigate("recurring/add") },
                     onAffordDetails = { price -> nav.navigate("afford?price=${android.net.Uri.encode(price)}") },
                 )
             }
@@ -394,6 +395,12 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             screen(MOVE, arguments = listOf(navArgument("key") { type = NavType.StringType })) { entry ->
                 MovePaymentsScreen(
                     android.net.Uri.decode(entry.arguments?.getString("key").orEmpty()),
+                    onNewCategory = { name -> nav.navigate("category/new?type=Expense&title=${android.net.Uri.encode(name)}") },
+                    onDone = { nav.popBackStack() },
+                )
+            }
+            screen("recurring/add") {
+                ManualBillScreen(
                     onNewCategory = { name -> nav.navigate("category/new?type=Expense&title=${android.net.Uri.encode(name)}") },
                     onDone = { nav.popBackStack() },
                 )

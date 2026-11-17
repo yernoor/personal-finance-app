@@ -318,6 +318,12 @@ stored its own tab choice keeps it: add Analysis in More -> Navigation bar.
   consecutive months, within 20% of the median, averaging at most 3 payments a month (so Groceries is not a bill); not listed again when a comment
   item already covers that category at a similar amount. Each item offers **Make it a fixed bill** (sets its category's projection to Fixed monthly
   bill) or shows "Fixed bill ✓". Still not built: Add reminder (reminders never notify yet), and an end date for installments (needs a new column).
+  Added 2026-11-18 (owner): **Add a bill by hand** (card under the detected bills; design: the "Manual recurring bill" canvas) for a bill the rules
+  miss. Three steps: a category (fewest payments a month first, or all categories), its payments of the last 8 months (ticking the first also
+  ticks look-alikes: amount within 20%, day within 3), then a name and where they live (the Move payments screen's chips and comment box).
+  Saved as a `bill` row with `manual = 1` (DB v8): listed from its payments with no run or steadiness rule, next payment rolled past today.
+  Found by the comment (set on all ticked payments, replacing others) or, without it, by the category they moved to. Undo removes it again.
+  Not built: removing a hand-added bill later (set an end instead), editing its payments.
 - Duplicate: same type, account, category, account-currency amount and date, created within 10 minutes of each other. Keep both / delete the second (soft delete through the ledger).
 
 ## Other / unverified, decide later

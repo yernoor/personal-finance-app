@@ -108,7 +108,7 @@ enum class AnalysisTab(val label: String) { Overview("Overview"), Recurring("Rec
  * one average.
  */
 @Composable
-fun AnalysisScreen(onOpenTrend: (String) -> Unit, onMove: (key: String) -> Unit, onAffordDetails: (price: String) -> Unit = {}) {
+fun AnalysisScreen(onOpenTrend: (String) -> Unit, onMove: (key: String) -> Unit, onAddBill: () -> Unit = {}, onAffordDetails: (price: String) -> Unit = {}) {
     var tab by rememberSaveable { mutableStateOf(AnalysisTab.Overview) }
     val swipe = rememberSwipeSteps()
     val container = LocalAppContainer.current
@@ -124,7 +124,7 @@ fun AnalysisScreen(onOpenTrend: (String) -> Unit, onMove: (key: String) -> Unit,
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
         androidx.compose.foundation.layout.Box(Modifier.weight(1f).swipeShift(swipe)) {
-            if (tab == AnalysisTab.Recurring) RecurringScreen(onMove)
+            if (tab == AnalysisTab.Recurring) RecurringScreen(onMove, onAddBill)
             else OverviewView(onOpenTrend, onAffordDetails)
         }
     }

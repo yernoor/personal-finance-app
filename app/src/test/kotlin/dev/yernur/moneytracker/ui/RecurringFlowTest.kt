@@ -139,6 +139,25 @@ class RecurringFlowTest {
     }
 
     @Test
+    fun addingABillByHand_listsIt() {
+        val lunch = runBlocking { db.transactionDao().getAll() }.first { it.comment == "Lunch" }
+        openScreen()
+        waitFor("recurring-add")
+        compose.onNodeWithTag("recurring-add").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // under the floating bar: not a touch
+        waitFor("manual-cat-Food")
+        compose.onNodeWithTag("manual-cat-Food").performClick()
+        compose.onNodeWithTag("manual-next").performClick()
+        waitFor("manual-row-${lunch.uid}")
+        compose.onNodeWithTag("manual-row-${lunch.uid}").performScrollTo().performClick() // its twin looks alike: ticked too
+        compose.onNodeWithTag("manual-next").performClick()
+        waitFor("manual-name")
+        compose.onNodeWithText("Add bill", substring = true).assertIsDisplayed() // named "Lunch" from the comment, kept in Food
+        compose.onNodeWithTag("manual-next").performClick()
+        waitFor("recurring-Lunch")
+        assertTrue(runBlocking { db.billDao().get("comment:lunch") }!!.manual)
+    }
+
+    @Test
     fun aBillReminder_showsInNotifications_andTheBinDeletesIt_withUndo() {
         val gym = runBlocking { container.bills.current(today) }.single { it.item.title == "Gym" }
         runBlocking { container.bills.saveReminder(gym, 1, 10 * 60) }

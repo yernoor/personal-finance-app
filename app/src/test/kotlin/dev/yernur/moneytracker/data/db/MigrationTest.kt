@@ -70,6 +70,13 @@ class MigrationTest {
         assertEquals("0", v7.scalar("SELECT COUNT(*) FROM bill"))
     }
 
+    @Test
+    fun migrate7To8_marksExistingBillsAsDetected() {
+        helper.createDatabase(DB, 7).use { it.execSQL("INSERT INTO bill VALUES ('comment:gym', 'Gym', NULL, 100, 0, 0, 1, 600, NULL, 0, NULL)") }
+        val v8 = helper.runMigrationsAndValidate(DB, 8, true, MIGRATION_7_8)
+        assertEquals("0", v8.scalar("SELECT manual FROM bill"))
+    }
+
     private companion object {
         const val DB = "migration-test"
     }
