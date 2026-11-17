@@ -67,22 +67,28 @@ import dev.yernur.moneytracker.data.lastRanges
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
 private fun money(minor: Long) = Money.formatRounded(minor, DEFAULT_CURRENCY)
 
-class AnalysisViewModel(db: AppDatabase, forecasts: ForecastRepository, today: LocalDate = LocalDate.now()) : ViewModel() {
-    val state: StateFlow<Pair<Analysis, Map<String?, CategoryEntity>>?> = run {
+/** [days] is today, emitting again when the day changes (AppContainer.today). */
+@OptIn(ExperimentalCoroutinesApi::class)
+class AnalysisViewModel(db: AppDatabase, forecasts: ForecastRepository, days: Flow<LocalDate> = flowOf(LocalDate.now())) : ViewModel() {
+    val state: StateFlow<Pair<Analysis, Map<String?, CategoryEntity>>?> = days.flatMapLatest { today ->
         val ranges = PeriodUnit.Month.lastRanges(today, dev.yernur.moneytracker.data.ANALYSIS_MONTHS)
         combine(
             db.transactionDao().observeLite(ranges.first().from.toString(), today.toString()), forecasts.observe(), db.categoryDao().observeAll(),
         ) { rows, forecast, categories ->
             analysis(rows, forecast, today) to categories.associateBy<CategoryEntity, String?> { it.uid }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-    }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     val forecast: StateFlow<Forecast?> = forecasts.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }
 
@@ -92,7 +98,7 @@ enum class AnalysisTab(val label: String) { Trends("Trends"), Forecast("Forecast
 @Composable
 fun AnalysisScreen(onOpenCategory: (String) -> Unit, onOpenTrend: (String) -> Unit, onOpenRecurring: () -> Unit) {
     var tab by rememberSaveable { mutableStateOf(AnalysisTab.Trends) }
-    val vm = appViewModel { AnalysisViewModel(it.db, it.forecasts) }
+    val vm = appViewModel { AnalysisViewModel(it.db, it.forecasts, it.today) }
     val forecast by vm.forecast.collectAsStateWithLifecycle()
     val categories = vm.state.collectAsStateWithLifecycle().value?.second.orEmpty()
     Column(Modifier.fillMaxSize()) {
@@ -108,7 +114,7 @@ fun AnalysisScreen(onOpenCategory: (String) -> Unit, onOpenTrend: (String) -> Un
 /** Six months of spending, what stands out, and every category's trend. */
 @Composable
 private fun AnalysisView(onOpenCategory: (String) -> Unit, onOpenRecurring: () -> Unit) {
-    val vm = appViewModel { AnalysisViewModel(it.db, it.forecasts) }
+    val vm = appViewModel { AnalysisViewModel(it.db, it.forecasts, it.today) }
     val state by vm.state.collectAsStateWithLifecycle()
     val (analysis, categories) = state ?: return
     Column(

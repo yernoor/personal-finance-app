@@ -18,6 +18,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.runtime.SideEffect
@@ -167,6 +168,13 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     }
     CrashPrompt(onReport = { nav.navigate("feedback/crash") })
     val container = LocalAppContainer.current
+    LaunchedEffect(container) { // open past midnight: screens move on to the new day (coming back to the app does the same, in MainActivity.onStart)
+        while (true) {
+            val now = java.time.LocalDateTime.now()
+            delay(java.time.Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay()).toMillis() + 1_000)
+            container.refreshToday()
+        }
+    }
     val settings = container.settings
     val tabIds by settings.navTabs.collectAsStateWithLifecycle()
     val tabs = tabIds.mapNotNull { id -> NavTab.entries.firstOrNull { it.id == id } }
@@ -395,10 +403,10 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
     }
 }
 
+/** To a tab. The tab left behind is dropped with its state (picked date, page, sub-tab), so coming back opens it fresh on today. */
 private fun NavHostController.navigateTop(route: String) = navigate(route) {
-    popUpTo(graph.findStartDestination().id) { saveState = true }
+    popUpTo(graph.findStartDestination().id)
     launchSingleTop = true
-    restoreState = true
 }
 
 /** A destination with its own opaque background, so the screen underneath never shows through while a back swipe slides this one away. */

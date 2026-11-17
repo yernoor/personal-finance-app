@@ -68,7 +68,9 @@ import dev.yernur.moneytracker.data.db.TransactionType
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -188,9 +190,11 @@ data class HistoryState(
 @OptIn(ExperimentalCoroutinesApi::class)
 class HistoryViewModel(
     db: AppDatabase, settings: AppSettings,
-    /** Told the shown period, so the entry form can default to it. */
-    private val onRange: (DateRange) -> Unit = {},
+    /** Told the shown period, so the entry form can default to it; null once History is closed. */
+    private val onRange: (DateRange?) -> Unit = {},
     private val today: () -> LocalDate = LocalDate::now,
+    /** Today, emitting again when the day changes (AppContainer.today). */
+    days: Flow<LocalDate> = emptyFlow(),
 ) : ViewModel() {
     /** Day, week, month or year; starts as the configured default and can be zoomed from the screen. */
     val unit = MutableStateFlow(settings.historyPeriod.value)
@@ -210,7 +214,17 @@ class HistoryViewModel(
                 anchor.value = today()
             }
         }
+        // Left open overnight: a period that showed today moves on to the new today; one picked in the past stays.
+        viewModelScope.launch {
+            var seen = today()
+            days.collect { day ->
+                if (day != seen && seen in unit.value.rangeOf(anchor.value)) anchor.value = day
+                seen = day
+            }
+        }
     }
+
+    override fun onCleared() = onRange(null)
 
     private val periodData = range.flatMapLatest { r ->
         val from = r.from.toString()
@@ -280,7 +294,7 @@ data class HistoryRequest(val unit: PeriodUnit, val income: Boolean)
 
 @Composable
 fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
-    val vm = appViewModel { HistoryViewModel(it.db, it.settings, { r -> it.historyRange.value = r }) }
+    val vm = appViewModel { HistoryViewModel(it.db, it.settings, { r -> it.historyRange.value = r }, days = it.today) }
     val state by vm.state.collectAsStateWithLifecycle()
     val unit by vm.unit.collectAsStateWithLifecycle()
     val range by vm.range.collectAsStateWithLifecycle(DateRange(LocalDate.now(), LocalDate.now()))

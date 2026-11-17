@@ -62,7 +62,9 @@ import dev.yernur.moneytracker.data.shift
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -86,14 +88,15 @@ private fun barCount(unit: PeriodUnit) = when (unit) {
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class ChartsViewModel(db: AppDatabase, private val today: LocalDate = LocalDate.now()) : ViewModel() {
+/** [days] is today, emitting again when the day changes (AppContainer.today). */
+class ChartsViewModel(db: AppDatabase, days: Flow<LocalDate> = flowOf(LocalDate.now())) : ViewModel() {
     var tab by mutableStateOf(ChartTab.General)
     var selected by mutableIntStateOf(-1) // -1 = the newest bar
     val unit = MutableStateFlow(PeriodUnit.Month)
     /** 0 = the window ending today; each step moves the window back by one period (one month, one year, ...). */
     val page = MutableStateFlow(0)
 
-    val data: StateFlow<ChartData?> = combine(unit, page) { u, p -> u to p }.flatMapLatest { (u, p) ->
+    val data: StateFlow<ChartData?> = combine(unit, page, days) { u, p, today -> Triple(u, p, today) }.flatMapLatest { (u, p, today) ->
         val ranges = u.lastRanges(u.shift(today, -p.toLong()), barCount(u))
         val from = ranges.first().from.toString()
         val to = ranges.last().to.toString()
@@ -123,7 +126,7 @@ class ChartsViewModel(db: AppDatabase, private val today: LocalDate = LocalDate.
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ChartsScreen(onOpenTransaction: (String) -> Unit = {}) {
-    val vm = appViewModel { ChartsViewModel(it.db) }
+    val vm = appViewModel { ChartsViewModel(it.db, it.today) }
     val data by vm.data.collectAsStateWithLifecycle()
     val unit by vm.unit.collectAsStateWithLifecycle()
     val page by vm.page.collectAsStateWithLifecycle()
