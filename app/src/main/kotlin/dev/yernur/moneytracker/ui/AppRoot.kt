@@ -389,10 +389,10 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 enter = slideInVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeIn(tween(FADE_MS)),
                 exit = slideOutVertically(tween(MOVE_MS, easing = slideEasing)) { it } + fadeOut(tween(FADE_MS)),
             ) { FloatingTabBar(tabs, lastTab, onSelect = { nav.navigateTop(it.id) }, backdrop = glassBackdrop) }
-            val addMenu = remember { mutableStateOf(false) }
+            val addMenu = remember { AddMenuState() }
             val addShown = tab?.id == "home" || tab?.id == "history"
-            if (glass && addMenu.value && addShown) GlassAddMenu(backdrop, bottom = navInset + 88.dp + 60.dp + 12.dp, end = 16.dp, onDismiss = { addMenu.value = false }) {
-                addMenu.value = false
+            if (glass && addMenu.open && addShown) GlassAddMenu(backdrop, addMenu, bottom = navInset + 88.dp + 60.dp + 12.dp, end = 16.dp, onDismiss = { addMenu.open = false }) {
+                addMenu.open = false
                 nav.navigate(entryRoute(kind = it))
             }
             AnimatedVisibility(

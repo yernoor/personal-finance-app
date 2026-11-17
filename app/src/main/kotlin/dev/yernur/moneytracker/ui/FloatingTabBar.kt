@@ -1,5 +1,33 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.runtime.DisposableEffect
+
+import androidx.compose.ui.semantics.onLongClick
+
+import androidx.compose.ui.semantics.onClick
+
+import androidx.compose.ui.semantics.role
+
+import androidx.compose.ui.semantics.semantics
+
+import androidx.compose.ui.unit.toSize
+
+import androidx.compose.ui.geometry.Rect
+
+import androidx.compose.ui.geometry.Offset
+
+import androidx.compose.ui.layout.positionOnScreen
+
+import androidx.compose.ui.layout.onGloballyPositioned
+
+import androidx.compose.ui.input.pointer.PointerInputChange
+
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+
+import androidx.compose.foundation.gestures.awaitFirstDown
+
+import androidx.compose.foundation.gestures.awaitEachGesture
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -181,8 +209,21 @@ fun FloatingTabBar(tabs: List<NavTab>, selected: NavTab, onSelect: (NavTab) -> U
 }
 
 /**
+ * The add menu: whether it is open, the pill a finger still held from the long press is over, and where each pill is on the screen
+ * (screen coordinates, since without glass the pills live in a popup window of their own).
+ */
+class AddMenuState {
+    var open by mutableStateOf(false)
+    var hovered by mutableStateOf<EntryKind?>(null)
+    internal val bounds = mutableMapOf<EntryKind, Rect>()
+
+    internal fun pillAt(screen: Offset): EntryKind? = bounds.entries.firstOrNull { it.value.contains(screen) }?.key
+}
+
+/**
  * The round accent add button that floats over the right end of the bar. A tap adds an expense ([onClick]); holding it ticks and rolls three
- * pills up above it (Expense, Income, Transfer, nearest first), each opening the add screen of that kind through [onPickKind].
+ * pills up above it (Expense, Income, Transfer, nearest first), each opening the add screen of that kind through [onPickKind]. Without lifting
+ * the finger, slide onto a pill (it pops, with a tick) and let go to open it; let go anywhere else and the menu stays open for a tap.
  * Without glass the pills pop up in a [Popup]. With glass the caller draws [GlassAddMenu] from [menu] in the app's own window instead: a popup is a
  * separate window, and the glass lens can only bend what is in the window it draws in.
  */
@@ -190,26 +231,54 @@ fun FloatingTabBar(tabs: List<NavTab>, selected: NavTab, onSelect: (NavTab) -> U
 @Composable
 fun AddButton(
     onClick: () -> Unit, modifier: Modifier = Modifier, backdrop: Backdrop? = null, onPickKind: (EntryKind) -> Unit = {},
-    menu: MutableState<Boolean> = remember { mutableStateOf(false) },
+    menu: AddMenuState = remember { AddMenuState() },
 ) {
     val scheme = MaterialTheme.colorScheme
     val haptic = LocalHapticFeedback.current
-    val turn by animateFloatAsState(if (menu.value) 45f else 0f, tween(260, easing = FastOutSlowInEasing), label = "add-turn")
+    val turn by animateFloatAsState(if (menu.open) 45f else 0f, tween(260, easing = FastOutSlowInEasing), label = "add-turn")
+    val tap by rememberUpdatedState { if (menu.open) menu.open = false else onClick() } // with the menu open, the button (now an x) closes it
+    val pick by rememberUpdatedState(onPickKind)
+    var origin by remember { mutableStateOf(Offset.Zero) } // the button's top left on the screen
     val look = if (backdrop != null) Modifier.clip(CircleShape).glass(backdrop, CircleShape, refraction = 14.dp, amount = 22.dp, tint = scheme.primary.copy(alpha = 0.55f))
         .border(1.dp, Color.White.copy(alpha = 0.45f), CircleShape)
     else Modifier.shadow(10.dp, CircleShape, ambientColor = scheme.primary.copy(alpha = 0.4f), spotColor = scheme.primary.copy(alpha = 0.4f)).clip(CircleShape).background(scheme.primary)
     Box(
         modifier.size(60.dp).then(look)
-            .combinedClickable(
-                role = Role.Button,
-                onClick = { if (menu.value) menu.value = false else onClick() }, // with the menu open, the button (now an x) closes it
-                onLongClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); menu.value = true },
-            )
+            .onGloballyPositioned { origin = it.positionOnScreen() }
+            .semantics {
+                role = Role.Button
+                onClick { tap(); true }
+                onLongClick { menu.open = true; true }
+            }
+            .pointerInput(menu) {
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    var up: PointerInputChange? = null
+                    val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) { up = waitForUpOrCancellation(); false } == null
+                    if (!held) { up?.let { it.consume(); tap() }; return@awaitEachGesture }
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    menu.open = true
+                    // Still holding: follow the finger over the pills.
+                    while (true) {
+                        val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
+                        change.consume()
+                        if (!change.pressed) break
+                        val over = menu.pillAt(origin + change.position)
+                        if (over != menu.hovered) {
+                            if (over != null) haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                            menu.hovered = over
+                        }
+                    }
+                    val chosen = menu.hovered
+                    menu.hovered = null
+                    if (chosen != null) { menu.open = false; pick(chosen) }
+                }
+            }
             .testTag("add"),
         contentAlignment = Alignment.Center,
     ) {
         Icon(Icons.Outlined.Add, "Add", Modifier.size(26.dp).rotate(turn), tint = if (backdrop != null) Color.White else scheme.onPrimary)
-        if (menu.value && backdrop == null) AddMenu(onDismiss = { menu.value = false }) { menu.value = false; onPickKind(it) }
+        if (menu.open && backdrop == null) AddMenu(menu, onDismiss = { menu.open = false }) { menu.open = false; onPickKind(it) }
     }
 }
 
@@ -221,7 +290,7 @@ private val ADD_MENU = listOf(
 
 /** The pills, popped above the button (no glass). */
 @Composable
-private fun AddMenu(onDismiss: () -> Unit, onPick: (EntryKind) -> Unit) {
+private fun AddMenu(menu: AddMenuState, onDismiss: () -> Unit, onPick: (EntryKind) -> Unit) {
     val density = LocalDensity.current
     val position = remember(density) {
         object : PopupPositionProvider {
@@ -229,7 +298,7 @@ private fun AddMenu(onDismiss: () -> Unit, onPick: (EntryKind) -> Unit) {
                 IntOffset(anchorBounds.right - popupContentSize.width, anchorBounds.top - popupContentSize.height - with(density) { 12.dp.roundToPx() })
         }
     }
-    Popup(position, onDismissRequest = onDismiss) { AddMenuPills(null, onPick) }
+    Popup(position, onDismissRequest = onDismiss) { AddMenuPills(null, menu, onPick) }
 }
 
 /**
@@ -237,7 +306,7 @@ private fun AddMenu(onDismiss: () -> Unit, onPick: (EntryKind) -> Unit) {
  * and the glass pills, their bottom [bottom] above the screen's bottom edge, lined up with the button's right edge [end] from the screen's.
  */
 @Composable
-fun GlassAddMenu(backdrop: Backdrop, bottom: Dp, end: Dp, onDismiss: () -> Unit, onPick: (EntryKind) -> Unit) {
+fun GlassAddMenu(backdrop: Backdrop, menu: AddMenuState, bottom: Dp, end: Dp, onDismiss: () -> Unit, onPick: (EntryKind) -> Unit) {
     BackHandler(onBack = onDismiss)
     // The screen behind blurs in (like the frosted window behind the Wallet and calculator sheets): a full-screen glass with blur and no lens.
     val shown = remember { Animatable(0f) }
@@ -248,15 +317,19 @@ fun GlassAddMenu(backdrop: Backdrop, bottom: Dp, end: Dp, onDismiss: () -> Unit,
             .drawBackdrop(backdrop, shape = { RectangleShape }, effects = { blur((18.dp.toPx() * shown.value).coerceAtLeast(0.5f)) }, onDrawSurface = { drawRect(dim.copy(alpha = dim.alpha * shown.value)) })
             .clickable(remember { MutableInteractionSource() }, indication = null, onClick = onDismiss).testTag("add-menu-scrim"),
     ) {
-        AddMenuPills(backdrop, onPick, Modifier.align(Alignment.BottomEnd).padding(end = end - 8.dp, bottom = bottom - 8.dp))
+        AddMenuPills(backdrop, menu, onPick, Modifier.align(Alignment.BottomEnd).padding(end = end - 8.dp, bottom = bottom - 8.dp))
     }
 }
 
 private val PILL_SHAPE = RoundedCornerShape(16.dp)
 
-/** The three pills; each rolls up from the button with a small overshoot, 40 ms after the one below. With [backdrop] they are glass. */
+/**
+ * The three pills; each rolls up from the button with a small overshoot, 40 ms after the one below. With [backdrop] they are glass.
+ * The one a held finger is over ([AddMenuState.hovered]) pops a little larger, the same spring as the navbar's scrub.
+ */
 @Composable
-private fun AddMenuPills(backdrop: Backdrop?, onPick: (EntryKind) -> Unit, modifier: Modifier = Modifier) {
+private fun AddMenuPills(backdrop: Backdrop?, menu: AddMenuState, onPick: (EntryKind) -> Unit, modifier: Modifier = Modifier) {
+    DisposableEffect(menu) { onDispose { menu.bounds.clear() } }
     val scheme = MaterialTheme.colorScheme
     val rim = Color.White.copy(alpha = if (isDarkSurface()) 0.22f else 0.7f)
     Column(modifier.padding(8.dp), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -265,14 +338,15 @@ private fun AddMenuPills(backdrop: Backdrop?, onPick: (EntryKind) -> Unit, modif
             val progress = remember { Animatable(0f) }
             LaunchedEffect(Unit) { progress.animateTo(1f, tween(280, delay, easing = { OvershootInterpolator(1.6f).getInterpolation(it) })) }
             val tint = color ?: scheme.primary
+            val pop by animateFloatAsState(if (menu.hovered == kind) 1.12f else 1f, barSpring, label = "pill-pop")
             val label = if (backdrop != null) Modifier.clip(PILL_SHAPE).glass(backdrop, PILL_SHAPE, refraction = 10.dp, amount = 18.dp).border(1.dp, rim, PILL_SHAPE)
             else Modifier.clip(RoundedCornerShape(10.dp)).background(scheme.surfaceContainerHigh)
             val bubble = if (backdrop != null) Modifier.clip(CircleShape).glass(backdrop, CircleShape, refraction = 12.dp, amount = 20.dp, tint = tint.copy(alpha = 0.6f))
                 .border(1.dp, Color.White.copy(alpha = 0.45f), CircleShape)
             else Modifier.clip(CircleShape).background(tint)
             Row(
-                Modifier.graphicsLayer {
-                    alpha = progress.value.coerceIn(0f, 1f); scaleX = 0.6f + 0.4f * progress.value; scaleY = scaleX
+                Modifier.onGloballyPositioned { menu.bounds[kind] = Rect(it.positionOnScreen(), it.size.toSize()) }.graphicsLayer {
+                    alpha = progress.value.coerceIn(0f, 1f); scaleX = (0.6f + 0.4f * progress.value) * pop; scaleY = scaleX
                     translationY = (1f - progress.value) * 90.dp.toPx(); transformOrigin = TransformOrigin(1f, 1f)
                 },
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),

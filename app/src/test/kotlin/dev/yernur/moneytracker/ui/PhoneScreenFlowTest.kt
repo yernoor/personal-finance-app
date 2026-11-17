@@ -364,4 +364,21 @@ class PhoneScreenFlowTest {
         eventually { compose.onAllNodesWithTag("amount").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("kind-Income").assertIsSelected()
     }
+
+    @Test
+    fun holdingAdd_andSlidingOntoAPill_opensThatKindOnRelease() {
+        container.settings.setGlass(true) // glass draws the pills in the app's window, where the test can find them
+        compose.waitForIdle()
+        val add = compose.onNodeWithTag("add").fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithTag("add").performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(800) // held past the long press: the menu opens under the finger
+        compose.waitForIdle()
+        val pill = compose.onNodeWithTag("add-Transfer").fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithTag("add").performTouchInput {
+            moveTo(center + (pill.center - add.center)) // still the same finger, now over Transfer
+            up()
+        }
+        eventually { compose.onAllNodesWithTag("amount").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("kind-Transfer").assertIsSelected()
+    }
 }
