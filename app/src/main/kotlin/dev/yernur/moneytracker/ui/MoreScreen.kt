@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Widgets
+import androidx.compose.material.icons.outlined.Animation
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.ShoppingCart
@@ -261,13 +262,11 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
                 leadingContent = { Icon(Icons.Outlined.Widgets, null) }, headlineContent = { Text("Widget style") },
                 supportingContent = { Text("${widgetStyle.label}: ${widgetStyle.description}. Widgets show spending, never account balances") },
             )
-        }
-        Section("animations", "Animations", openId, { openId = it }) {
             val reduced by container.settings.reduceMotion.collectAsStateWithLifecycle()
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
                 modifier = Modifier.clickable { container.settings.setReduceMotion(!reduced) }.testTag("reduce-motion"),
-                headlineContent = { Text("Reduce motion") },
+                leadingContent = { Icon(Icons.Outlined.Animation, null) }, headlineContent = { Text("Reduce motion") },
                 supportingContent = { Text("Screens and periods swap with a quick fade instead of sliding, and balances do not roll") },
                 trailingContent = { Switch(reduced, { container.settings.setReduceMotion(it) }) },
             )
