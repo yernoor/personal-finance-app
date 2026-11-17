@@ -201,7 +201,7 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
             leadingContent = { Icon(Icons.Outlined.Calculate, null) }, headlineContent = { Text("Compound interest") },
             supportingContent = { Text("Where a balance and monthly savings end up") },
         )
-        if ("categories" !in navbar || "tags" !in navbar) SectionHeader("Manage")
+        SectionHeader("Manage") // always: Notifications lives here
         if ("categories" !in navbar) ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
             modifier = Modifier.clickable(onClick = onCategories).testTag("open-categories"),
@@ -211,6 +211,13 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
             colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
             modifier = Modifier.clickable(onClick = onTags).testTag("open-tags"),
             leadingContent = { Icon(Icons.AutoMirrored.Outlined.Label, null) }, headlineContent = { Text("Tags") },
+        )
+        ListItem( // its own screen: daily reminder, limit warnings and bill reminders together
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+            modifier = Modifier.clickable(onClick = onNotifications).testTag("open-notifications"),
+            leadingContent = { Icon(Icons.Outlined.NotificationsActive, null) },
+            headlineContent = { Text("Notifications") },
+            trailingContent = { Text("${notificationsOnCount()} on", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary) },
         )
         Section("appearance", "Appearance", openId, { openId = it }) {
             ListItem(
@@ -279,13 +286,6 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
                 supportingContent = { Text(historyPeriod.name) },
             )
         }
-        ListItem( // its own screen: daily reminder, limit warnings and bill reminders together
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable(onClick = onNotifications).testTag("open-notifications"),
-            leadingContent = { Icon(Icons.Outlined.NotificationsActive, null) },
-            headlineContent = { Text("Notifications", style = MaterialTheme.typography.titleMedium) },
-            trailingContent = { Text("${notificationsOnCount()} on", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary) },
-        )
         Section("automation", "Automation", openId, { openId = it }) {
             val walletOn by container.settings.walletCapture.collectAsStateWithLifecycle()
             val walletAccountUid by container.settings.walletAccountUid.collectAsStateWithLifecycle()
