@@ -117,7 +117,7 @@ fun AnalysisScreen(onOpenTrend: (String) -> Unit, onMove: (key: String) -> Unit)
         tab = asked ?: return@LaunchedEffect
         container.analysisRequest.value = null
     }
-    Column(Modifier.fillMaxSize().swipeSteps(swipe) { by -> AnalysisTab.entries.getOrNull(tab.ordinal + by)?.let { tab = it } != null }) {
+    Column(Modifier.fillMaxSize().swipeSteps(swipe, canGo = { by -> AnalysisTab.entries.getOrNull(tab.ordinal + by) != null }) { by -> AnalysisTab.entries.getOrNull(tab.ordinal + by)?.let { tab = it } != null }) {
         SlidingSegmented(
             AnalysisTab.entries.map { it.label }, tab.ordinal, AnalysisTab.entries.map { "analysis-tab-${it.name}" },
             { i -> if (i != tab.ordinal) swipe.go(i - tab.ordinal, { (tab != AnalysisTab.entries[i]).also { tab = AnalysisTab.entries[i] } }) },

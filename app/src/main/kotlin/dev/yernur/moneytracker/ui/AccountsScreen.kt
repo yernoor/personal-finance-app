@@ -84,7 +84,7 @@ fun AccountsScreen(onOpen: (String) -> Unit, onNew: () -> Unit, onNewTransfer: (
     val state by vm.state.collectAsStateWithLifecycle()
     var hidden by remember { mutableStateOf(false) } // which list: counted in the Total, or hidden from it
     val swipe = rememberSwipeSteps()
-    Column(Modifier.fillMaxSize().swipeSteps(swipe) { by -> (by > 0 != hidden).also { if (it) hidden = by > 0 } }) {
+    Column(Modifier.fillMaxSize().swipeSteps(swipe, canGo = { by -> by > 0 != hidden }) { by -> (by > 0 != hidden).also { if (it) hidden = by > 0 } }) {
         Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Total", style = MaterialTheme.typography.labelLarge)
             RollingMoney(state.counted, { Money.format(it, DEFAULT_CURRENCY) }, Modifier.testTag("total"), MaterialTheme.typography.headlineMedium)

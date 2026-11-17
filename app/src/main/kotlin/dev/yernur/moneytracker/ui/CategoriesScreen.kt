@@ -60,7 +60,7 @@ fun CategoriesScreen(onOpen: (uid: String) -> Unit, onNew: (TransactionType) -> 
         val tabs = listOf(TransactionType.Expense, TransactionType.Income)
         val swipe = rememberSwipeSteps()
         // Swipe or tap: Expenses and Income slide like every other switch (SwipeSteps).
-        Column(Modifier.padding(padding).fillMaxSize().swipeSteps(swipe) { by -> tabs.getOrNull(tabs.indexOf(tab) + by)?.also { tab = it } != null }) {
+        Column(Modifier.padding(padding).fillMaxSize().swipeSteps(swipe, canGo = { by -> tabs.getOrNull(tabs.indexOf(tab) + by) != null }) { by -> tabs.getOrNull(tabs.indexOf(tab) + by)?.also { tab = it } != null }) {
             SlidingSegmented(
                 listOf("Expenses", "Income"), tabs.indexOf(tab), tabs.map { "tab-$it" },
                 { i -> if (tabs[i] != tab) swipe.go(i - tabs.indexOf(tab), { (tabs[i] != tab).also { tab = tabs[i] } }) },

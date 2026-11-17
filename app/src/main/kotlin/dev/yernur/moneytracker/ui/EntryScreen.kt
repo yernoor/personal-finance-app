@@ -389,7 +389,7 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
         val swipe = rememberSwipeSteps()
         // Swipe or tap: the kinds slide like every other switch (SwipeSteps); what is typed stays.
         Column(
-            Modifier.padding(padding).padding(horizontal = 16.dp).swipeSteps(swipe) { by -> kinds.getOrNull(kinds.indexOf(vm.kind) + by)?.also { vm.kind = it } != null }
+            Modifier.padding(padding).padding(horizontal = 16.dp).swipeSteps(swipe, canGo = { by -> kinds.getOrNull(kinds.indexOf(vm.kind) + by) != null }) { by -> kinds.getOrNull(kinds.indexOf(vm.kind) + by)?.also { vm.kind = it } != null }
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
