@@ -261,3 +261,29 @@ data class CashflowItemEntity(
     val modified: String,
     val isRemoved: Boolean = false,
 )
+
+/**
+ * What the owner set for a detected recurring bill (data/Recurring.kt): a reminder and an end. [key] is "comment:<lowercase comment>" or
+ * "category:<uid>", the same as [dev.yernur.moneytracker.data.RecurringItem.key]. Lives on the phone only, like the wealth data (not synced).
+ */
+@Entity(tableName = "bill")
+data class BillEntity(
+    @PrimaryKey val key: String,
+    val title: String,
+    /** The bill's category and monthly amount when last saved: lets the forecast drop an ended bill from a fixed category. */
+    val categoryUid: String?,
+    val amount: Long,
+    /** A reminder is set (Remove clears it). */
+    val reminderOn: Boolean = false,
+    /** Set but switched off in More -> Notifications; it keeps its settings. */
+    val reminderPaused: Boolean = false,
+    val reminderDaysBefore: Int = 1,
+    /** Minutes after midnight. */
+    val reminderMinute: Int = 10 * 60,
+    /** "yyyy-MM" of the last payment; null = ongoing. */
+    val endMonth: String? = null,
+    /** The end has been acted on (reminder off, a category bill back to Automatic). */
+    val settled: Boolean = false,
+    /** The day ("yyyy-MM-dd") a reminder was last posted, so one due date never notifies twice. */
+    val lastNotified: String? = null,
+)

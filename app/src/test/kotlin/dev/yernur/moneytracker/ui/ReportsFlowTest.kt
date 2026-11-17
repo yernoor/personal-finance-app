@@ -4,9 +4,10 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -139,12 +140,10 @@ class ReportsFlowTest {
     }
 
     @Test
-    fun forecastTab_listsTheCategoryWithItsLimitAndWarning() {
-        compose.onNodeWithTag("tab-analysis").performClick()
-        compose.onNodeWithTag("analysis-tab-Forecast").performClick()
+    fun overview_showsTheMonth_andTheCategoryLimitWarning() {
+        compose.onNodeWithTag("tab-analysis").performClick() // Overview: the old Forecast tab's figures are on it now
         waitForText("Over the limit")
         compose.onNodeWithTag("forecast-overall").assertIsDisplayed()
-        compose.onNodeWithText("Limit ₸1,000").assertIsDisplayed()
     }
 
     @Test
@@ -164,10 +163,10 @@ class ReportsFlowTest {
     @Test
     fun warningSettings_saveTheGlobalThreshold() {
         compose.onNodeWithTag("more").performClick()
-        compose.onNodeWithTag("section-notifications").performScrollTo().performClick()
-        compose.onNodeWithTag("open-warnings").performScrollTo().performClick()
-        compose.onNodeWithTag("warn-threshold").performTextReplacement("90")
-        compose.onNodeWithText("Save").performClick()
-        eventually { container.settings.warnThreshold.value == 90 }
+        compose.onNodeWithTag("open-notifications").performScrollTo().performClick()
+        eventually { compose.onAllNodesWithTag("notification-warnings").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("notification-warnings").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // opens its choices in place
+        compose.onNodeWithTag("choice-Warn at-75").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        eventually { container.settings.warnThreshold.value == 75 }
     }
 }

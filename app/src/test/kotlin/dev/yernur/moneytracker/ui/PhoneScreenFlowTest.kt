@@ -8,7 +8,7 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.longClick
@@ -412,5 +412,14 @@ class PhoneScreenFlowTest {
         eventually { runCatching { compose.onNodeWithTag("tab-Income").assertIsSelected() }.isSuccess }
         compose.onRoot().performTouchInput { swipeRight() }
         eventually { runCatching { compose.onNodeWithTag("tab-Expense").assertIsSelected() }.isSuccess }
+    }
+
+    @Test
+    fun tappingTheXOnTheOpenMenu_closesIt_withoutOpeningAdd() {
+        compose.onNodeWithTag("add").performTouchInput { longClick() } // no glass: the pills are in a popup
+        eventually { compose.onAllNodesWithTag("add-Income").fetchSemanticsNodes().isNotEmpty() }
+        tap("add") // the x
+        eventually { compose.onAllNodesWithTag("add-Income").fetchSemanticsNodes().isEmpty() }
+        compose.onAllNodesWithTag("amount").assertCountEquals(0) // still on Home, not the add screen
     }
 }

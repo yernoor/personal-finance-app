@@ -132,14 +132,18 @@ fun rememberSwipeSteps(): SwipeSteps {
 
 /**
  * Listens for the swipe. [step] gets +1 for a swipe to the left (next: later, the segment to the right), -1 for one to the right, and returns
- * false at an end; [ready] waits for the new content (see [SwipeSteps.go]). Without [travel] the content does not move with the finger and
- * [step] runs at once (the screen moves its own parts, as Charts slides its bars).
+ * false at an end; [ready] waits for the new content (see [SwipeSteps.go]). [canGo] says up front whether there is anything that way: when
+ * not, the content does not follow the finger and nothing animates (owner: no motion that leads nowhere). Without [travel] the content does
+ * not move with the finger and [step] runs at once (the screen moves its own parts, as Charts slides its bars).
  */
 @Composable
-fun Modifier.swipeSteps(state: SwipeSteps, travel: Boolean = true, ready: suspend () -> Unit = {}, step: (Int) -> Boolean): Modifier {
+fun Modifier.swipeSteps(
+    state: SwipeSteps, travel: Boolean = true, ready: suspend () -> Unit = {}, canGo: (Int) -> Boolean = { true }, step: (Int) -> Boolean,
+): Modifier {
     val scope = rememberCoroutineScope()
     val onStep by rememberUpdatedState(step)
     val onReady by rememberUpdatedState(ready)
+    val possible by rememberUpdatedState(canGo)
     return pointerInput(state, travel) {
         val threshold = SWIPE_STEP_DP.dp.toPx()
         val flick = FLICK_DP_PER_S.dp.toPx()
@@ -152,7 +156,7 @@ fun Modifier.swipeSteps(state: SwipeSteps, travel: Boolean = true, ready: suspen
             onDragEnd = {
                 val speed = velocity.calculateVelocity().x
                 val dir = if (dragged < 0) 1 else -1 // finger went left: next
-                val going = abs(dragged) > threshold || (abs(speed) > flick && sign(speed) == sign(dragged) && dragged != 0f)
+                val going = (abs(dragged) > threshold || (abs(speed) > flick && sign(speed) == sign(dragged) && dragged != 0f)) && possible(dir)
                 when {
                     !going -> scope.launch { follow?.join(); state.offset.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow), speed) }
                     !travel -> onStep(dir)
@@ -165,6 +169,10 @@ fun Modifier.swipeSteps(state: SwipeSteps, travel: Boolean = true, ready: suspen
             velocity.addPosition(change.uptimeMillis, change.position)
             dragged += delta
             if (!travel || state.reduced || state.stepping) return@detectHorizontalDragGestures
+            if (!possible(if (dragged < 0) 1 else -1)) { // nothing that way: stay put (and come back if it had moved the other way)
+                if (state.offset.value != 0f) follow = scope.launch { state.offset.snapTo(0f) }
+                return@detectHorizontalDragGestures
+            }
             follow = scope.launch { state.offset.snapTo(state.offset.value + delta) }
         }
     }

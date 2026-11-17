@@ -107,11 +107,9 @@ class MoreSections : androidx.lifecycle.ViewModel() {
 }
 
 @Composable
-fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onFeedback: () -> Unit, onCompound: () -> Unit, onWealth: () -> Unit, onAfford: () -> Unit, onOpenTab: (NavTab) -> Unit) {
-    var showReminder by remember { mutableStateOf(false) }
+fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onFeedback: () -> Unit, onCompound: () -> Unit, onWealth: () -> Unit, onOpenTab: (NavTab) -> Unit) {
     var showWalletConsent by remember { mutableStateOf(false) }
     var showWalletAccount by remember { mutableStateOf(false) }
-    var showWarnings by remember { mutableStateOf(false) }
     var showHistoryPeriod by remember { mutableStateOf(false) }
     var showIconStyle by remember { mutableStateOf(false) }
     var showWidgetStyle by remember { mutableStateOf(false) }
@@ -203,13 +201,7 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
             leadingContent = { Icon(Icons.Outlined.Calculate, null) }, headlineContent = { Text("Compound interest") },
             supportingContent = { Text("Where a balance and monthly savings end up") },
         )
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable(onClick = onAfford).testTag("open-afford"),
-            leadingContent = { Icon(Icons.Outlined.ShoppingCart, null) }, headlineContent = { Text("Can I afford this?") },
-            supportingContent = { Text("Check a purchase against your balance, limits and goals") },
-        )
-        if ("categories" !in navbar || "tags" !in navbar) SectionHeader("Manage")
+        SectionHeader("Manage") // always: Notifications lives here
         if ("categories" !in navbar) ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
             modifier = Modifier.clickable(onClick = onCategories).testTag("open-categories"),
@@ -219,6 +211,13 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
             colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
             modifier = Modifier.clickable(onClick = onTags).testTag("open-tags"),
             leadingContent = { Icon(Icons.AutoMirrored.Outlined.Label, null) }, headlineContent = { Text("Tags") },
+        )
+        ListItem( // its own screen: daily reminder, limit warnings and bill reminders together
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
+            modifier = Modifier.clickable(onClick = onNotifications).testTag("open-notifications"),
+            leadingContent = { Icon(Icons.Outlined.NotificationsActive, null) },
+            headlineContent = { Text("Notifications") },
+            trailingContent = { Text("${notificationsOnCount()} on", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary) },
         )
         Section("appearance", "Appearance", openId, { openId = it }) {
             ListItem(
@@ -285,28 +284,6 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
                 modifier = Modifier.clickable { showHistoryPeriod = true }.testTag("open-history-period"),
                 leadingContent = { Icon(Icons.Outlined.History, null) }, headlineContent = { Text("History opens on") },
                 supportingContent = { Text(historyPeriod.name) },
-            )
-        }
-        Section("notifications", "Notifications", openId, { openId = it }) {
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-                modifier = Modifier.clickable { showWarnings = true }.testTag("open-warnings"),
-                leadingContent = { Icon(Icons.Outlined.NotificationsActive, null) }, headlineContent = { Text("Spending warnings") },
-                supportingContent = { Text("Threshold and notifications") },
-            )
-            val reminderOn by container.settings.reminderEnabled.collectAsStateWithLifecycle()
-            val reminderMinute by container.settings.reminderMinute.collectAsStateWithLifecycle()
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-                modifier = Modifier.clickable { showReminder = true }.testTag("open-reminder"),
-                leadingContent = { Icon(Icons.Outlined.NotificationsActive, null) }, headlineContent = { Text("Daily reminder") },
-                supportingContent = {
-                    val blocked = reminderOn && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
-                    Text(
-                        if (!reminderOn) "Off" else "Every day at %02d:%02d".format(reminderMinute / 60, reminderMinute % 60) +
-                            if (blocked) " (notifications are blocked for this app in Android settings)" else "",
-                    )
-                },
             )
         }
         Section("automation", "Automation", openId, { openId = it }) {
@@ -481,8 +458,6 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
         val accounts by remember { container.db.accountDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
         ChoiceDialog("Default account for payments", accounts.map { it.uid to it.title }, container.settings.walletAccountUid.value.orEmpty(), { container.settings.setWalletAccount(it) }) { showWalletAccount = false }
     }
-    if (showReminder) ReminderDialog(container.settings, context.applicationContext) { showReminder = false }
-    if (showWarnings) WarningSettingsDialog(container.settings) { showWarnings = false }
     staged?.let { (file, info) ->
         AlertDialog(
             onDismissRequest = { file.delete(); staged = null }, containerColor = glassContainer(AlertDialogDefaults.containerColor),
@@ -597,74 +572,6 @@ private fun WalletConsentDialog(settings: AppSettings, context: android.content.
                 context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 onDismiss()
             }, Modifier.testTag("wallet-allow")) { Text("Allow") }
-        },
-        dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ReminderDialog(settings: AppSettings, context: android.content.Context, onDismiss: () -> Unit) {
-    val enabled by settings.reminderEnabled.collectAsStateWithLifecycle()
-    val minute by settings.reminderMinute.collectAsStateWithLifecycle()
-    var on by remember { mutableStateOf(enabled) }
-    val time = rememberTimePickerState(minute / 60, minute % 60, is24Hour = true)
-    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    AlertDialog(
-        containerColor = glassContainer(AlertDialogDefaults.containerColor),
-        onDismissRequest = onDismiss,
-        title = { Text("Daily reminder") },
-        text = {
-            GlassWindowBlur()
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Remind me to add expenses", Modifier.weight(1f))
-                    Switch(on, { on = it }, Modifier.testTag("reminder-switch"))
-                }
-                if (on) TimeInput(time)
-            }
-        },
-        confirmButton = {
-            TextButton({
-                settings.setReminder(on, time.hour * 60 + time.minute)
-                ReminderWorker.schedule(context, settings, replace = true)
-                if (on && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                    permission.launch(Manifest.permission.POST_NOTIFICATIONS) // asked once at first launch; ask again now that it matters
-                }
-                onDismiss()
-            }, Modifier.testTag("reminder-save")) { Text("Save") }
-        },
-        dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
-    )
-}
-
-@Composable
-private fun WarningSettingsDialog(settings: AppSettings, onDismiss: () -> Unit) {
-    val threshold by settings.warnThreshold.collectAsStateWithLifecycle()
-    val notifications by settings.notifications.collectAsStateWithLifecycle()
-    var text by remember { mutableStateOf(threshold.toString()) }
-    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    AlertDialog(
-        containerColor = glassContainer(AlertDialogDefaults.containerColor),
-        onDismissRequest = onDismiss,
-        title = { Text("Spending warnings") },
-        text = { GlassWindowBlur(); 
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    text, { text = it.filter(Char::isDigit) }, label = { Text("Warn at % of a category limit") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.testTag("warn-threshold"),
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Notifications", Modifier.weight(1f))
-                    Switch(notifications, {
-                        settings.setNotifications(it)
-                        if (it) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    })
-                }
-            }
-        },
-        confirmButton = {
-            TextButton({ text.toIntOrNull()?.takeIf { it > 0 }?.let(settings::setWarnThreshold); onDismiss() }) { Text("Save") }
         },
         dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
     )

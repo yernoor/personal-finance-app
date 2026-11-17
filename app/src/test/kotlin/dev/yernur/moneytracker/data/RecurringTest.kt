@@ -30,6 +30,42 @@ class RecurringTest {
     }
 
     @Test
+    fun aCategoryPaidOnceAMonth_isRecurring_evenWithoutComments() {
+        val rows = listOf(tx("2026-08-05", null, 7_000_000, category = "inst"), tx("2026-09-05", null, 7_000_000, category = "inst"), tx("2026-10-05", "", 7_000_000, category = "inst"))
+        val item = detectRecurring(rows, emptyList(), today, mapOf("inst" to "Installment")).single()
+        assertEquals("Installment", item.title)
+        assertEquals(7_000_000L, item.amount)
+        assertEquals("inst", item.categoryUid)
+        assertTrue(item.byCategory)
+    }
+
+    @Test
+    fun aCategoryWithManyPaymentsAMonth_isNotABill() {
+        // Groceries: steady monthly total, but 8 payments a month
+        val rows = listOf("08", "09", "10").flatMap { m -> (1..8).map { d -> tx("2026-$m-0$d", null, 1_000_000, category = "food") } }
+        assertTrue(detectRecurring(rows, emptyList(), today, mapOf("food" to "Groceries")).isEmpty())
+    }
+
+    @Test
+    fun aMixedCategory_isNotCountedTwice_whenItsPartsAreSimilar() {
+        // rent, internet and utility, about 100,000 each, all commented, all in Utilities: three items, not a fourth for the category
+        val rows = listOf("08", "09", "10").flatMap { m ->
+            listOf(tx("2026-$m-01", "Rent", 10_000_000, category = "util"), tx("2026-$m-05", "Internet", 9_500_000, category = "util"), tx("2026-$m-10", "Utility", 10_500_000, category = "util"))
+        }
+        val items = detectRecurring(rows, emptyList(), today, mapOf("util" to "Utilities"))
+        assertEquals(setOf("Rent", "Internet", "Utility"), items.map { it.title }.toSet())
+        assertEquals(30_000_000L, items.sumOf { it.amount })
+    }
+
+    @Test
+    fun aCommentItem_isNotListedAgainForItsCategory() {
+        val rows = listOf("08", "09", "10").map { m -> tx("2026-$m-01", "Rent", 30_000_000, category = "home") }
+        val items = detectRecurring(rows, emptyList(), today, mapOf("home" to "House"))
+        assertEquals(listOf("Rent"), items.map { it.title })
+        assertEquals("home", items.single().categoryUid) // so the screen can offer "make it a fixed bill"
+    }
+
+    @Test
     fun aGap_aShortRun_orAStaleRun_isNotRecurring() {
         assertTrue(detectRecurring(listOf(tx("2026-07-14", "Gym", 100), tx("2026-09-14", "Gym", 100), tx("2026-10-02", "Gym", 100)), emptyList(), today).isEmpty())
         assertTrue(detectRecurring(listOf(tx("2026-09-14", "Gym", 100), tx("2026-10-02", "Gym", 100)), emptyList(), today).isEmpty())

@@ -39,6 +39,14 @@ Target device: Android 16 (API 36) -> `minSdk = 36` is possible; owner to confir
 - Warning when `primary > limit * threshold` (threshold default 100%, configurable globally and per category).
   Optional setting (default off): also warn when the secondary exceeds the limit. Show on the home screen and as a notification.
 - Overall projection excludes one-off categories (owner decision). Rule of thumb: fewer than 2 operations per month.
+  Changed 2026-11-18 (owner): Analysis has two segments, **Overview** (the former Trends and Forecast tabs merged: one month card with the bar
+  summary and six monthly bars against one average, Worth a look with limit warnings and rises/falls, one category list with limit bars) and
+  **Recurring** (bills, reminders, ends, moving payments, duplicates). The average is the last **3** full months everywhere (was 6 on Trends).
+  "Can I afford it?" moved from More to a card on Overview under the month card (owner's choice 2026-11-18): price in, verdict out (main account,
+  no category); Details opens the full screen with the price filled in.
+  Changed 2026-11-18 (owner): the month's figure is one number on every screen (Forecast "On track for", the Trends dashed bar and its
+  change against the average, the widget's "on pace for"): regular categories at their pace **plus what one-offs have cost so far**
+  (real spending that will not recur, so not projected). Categories set to Never stay out entirely.
 - **Fixed monthly bill** (category setting, added 2026-11-17 for rent and utilities): projected as last month's amount (or what is already spent, if more)
   instead of the linear pace, always in the overall projection, and its trend compares against last month rather than the 3-month mean, so a changed
   bill (rent 140k -> 300k) reads as the new normal at once. Older app versions cannot read this mode from a restored backup.
@@ -306,6 +314,10 @@ stored its own tab choice keeps it: add Analysis in More -> Navigation bar.
 - Category trend: delta = current run-rate vs the mean of the previous (up to) 3 full months, shown only when that mean is not zero, at least 10 days of the month have passed, and something was spent in the category this month (a pace of 0 says nothing). The sparkline draws the unfinished month at its pace. Insights: a category at least 25% above its average (and at least 5,000 above), and a category that fell three months in a row.
 - Weekday pattern: expenses of the last 3 full months by day of week.
 - Recurring: an expense comment (trimmed, case-insensitive) seen in at least 3 consecutive months, amounts within 20% of the median. Price change = latest amount differs from the previous one by 5% or more. "Has a reminder" = a reminder with the same title.
+  Added 2026-11-18 (owner): also by **category**, for bills typed without a comment (an installment): a category's monthly total in at least 3
+  consecutive months, within 20% of the median, averaging at most 3 payments a month (so Groceries is not a bill); not listed again when a comment
+  item already covers that category at a similar amount. Each item offers **Make it a fixed bill** (sets its category's projection to Fixed monthly
+  bill) or shows "Fixed bill ✓". Still not built: Add reminder (reminders never notify yet), and an end date for installments (needs a new column).
 - Duplicate: same type, account, category, account-currency amount and date, created within 10 minutes of each other. Keep both / delete the second (soft delete through the ledger).
 
 ## Other / unverified, decide later

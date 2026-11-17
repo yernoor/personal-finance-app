@@ -1,5 +1,11 @@
 package dev.yernur.moneytracker.ui
 
+import dev.yernur.moneytracker.LocalAppContainer
+
+import androidx.compose.material3.LinearProgressIndicator
+
+import dev.yernur.moneytracker.data.CategoryForecast
+
 
 import androidx.compose.runtime.rememberCoroutineScope
 
@@ -94,69 +100,64 @@ class AnalysisViewModel(db: AppDatabase, forecasts: ForecastRepository, days: Fl
     val forecast: StateFlow<Forecast?> = forecasts.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }
 
-enum class AnalysisTab(val label: String) { Trends("Trends"), Forecast("Forecast") }
+enum class AnalysisTab(val label: String) { Overview("Overview"), Recurring("Recurring") }
 
-/** The Analysis tab of the bottom bar: Trends (six months, insights, category trends) or the Forecast of this month. */
+/**
+ * The Analysis tab of the bottom bar: Overview (this month against the last 3, what stands out, every category) or Recurring (bills,
+ * reminders, ends, duplicates). Overview merges what were the Trends and Forecast tabs (owner's request 2026-11-18): one month figure,
+ * one average.
+ */
 @Composable
-fun AnalysisScreen(onOpenCategory: (String) -> Unit, onOpenTrend: (String) -> Unit, onOpenRecurring: () -> Unit) {
-    var tab by rememberSaveable { mutableStateOf(AnalysisTab.Trends) }
-    val vm = appViewModel { AnalysisViewModel(it.db, it.forecasts, it.today) }
-    val forecast by vm.forecast.collectAsStateWithLifecycle()
-    val categories = vm.state.collectAsStateWithLifecycle().value?.second.orEmpty()
+fun AnalysisScreen(onOpenTrend: (String) -> Unit, onMove: (key: String) -> Unit, onAffordDetails: (price: String) -> Unit = {}) {
+    var tab by rememberSaveable { mutableStateOf(AnalysisTab.Overview) }
     val swipe = rememberSwipeSteps()
-    Column(Modifier.fillMaxSize().swipeSteps(swipe) { by -> AnalysisTab.entries.getOrNull(tab.ordinal + by)?.let { tab = it } != null }) {
+    val container = LocalAppContainer.current
+    val asked by container.analysisRequest.collectAsStateWithLifecycle()
+    LaunchedEffect(asked) {
+        tab = asked ?: return@LaunchedEffect
+        container.analysisRequest.value = null
+    }
+    Column(Modifier.fillMaxSize().swipeSteps(swipe, canGo = { by -> AnalysisTab.entries.getOrNull(tab.ordinal + by) != null }) { by -> AnalysisTab.entries.getOrNull(tab.ordinal + by)?.let { tab = it } != null }) {
         SlidingSegmented(
             AnalysisTab.entries.map { it.label }, tab.ordinal, AnalysisTab.entries.map { "analysis-tab-${it.name}" },
             { i -> if (i != tab.ordinal) swipe.go(i - tab.ordinal, { (tab != AnalysisTab.entries[i]).also { tab = AnalysisTab.entries[i] } }) },
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
         androidx.compose.foundation.layout.Box(Modifier.weight(1f).swipeShift(swipe)) {
-            if (tab == AnalysisTab.Forecast) forecast?.let { ForecastView(it, categories, onOpenCategory) }
-            else AnalysisView(onOpenTrend, onOpenRecurring)
+            if (tab == AnalysisTab.Recurring) RecurringScreen(onMove)
+            else OverviewView(onOpenTrend, onAffordDetails)
         }
     }
 }
 
-/** Six months of spending, what stands out, and every category's trend. */
+/** This month against the last 3, what stands out, and every category with its trend and limit. Design: the "Analysis, merged" mock-up. */
 @Composable
-private fun AnalysisView(onOpenCategory: (String) -> Unit, onOpenRecurring: () -> Unit) {
+private fun OverviewView(onOpenTrend: (String) -> Unit, onAffordDetails: (price: String) -> Unit) {
     val vm = appViewModel { AnalysisViewModel(it.db, it.forecasts, it.today) }
     val state by vm.state.collectAsStateWithLifecycle()
+    val forecast by vm.forecast.collectAsStateWithLifecycle()
     val (analysis, categories) = state ?: return
+    val rows = forecast?.categories.orEmpty().associateBy { it.categoryUid }
     Column(
         Modifier.verticalScroll(rememberScrollState()).padding(16.dp).testTag("analysis"),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        MonthlyCard(analysis)
-        if (analysis.insights.isNotEmpty()) InsightsCard(analysis.insights, categories)
-        Text("Category trends", style = MaterialTheme.typography.titleMedium)
-        Text("Change is this month's pace against the 3-month average (last month for fixed bills).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        analysis.categories.forEach { TrendRow(it, categories[it.categoryUid], onOpenCategory) }
-        AppCard(Modifier.fillMaxWidth().clickable(onClick = onOpenRecurring).testTag("open-recurring")) {
-            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Recurring costs and duplicates", style = MaterialTheme.typography.titleMedium)
-                    Text("Monthly charges, price changes, doubled entries", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Icon(Icons.Outlined.ChevronRight, null)
-            }
-        }
+        MonthCard(analysis, forecast)
+        AffordCard(onAffordDetails)
+        WorthALook(analysis.insights, forecast?.warnings.orEmpty(), categories)
+        Text("Categories", style = MaterialTheme.typography.titleMedium)
+        Text("This month against its last 3 months (last month for fixed bills).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        analysis.categories.forEach { CategoryRow(it, categories[it.categoryUid], rows[it.categoryUid], onOpenTrend) }
         androidx.compose.foundation.layout.Spacer(Modifier.height(LocalChromeInset.current))
     }
 }
 
+/** The month figure with its bar, then six months of bars against the same 3-month average. */
 @Composable
-private fun MonthlyCard(analysis: Analysis) {
+private fun MonthCard(analysis: Analysis, forecast: Forecast?) {
     AppCard(Modifier.fillMaxWidth().testTag("analysis-monthly")) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Average per month", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(analysis.average?.let(::money) ?: "Not enough history", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("analysis-average"))
-            analysis.projectedChangePercent?.let {
-                Text(
-                    "This month is on track for ${money(analysis.bars.last().projected ?: 0)} (${if (it >= 0) "+" else ""}$it%)",
-                    style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("analysis-projected"),
-                )
-            }
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (forecast != null) MonthSummary(forecast, analysis.average)
             MonthlyBars(analysis.bars, analysis.average)
             Row(Modifier.fillMaxWidth()) {
                 analysis.bars.forEach { bar ->
@@ -164,7 +165,7 @@ private fun MonthlyCard(analysis: Analysis) {
                     Text(name, Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Text("* projected from this month's pace", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("* dashed: still to come this month · line: 3-month average", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -174,7 +175,7 @@ private fun MonthlyBars(bars: List<MonthBar>, average: Long?) {
     val bar = MaterialTheme.colorScheme.primary
     val line = MaterialTheme.colorScheme.onSurface
     val summary = bars.joinToString("; ") { "${it.month}: ${money(it.projected ?: it.spent)}" }
-    Canvas(Modifier.fillMaxWidth().height(140.dp).semantics { contentDescription = "Monthly expenses. $summary" }) {
+    Canvas(Modifier.fillMaxWidth().height(120.dp).semantics { contentDescription = "Monthly expenses. $summary" }) {
         val top = maxOf(bars.maxOf { maxOf(it.spent, it.projected ?: 0) }, average ?: 0, 1L).toFloat()
         val slot = size.width / bars.size
         val width = slot * 0.6f
@@ -194,11 +195,16 @@ private fun MonthlyBars(bars: List<MonthBar>, average: Long?) {
     }
 }
 
+/** Limit warnings and the rises and falls together, one line each; nothing when there is nothing to say. */
 @Composable
-private fun InsightsCard(insights: List<Insight>, categories: Map<String?, CategoryEntity>) {
+private fun WorthALook(insights: List<Insight>, warnings: List<CategoryForecast>, categories: Map<String?, CategoryEntity>) {
+    if (insights.isEmpty() && warnings.isEmpty()) return
     AppCard(Modifier.fillMaxWidth().testTag("analysis-insights"), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Worth a look", style = MaterialTheme.typography.titleMedium)
+            warnings.forEach { w ->
+                Text("${categories[w.categoryUid]?.title ?: "A category"}: ${w.warnings.sorted().first().text().replaceFirstChar { it.lowercase() }}", style = MaterialTheme.typography.bodyMedium)
+            }
             insights.forEach {
                 val name = categories[it.categoryUid]?.title ?: "A category"
                 Text(
@@ -208,6 +214,30 @@ private fun InsightsCard(insights: List<Insight>, categories: Map<String?, Categ
                 )
             }
         }
+    }
+}
+
+/** A category's trend row, with a thin limit bar and its warning when it has a limit, and how one-offs are counted. */
+@Composable
+private fun CategoryRow(trend: CategoryTrend, category: CategoryEntity?, row: CategoryForecast?, onOpen: (String) -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        TrendRow(trend, category, onOpen)
+        val limit = row?.limit
+        if (limit != null) {
+            val warned = row.warnings.isNotEmpty()
+            LinearProgressIndicator(
+                { (row.spent.toFloat() / limit).coerceIn(0f, 1f) }, Modifier.fillMaxWidth().padding(start = 52.dp).height(4.dp),
+                color = if (warned) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            )
+            if (warned) Text(
+                row.warnings.sorted().first().text(), Modifier.padding(start = 52.dp, top = 2.dp),
+                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error,
+            )
+        }
+        if (row?.oneOff == true) Text(
+            "One-off: the month counts only the ${money(row.spent)} spent", Modifier.padding(start = 52.dp),
+            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

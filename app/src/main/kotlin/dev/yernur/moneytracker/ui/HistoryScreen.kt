@@ -295,9 +295,12 @@ class HistoryViewModel(
 
     fun shift(by: Long) = anchor.update { unit.value.shift(it, by) }
 
+    /** Whether there is a period that way: never past the one holding today. */
+    fun canStep(by: Int) = by < 0 || unit.value.rangeOf(anchor.value).to < today()
+
     /** One period along, but never past the one holding today; false when there is none. Checks the period now, not the one last drawn. */
     fun step(by: Int): Boolean {
-        if (by > 0 && unit.value.rangeOf(anchor.value).to >= today()) return false
+        if (!canStep(by)) return false
         shift(by.toLong())
         return true
     }
@@ -351,7 +354,7 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
         slide(day.compareTo(range.from).coerceIn(-1, 1)) { vm.jumpTo(day) }
     }
     // A swipe steps the period: left to the next one (not past today), right to the one before.
-    Column(Modifier.fillMaxSize().swipeSteps(swipe, ready = vm::awaitRows) { by -> vm.step(by) }) {
+    Column(Modifier.fillMaxSize().swipeSteps(swipe, ready = vm::awaitRows, canGo = vm::canStep) { by -> vm.step(by) }) {
         val units = PeriodUnit.entries
         SlidingSegmented(
             units.map { it.name }, units.indexOf(unit), units.map { "period-${it.name}" }, { i -> slide((i - units.indexOf(unit)).coerceIn(-1, 1)) { vm.zoom(units[i]) } },

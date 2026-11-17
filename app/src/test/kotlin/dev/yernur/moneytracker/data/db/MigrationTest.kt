@@ -63,6 +63,13 @@ class MigrationTest {
         assertEquals("0", v6.scalar("SELECT COUNT(*) FROM cashflow_item"))
     }
 
+    @Test
+    fun migrate6To7_addsAnEmptyBillTable() {
+        helper.createDatabase(DB, 6).close()
+        val v7 = helper.runMigrationsAndValidate(DB, 7, true, MIGRATION_6_7)
+        assertEquals("0", v7.scalar("SELECT COUNT(*) FROM bill"))
+    }
+
     private companion object {
         const val DB = "migration-test"
     }

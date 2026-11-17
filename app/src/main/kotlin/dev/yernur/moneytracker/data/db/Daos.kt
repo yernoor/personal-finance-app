@@ -153,6 +153,13 @@ interface TransactionDao {
     @Query("SELECT uid, date, type, categoryUid, accountUid, comment, COALESCE(amountInDefaultCurrency, 0) AS amount, COALESCE(amountInAccountCurrency, amountInRealCurrency, 0) AS accountAmount, created FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to")
     fun observeFull(from: String, to: String): Flow<List<TxFull>>
 
+    @Query("SELECT uid, date, type, categoryUid, accountUid, comment, COALESCE(amountInDefaultCurrency, 0) AS amount, COALESCE(amountInAccountCurrency, amountInRealCurrency, 0) AS accountAmount, created FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to")
+    suspend fun getFull(from: String, to: String): List<TxFull>
+
+    /** Every live expense of a category, all history, newest first (moving a bill's payments out of it). */
+    @Query("SELECT uid, date, type, categoryUid, accountUid, comment, COALESCE(amountInDefaultCurrency, 0) AS amount, COALESCE(amountInAccountCurrency, amountInRealCurrency, 0) AS accountAmount, created FROM transactions WHERE isRemoved = 0 AND type = 'Expense' AND categoryUid = :categoryUid ORDER BY date DESC, created DESC")
+    suspend fun getFullInCategory(categoryUid: String): List<TxFull>
+
     @Query("SELECT MIN(date) FROM transactions WHERE isRemoved = 0")
     fun observeEarliestDate(): Flow<String?>
 
@@ -285,4 +292,19 @@ interface CashflowItemDao {
 
     @Query("SELECT * FROM cashflow_item WHERE isRemoved = 0 ORDER BY kind, title")
     suspend fun getLive(): List<CashflowItemEntity>
+}
+
+@Dao
+interface BillDao {
+    @Query("SELECT * FROM bill")
+    fun observeAll(): Flow<List<BillEntity>>
+
+    @Query("SELECT * FROM bill")
+    suspend fun getAll(): List<BillEntity>
+
+    @Query("SELECT * FROM bill WHERE `key` = :key")
+    suspend fun get(key: String): BillEntity?
+
+    @Upsert
+    suspend fun upsert(item: BillEntity)
 }

@@ -48,7 +48,7 @@ suspend fun loadWidgetData(db: AppDatabase, forecasts: ForecastRepository, today
         )
     }
     return WidgetData(
-        month = today, monthSpent = forecast.spentAll, projected = forecast.runRateIncluded,
+        month = today, monthSpent = forecast.spentAll, projected = forecast.projected,
         todaySpent = todayRows.sumOf { it.amount }, todayCount = todayRows.size,
         overLimit = forecast.warnings.isNotEmpty(), limits = limits, topCategories = top, recent = recent,
     )

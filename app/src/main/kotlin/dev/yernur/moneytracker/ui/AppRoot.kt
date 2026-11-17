@@ -111,7 +111,8 @@ enum class NavTab(val id: String, val label: String, val icon: ImageVector) {
 private val OWN_BAR_SCREENS = setOf("wealth", "categories", "tags")
 
 private const val ENTRY = "entry?uid={uid}&kind={kind}"
-private const val CATEGORY = "category/{uid}?type={type}"
+private const val CATEGORY = "category/{uid}?type={type}&title={title}"
+private const val MOVE = "move/{key}"
 private const val ACCOUNT = "account/{uid}"
 
 /** Where a widget tap should land: an add screen of this kind ("expense", "income", "transfer"), or the operation with this uid. Null kind and uid: just open the app. */
@@ -315,7 +316,10 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             }
             screen("charts") { ChartsScreen(onOpenTransaction = { nav.navigate(entryRoute(it)) }) }
             screen("analysis") {
-                AnalysisScreen(onOpenCategory = { nav.navigate("category/$it?type=Expense") }, onOpenTrend = { nav.navigate("trend/$it") }, onOpenRecurring = { nav.navigate("recurring") })
+                AnalysisScreen(
+                    onOpenTrend = { nav.navigate("trend/$it") }, onMove = { nav.navigate("move/${android.net.Uri.encode(it)}") },
+                    onAffordDetails = { price -> nav.navigate("afford?price=${android.net.Uri.encode(price)}") },
+                )
             }
             screen("accounts") {
                 AccountsScreen(
@@ -338,21 +342,28 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             }
             screen("more") {
                 MoreScreen(
+                    onNotifications = { nav.navigate("notifications") },
                     onCategories = { nav.navigate("categories") }, onTags = { nav.navigate("tags") },
                     onNavbar = { nav.navigate("navbar-settings") }, onHomeLayout = { nav.navigate("home-settings") },
                     onSync = { nav.navigate("sync") }, onUpdates = { nav.navigate("updates") }, onFeedback = { nav.navigate("feedback") },
-                    onCompound = { nav.navigate("compound") }, onWealth = { nav.navigate("wealth") }, onAfford = { nav.navigate("afford") }, onOpenTab = { nav.navigate(it.id) },
+                    onCompound = { nav.navigate("compound") }, onWealth = { nav.navigate("wealth") }, onOpenTab = { nav.navigate(it.id) },
                 )
             }
             screen("wealth") {
                 WealthScreen(embedded = "wealth" in tabRoutes, onCompound = { nav.navigate("compound") }, onBack = { nav.popBackStack() })
             }
+            screen("notifications") {
+                NotificationsScreen(
+                    onOpenRecurring = { container.analysisRequest.value = AnalysisTab.Recurring; nav.navigateTop("analysis") }, onBack = { nav.popBackStack() },
+                )
+            }
             screen("compound") { CompoundScreen { nav.popBackStack() } }
             screen("trend/{uid}", arguments = listOf(navArgument("uid") { type = NavType.StringType })) { entry ->
                 CategoryTrendScreen(entry.arguments?.getString("uid").orEmpty(), onBack = { nav.popBackStack() }, onOpenTransaction = { nav.navigate(entryRoute(it)) })
             }
-            screen("recurring") { RecurringScreen { nav.popBackStack() } }
-            screen("afford") { AffordScreen(onBack = { nav.popBackStack() }, onLogExpense = { nav.navigate(entryRoute()) }) }
+            screen("afford?price={price}", arguments = listOf(navArgument("price") { type = NavType.StringType; defaultValue = "" })) { entry ->
+                AffordScreen(entry.arguments?.getString("price").orEmpty(), onBack = { nav.popBackStack() }, onLogExpense = { nav.navigate(entryRoute()) })
+            }
             screen("sync") { SyncScreen { nav.popBackStack() } }
             screen("updates") { UpdatesScreen { nav.popBackStack() } }
             screen("feedback") { FeedbackScreen { nav.popBackStack() } }
@@ -371,12 +382,21 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 arguments = listOf(
                     navArgument("uid") { type = NavType.StringType },
                     navArgument("type") { type = NavType.StringType; defaultValue = TransactionType.Expense.name },
+                    navArgument("title") { type = NavType.StringType; nullable = true; defaultValue = null }, // a new category's name, filled in
                 ),
             ) { entry ->
                 CategoryEditScreen(
                     entry.arguments?.getString("uid")?.takeIf { it != "new" },
                     TransactionType.valueOf(entry.arguments?.getString("type") ?: "Expense"),
+                    entry.arguments?.getString("title"),
                 ) { nav.popBackStack() }
+            }
+            screen(MOVE, arguments = listOf(navArgument("key") { type = NavType.StringType })) { entry ->
+                MovePaymentsScreen(
+                    android.net.Uri.decode(entry.arguments?.getString("key").orEmpty()),
+                    onNewCategory = { name -> nav.navigate("category/new?type=Expense&title=${android.net.Uri.encode(name)}") },
+                    onDone = { nav.popBackStack() },
+                )
             }
             screen("tags") { TagsScreen(embedded = "tags" in tabRoutes) { nav.popBackStack() } }
         }
@@ -391,7 +411,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             ) { FloatingTabBar(tabs, lastTab, onSelect = { nav.navigateTop(it.id) }, backdrop = glassBackdrop) }
             val addMenu = remember { AddMenuState() }
             val addShown = tab?.id == "home" || tab?.id == "history"
-            if (glass && addMenu.open && addShown) GlassAddMenu(backdrop, addMenu, bottom = navInset + 88.dp + 60.dp + 12.dp, end = 16.dp, onDismiss = { addMenu.open = false }) {
+            if (glass && addMenu.open && addShown) GlassAddMenu(backdrop, addMenu, bottom = navInset + 88.dp + 60.dp + 12.dp, end = 16.dp, onDismiss = addMenu::close) {
                 addMenu.open = false
                 nav.navigate(entryRoute(kind = it))
             }

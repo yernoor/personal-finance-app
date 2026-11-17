@@ -1,11 +1,15 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.ui.test.assertTextEquals
+
+import androidx.compose.ui.test.performTextInput
+
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -53,11 +57,21 @@ class AnalysisFlowTest {
     fun analysisTab_showsTheMonthlyCard_andACategoryRowOpensItsTrend() {
         compose.onNodeWithTag("tab-analysis").performClick()
         waitFor("analysis-monthly")
-        compose.onNodeWithTag("analysis-average").assertIsDisplayed()
+        waitFor("forecast-total") // the month's figure tops the card
         waitFor("trend-cafe")
         compose.onNodeWithTag("trend-cafe").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // not a touch: the scrolled-to row sits under the floating bar
         waitFor("category-trend")
         compose.onNodeWithTag("trend-projected").assertIsDisplayed()
         waitFor("trend-op-" + runBlocking { db.transactionDao().getAll() }.first { it.comment == "Lunch" }.uid)
+    }
+
+    @Test
+    fun theAffordCard_onOverview_answersWithAVerdict() {
+        compose.onNodeWithTag("tab-analysis").performClick()
+        waitFor("afford-card-price")
+        compose.onNodeWithTag("afford-card-price").performScrollTo().performTextInput("1000000") // far more than the main account holds
+        compose.onNodeWithTag("afford-card-check").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        waitFor("afford-card-verdict")
+        compose.onNodeWithTag("afford-card-verdict").assertTextEquals("NO")
     }
 }

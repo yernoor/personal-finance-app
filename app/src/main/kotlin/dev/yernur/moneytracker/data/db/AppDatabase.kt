@@ -7,7 +7,7 @@ import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
 
 /** The schema version in one place: Room's `@Database` and the backup's "is this file from a newer app" check both read it. */
-const val DB_VERSION = 6
+const val DB_VERSION = 7
 
 @Database(
     entities = [
@@ -25,6 +25,7 @@ const val DB_VERSION = 6
         GoalEntity::class,
         BondEntity::class,
         CashflowItemEntity::class,
+        BillEntity::class,
     ],
     version = DB_VERSION,
     exportSchema = true,
@@ -43,6 +44,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun goalDao(): GoalDao
     abstract fun bondDao(): BondDao
     abstract fun cashflowItemDao(): CashflowItemDao
+    abstract fun billDao(): BillDao
 }
 
 /** Adds the per-category warning threshold and projection mode (milestone 5). */
@@ -81,5 +83,12 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
 val MIGRATION_5_6 = object : Migration(5, 6) {
     override fun migrate(connection: SQLiteConnection) {
         connection.execSQL("CREATE TABLE IF NOT EXISTS `cashflow_item` (`uid` TEXT NOT NULL, `title` TEXT NOT NULL, `kind` TEXT NOT NULL, `currencyCode` TEXT NOT NULL, `monthlyMinor` INTEGER NOT NULL, `inLedger` INTEGER NOT NULL, `created` TEXT NOT NULL, `modified` TEXT NOT NULL, `isRemoved` INTEGER NOT NULL, PRIMARY KEY(`uid`))")
+    }
+}
+
+/** Adds what the owner set for recurring bills: reminders and end dates. */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("CREATE TABLE IF NOT EXISTS `bill` (`key` TEXT NOT NULL, `title` TEXT NOT NULL, `categoryUid` TEXT, `amount` INTEGER NOT NULL, `reminderOn` INTEGER NOT NULL, `reminderPaused` INTEGER NOT NULL, `reminderDaysBefore` INTEGER NOT NULL, `reminderMinute` INTEGER NOT NULL, `endMonth` TEXT, `settled` INTEGER NOT NULL, `lastNotified` TEXT, PRIMARY KEY(`key`))")
     }
 }

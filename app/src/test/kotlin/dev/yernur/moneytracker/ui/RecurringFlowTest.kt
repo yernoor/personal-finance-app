@@ -1,5 +1,9 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.ui.test.onNodeWithText
+
+import dev.yernur.moneytracker.data.db.ProjectionMode
+
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.runtime.CompositionLocalProvider
@@ -7,7 +11,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.hasTestTag
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -62,8 +66,8 @@ class RecurringFlowTest {
 
     private fun openScreen() {
         compose.onNodeWithTag("tab-analysis").performClick()
-        waitFor("open-recurring")
-        compose.onNodeWithTag("open-recurring").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // not a touch: the scrolled-to row sits under the floating bar
+        waitFor("analysis-tab-Recurring")
+        compose.onNodeWithTag("analysis-tab-Recurring").performClick()
         waitFor("recurring")
     }
 
@@ -83,7 +87,7 @@ class RecurringFlowTest {
         assertEquals(2, pairs().size)
         val newer = pairs().maxWith(compareBy({ it.created }, { it.uid })) // same order the detection uses
         waitFor("duplicate-${newer.uid}")
-        compose.onNodeWithTag("duplicate-delete").performScrollTo().performClick()
+        compose.onNodeWithTag("duplicate-delete").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // under the floating bar: not a touch
         gone("duplicate-${newer.uid}")
         assertEquals(1, pairs().size)
         assertTrue(runBlocking { db.transactionDao().get(newer.uid) }!!.isRemoved) // a tombstone, not a hard delete
@@ -93,8 +97,73 @@ class RecurringFlowTest {
     fun keepBoth_isRemembered() {
         openScreen()
         waitFor("duplicate-keep")
-        compose.onNodeWithTag("duplicate-keep").performScrollTo().performClick()
+        compose.onNodeWithTag("duplicate-keep").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // under the floating bar: not a touch
         compose.waitUntil(5_000) { container.settings.keptDuplicates.value.size == 1 }
         assertEquals(2, runBlocking { db.transactionDao().getAll() }.count { it.comment == "Lunch" && !it.isRemoved })
+    }
+
+    @Test
+    fun makeFixed_setsTheCategory_andTappingAgainUndoesIt() {
+        openScreen()
+        waitFor("fixed-Gym")
+        compose.onNodeWithTag("fixed-Gym").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // under the floating bar: not a touch
+        compose.waitUntil(5_000) { runBlocking { db.categoryDao().get("food")!!.projectionMode } == ProjectionMode.Fixed }
+        compose.onNodeWithTag("fixed-Gym").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // under the floating bar: not a touch
+        compose.waitUntil(5_000) { runBlocking { db.categoryDao().get("food")!!.projectionMode } == ProjectionMode.Auto }
+    }
+
+    @Test
+    fun twoQuickTapsOnFixed_endWhereTheyStarted() {
+        openScreen()
+        waitFor("fixed-Gym")
+        // No wait in between: the second tap comes before the card redraws (what failed on CI); it must undo the first, not repeat it.
+        repeat(2) { compose.onNodeWithTag("fixed-Gym").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) }
+        compose.waitForIdle()
+        compose.waitUntil(5_000) { runBlocking { db.categoryDao().get("food")!!.modified }.isNotEmpty() }
+        Thread.sleep(300) // both saves land on Room's executor
+        compose.waitForIdle()
+        assertEquals(ProjectionMode.Auto, runBlocking { db.categoryDao().get("food")!!.projectionMode })
+    }
+
+    @Test
+    fun settingAnEnd_showsHowManyArePaid() {
+        openScreen()
+        waitFor("ends-Gym")
+        compose.onNodeWithTag("ends-Gym").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // under the floating bar: not a touch
+        waitFor("end-sheet")
+        compose.onNodeWithTag("end-save").performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("3 of 9 paid").fetchSemanticsNodes().isNotEmpty() } // 3 seen + 6 left (the default)
+    }
+
+    @Test
+    fun movingTheGymOutOfFood_movesItsPayments_andUndoPutsThemBack() {
+        runBlocking { db.categoryDao().insertAll(listOf(CategoryEntity("sport", "Sport", TransactionType.Expense, "cafe", null, 0, null, null, 1, false, "", ""))) }
+        openScreen()
+        waitFor("move-Gym") // Gym is inside Food, next to the lunches
+        compose.onNodeWithTag("move-Gym").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) // under the floating bar: not a touch
+        waitFor("move-to-Sport")
+        compose.onNodeWithTag("move-to-Sport").performClick()
+        compose.onNodeWithTag("move-go").performClick()
+        compose.waitUntil(5_000) { runBlocking { db.transactionDao().getAll() }.count { it.categoryUid == "sport" } == 3 }
+        assertEquals(2, runBlocking { db.transactionDao().getAll() }.count { it.categoryUid == "food" }) // the lunches stay
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Undo").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Undo").performClick()
+        compose.waitUntil(5_000) { runBlocking { db.transactionDao().getAll() }.count { it.categoryUid == "food" } == 5 }
+    }
+
+    @Test
+    fun aBillReminder_showsInNotifications_andTheBinDeletesIt_withUndo() {
+        val gym = runBlocking { container.bills.current(today) }.single { it.item.title == "Gym" }
+        runBlocking { container.bills.saveReminder(gym, 1, 10 * 60) }
+        compose.onNodeWithTag("more").performClick()
+        waitFor("open-notifications")
+        compose.onNodeWithTag("open-notifications").performScrollTo().performClick()
+        waitFor("notification-Gym")
+        compose.onNodeWithTag("notification-delete-Gym").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitUntil(5_000) { runBlocking { db.billDao().get(gym.key) }?.reminderOn == false }
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Undo").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Undo").performClick()
+        compose.waitUntil(5_000) { runBlocking { db.billDao().get(gym.key) }?.reminderOn == true }
+        waitFor("notification-Gym")
     }
 }

@@ -2,7 +2,7 @@ package dev.yernur.moneytracker.ui
 
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertTextContains
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -39,7 +39,7 @@ class AffordScreenTest {
         db.categoryDao().insertAll(listOf(CategoryEntity("cafe", "Cafe", TransactionType.Expense, "cafe", null, 0, null, null, 0, false, "", "")))
         // 1,000,000.00 on the account (100,000,000 minor units) and nothing else, so the verdict depends on the price alone.
         container.ledger.saveTransaction(TransactionDraft(null, TransactionType.Income, "main", null, 100_000_000, LocalDate.now().toString(), null, emptySet()))
-        compose.setContent { CompositionLocalProvider(LocalAppContainer provides container) { AppTheme { AffordScreen({}, {}) } } }
+        compose.setContent { CompositionLocalProvider(LocalAppContainer provides container) { AppTheme { AffordScreen(onBack = {}, onLogExpense = {}) } } }
     }
 
     @After

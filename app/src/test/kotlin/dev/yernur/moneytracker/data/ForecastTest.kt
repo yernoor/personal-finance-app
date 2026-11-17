@@ -48,6 +48,21 @@ class ForecastTest {
     }
 
     @Test
+    fun theMonthsFigure_isRegularPacePlusOneOffsAsSpent_withoutNeverCategories() {
+        val rows = listOf(
+            expense("2026-10-03", "often", 15_000), expense("2026-10-08", "often", 15_000), // 30,000 by day 10: pace 93,000
+            expense("2026-10-05", "rare", 20_000), // a one-off: counts as 20,000, not stretched to 62,000
+            expense("2026-10-06", "hidden", 50_000), // set to Never: out
+        ) + (7..9).flatMap { m -> listOf(expense("2026-0$m-03", "often", 1), expense("2026-0$m-20", "often", 1)) }
+        val f = run(rows, listOf(category("often"), category("rare"), category("hidden", mode = ProjectionMode.Exclude)))
+        assertEquals(93_000L, f.runRateIncluded)
+        assertEquals(20_000L, f.oneOffSpent)
+        assertEquals(113_000L, f.projected)
+        assertTrue(f.categories.first { it.categoryUid == "rare" }.oneOff)
+        assertFalse(f.categories.first { it.categoryUid == "hidden" }.oneOff)
+    }
+
+    @Test
     fun runRateWarning_waitsForTenDaysOfData() {
         val rows = listOf(expense("2026-10-02", "a", 60_000)) // pace: 60,000 / 3 * 31 = 620,000, far over the 100,000 limit
         val early = forecast(rows, listOf(category("a", limit = 100_000)), LocalDate.of(2026, 10, 3), longAgo, 100)
