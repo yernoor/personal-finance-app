@@ -4,6 +4,12 @@ import dev.yernur.moneytracker.data.AnimationKind
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
+import kotlin.math.abs
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -75,6 +81,25 @@ fun blendBars(a: BarShape, b: BarShape, t: Float): BarShape {
 }
 
 /**
+ * The window moving one bucket along ([PeriodCue.Earlier] / [PeriodCue.Later]) as one strip: [slots] is old and new together, newest first,
+ * one slot more than the window. At [t] = 0 the old window fills the chart, at 1 the new one.
+ */
+data class BarStrip(val slots: List<BarSlot>, val earlier: Boolean, val fromTallest: Long, val toTallest: Long) {
+    /** How far the strip's newest slot sits right of the chart's right edge, in slot widths. */
+    fun overhang(t: Float) = if (earlier) t else 1f - t
+}
+
+/** The strip for a one-bucket move from [from] to [to] (same slot count), or null when it is not one. */
+fun barStrip(from: BarShape, to: BarShape, cue: PeriodCue): BarStrip? {
+    if (from.slots.size != to.slots.size || from.slots.isEmpty()) return null
+    val earlier = when (cue) { PeriodCue.Earlier -> true; PeriodCue.Later -> false; else -> return null }
+    val slots = if (earlier) listOf(from.slots.first()) + to.slots else listOf(to.slots.first()) + from.slots
+    return BarStrip(slots, earlier, tallestOf(from.slots), tallestOf(to.slots))
+}
+
+private fun tallestOf(slots: List<BarSlot>) = slots.maxOfOrNull { slot -> slot.bars.maxOfOrNull { bar -> bar.sumOf { it.value } } ?: 0L }?.coerceAtLeast(1L) ?: 1L
+
+/**
  * Bars scale to the tallest bar. Tapping a group selects it; labels sit under the groups, equally spaced. Bars draw in from the axis when the
  * chart first shows or [tabKey] changes; a new period (or edited data) glides from the old bars to the new ones, with the movement of [cues].
  */
@@ -86,13 +111,28 @@ fun BarChart(groups: List<BarGroup>, labels: List<String>, selected: Int, onSele
     val morph = remember { Morph(target, ::blendBars) }
     val glide = animated(AnimationKind.PeriodSwitch)
     var tabOnShow by remember { mutableStateOf(tabKey) }
+    var strip by remember { mutableStateOf<BarStrip?>(null) }
+    val slide = remember { Animatable(1f) }
+    // Where the highlight sits, in slots from the right: it glides on its own, and stays put while the strip slides under it.
+    val highlightAt = remember { Animatable(target.selected.toFloat()) }
+    LaunchedEffect(target.selected) { highlightAt.animateTo(target.selected.toFloat(), spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)) }
     LaunchedEffect(target) {
         val sameTab = tabOnShow == tabKey
         tabOnShow = tabKey
-        morph.moveTo(target, animate = glide && sameTab, newCue = cues.consume())
+        val cue = cues.consume()
+        val moving = if (glide && sameTab) barStrip(morph.target, target, cue) else null
+        if (moving == null) return@LaunchedEffect morph.moveTo(target, animate = glide && sameTab, newCue = cue)
+        // One bucket along: slide the strip; the bars that stay are the same bars, only the scale eases to the new tallest.
+        morph.moveTo(target, animate = false)
+        strip = moving
+        slide.snapTo(0f)
+        slide.animateTo(1f, tween(PERIOD_MS, easing = FastOutSlowInEasing))
+        strip = null
     }
+    val moving = strip
+    val t = slide.value
     val shape = morph.shown
-    val tallest = shape.slots.maxOfOrNull { slot -> slot.bars.maxOfOrNull { bar -> bar.sumOf { it.value } } ?: 0L }?.coerceAtLeast(1L) ?: 1L
+    val tallest = if (moving != null) lerp(moving.fromTallest.toFloat(), moving.toTallest.toFloat(), t).toLong().coerceAtLeast(1L) else tallestOf(shape.slots)
     // The bars grow up from the axis, one group after the other, when the chart first shows or another tab is picked
     val drawIn = animated(AnimationKind.Charts)
     val grow = remember { Animatable(if (drawIn) 0f else 1f) }
@@ -104,18 +144,20 @@ fun BarChart(groups: List<BarGroup>, labels: List<String>, selected: Int, onSele
 
     Column(modifier) {
         Canvas(
-            Modifier.fillMaxWidth().height(104.dp).testTag("bar-chart").periodCue(morph.cue) { morph.progress.value }.pointerInput(groups.size) {
+            Modifier.fillMaxWidth().height(104.dp).clipToBounds().testTag("bar-chart").periodCue(morph.cue) { morph.progress.value }.pointerInput(groups.size) {
                 detectTapGestures { offset -> onSelect((offset.x / (size.width / groups.size)).toInt().coerceIn(0, groups.size - 1)) }
             },
         ) {
-            val room = shape.slots.sumOf { it.weight.toDouble() }.toFloat().coerceAtLeast(0.001f)
-            var right = size.width
-            shape.slots.forEachIndexed { j, slot ->
-                val slotWidth = size.width * slot.weight / room
+            val slots = moving?.slots ?: shape.slots
+            val room = if (moving != null) (slots.size - 1).toFloat() else shape.slots.sumOf { it.weight.toDouble() }.toFloat().coerceAtLeast(0.001f)
+            val unit = size.width / room
+            if (shape.slots.isNotEmpty()) drawRoundRect(highlight, Offset(size.width - unit * (highlightAt.value + 1), 0f), Size(unit, size.height), CornerRadius(8.dp.toPx()))
+            var right = size.width + unit * (moving?.overhang(t) ?: 0f)
+            slots.forEachIndexed { j, slot ->
+                val slotWidth = if (moving != null) unit else size.width * slot.weight / room
                 val left = right - slotWidth
                 right = left
-                val progress = staggered(grow.value, shape.slots.size - 1 - j, shape.slots.size)
-                if (j == shape.selected) drawRoundRect(highlight, Offset(left, 0f), Size(slotWidth, size.height), CornerRadius(8.dp.toPx()))
+                val progress = if (moving != null) 1f else staggered(grow.value, slots.size - 1 - j, slots.size)
                 val barWidth = slotWidth * 0.8f / slot.bars.size.coerceAtLeast(1)
                 slot.bars.forEachIndexed { barIndex, bar ->
                     var bottom = size.height
@@ -129,7 +171,17 @@ fun BarChart(groups: List<BarGroup>, labels: List<String>, selected: Int, onSele
             }
             drawLine(axis, Offset(0f, size.height), Offset(size.width, size.height), strokeWidth = 1.dp.toPx())
         }
-        Row(Modifier.fillMaxWidth().clipToBounds(), verticalAlignment = Alignment.Top) {
+        if (moving != null) BoxWithConstraints(Modifier.fillMaxWidth().clipToBounds()) { // the labels ride with the strip
+            val unit = maxWidth / (moving.slots.size - 1)
+            moving.slots.forEachIndexed { j, slot ->
+                val fromRight = j - moving.overhang(t) // slots from the right edge, where 0 is the rightmost shown
+                Text(
+                    slot.label, Modifier.offset(x = maxWidth - unit * (fromRight + 1)).width(unit), textAlign = TextAlign.Center, maxLines = 1, softWrap = false,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (abs(fromRight - shape.selected) < 0.5f) FontWeight.Bold else FontWeight.Normal,
+                )
+            }
+        } else Row(Modifier.fillMaxWidth().clipToBounds(), verticalAlignment = Alignment.Top) {
             shape.slots.asReversed().forEachIndexed { index, slot ->
                 if (slot.weight > 0.001f) Text(
                     slot.label, Modifier.weight(slot.weight), textAlign = TextAlign.Center, maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelLarge,

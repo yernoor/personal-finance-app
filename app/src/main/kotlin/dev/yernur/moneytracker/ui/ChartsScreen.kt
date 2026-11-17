@@ -87,6 +87,18 @@ private fun barCount(unit: PeriodUnit) = when (unit) {
     PeriodUnit.Year -> 3
 }
 
+/**
+ * A swipe on Charts moves the selected bar one bucket ([by] +1 = newer, -1 = older) given [page] (0 = window ends today) and [selected]
+ * (index in a window of [count] bars, oldest first). The selection walks towards the middle first; from there the window slides along
+ * under it, so the bars already shown keep their place. Returns the new (page, selected), or null at the present.
+ */
+internal fun chartStep(page: Int, selected: Int, count: Int, by: Int): Pair<Int, Int>? {
+    val back = page + (count - 1 - selected) - by // buckets between the selected one and the newest
+    if (back < 0) return null
+    val newPage = (back - (count - 1 - count / 2)).coerceAtLeast(0)
+    return newPage to count - 1 - (back - newPage)
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 /** [days] is today, emitting again when the day changes (AppContainer.today). */
 class ChartsViewModel(db: AppDatabase, days: Flow<LocalDate> = flowOf(LocalDate.now())) : ViewModel() {
@@ -117,6 +129,15 @@ class ChartsViewModel(db: AppDatabase, days: Flow<LocalDate> = flowOf(LocalDate.
         unit.value = to
     }
 
+    /** See [chartStep]. */
+    fun step(by: Int): Boolean {
+        val count = barCount(unit.value)
+        val (newPage, newSelected) = chartStep(page.value, if (selected in 0 until count) selected else count - 1, count, by) ?: return false
+        selected = newSelected
+        page.value = newPage
+        return true
+    }
+
     fun turnPage(by: Int) {
         selected = -1
         page.value = (page.value + by).coerceAtLeast(0)
@@ -133,9 +154,8 @@ fun ChartsScreen(onOpenTransaction: (String) -> Unit = {}) {
     val cues = rememberCueTracker(unit, -page.toLong()) // older pages are further from the present
     val periodFade = periodFade(unit to page)
 
-    val swipe = rememberSwipeSteps()
-    // A swipe turns the page: left to newer (not past today), right to older.
-    Column(Modifier.fillMaxSize().swipeSteps(swipe) { by -> if (by > 0 && page == 0) false else { vm.turnPage(-by); true } }) {
+    // A swipe moves the selected bar (left: newer, right: older); the bars slide along by themselves, so the screen does not move.
+    Column(Modifier.fillMaxSize().swipeSteps(rememberSwipeSteps(), travel = false) { by -> vm.step(by) }) {
         // Same header as History: the period slicer on top, then what to show underneath.
         run {
             val units = listOf(PeriodUnit.Day, PeriodUnit.Week, PeriodUnit.Month, PeriodUnit.Year)
@@ -157,7 +177,7 @@ fun ChartsScreen(onOpenTransaction: (String) -> Unit = {}) {
             tabs.map { it.label }, tabs.indexOf(vm.tab), tabs.map { "chart-tab-${it.name}" }, { vm.tab = tabs[it] },
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
-        Column(Modifier.swipeShift(swipe).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             data?.let { chart -> ChartBody(chart, vm.tab, cues, vm.selected, onSelect = { vm.selected = it }, onOpenTransaction) }
             Spacer(Modifier.height(LocalChromeInset.current))
         }
