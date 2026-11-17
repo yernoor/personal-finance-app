@@ -134,7 +134,7 @@ class BillRepository(
         db.billDao().get(key)?.let { db.billDao().upsert(it.copy(lastNotified = day.toString())) }
     }
 
-    /** Acts once on ends that have passed: the reminder stops, and a bill that is its whole category sets that category back to Automatic. */
+    /** Acts once on ends that have passed: the reminder stops, and a bill that is its whole category sets that category back to Automatic. Called by the reminder job. */
     suspend fun settleEnded(today: LocalDate) {
         val thisMonth = YearMonth.from(today)
         db.billDao().getAll().filter { it.endMonth != null && !it.settled && YearMonth.parse(it.endMonth) < thisMonth }.forEach { ended ->
@@ -142,7 +142,8 @@ class BillRepository(
                 ?.takeIf { it.projectionMode == ProjectionMode.Fixed }?.let { ledger.saveCategory(it.copy(projectionMode = ProjectionMode.Auto)) }
             db.billDao().upsert(ended.copy(reminderOn = false, settled = true))
         }
-        changed()
+        // No changed() here: the reminder job calls this and books its own next run; re-booking from inside it replaced (cancelled) the
+        // running job before it could post anything, over and over.
     }
 
     suspend fun moveCandidates(bill: Bill): MoveCandidates =

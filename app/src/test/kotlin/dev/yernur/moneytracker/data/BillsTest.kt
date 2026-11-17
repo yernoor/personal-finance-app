@@ -104,7 +104,9 @@ class BillsTest {
         val ledger = LedgerRepository(db)
         db.categoryDao().upsert(category("inst", "Installment", ProjectionMode.Fixed))
         db.billDao().upsert(BillEntity("category:inst", "Installment", "inst", 7_000_000, reminderOn = true, endMonth = "2026-10"))
-        BillRepository(db, ledger, flowOf(today)).settleEnded(today)
+        var booked = 0
+        BillRepository(db, ledger, flowOf(today)) { booked++ }.settleEnded(today)
+        assertEquals(0, booked) // the reminder job calls this: re-booking from inside would cancel the running job
         assertEquals(ProjectionMode.Auto, db.categoryDao().get("inst")!!.projectionMode)
         val bill = db.billDao().get("category:inst")!!
         assertFalse(bill.reminderOn)
