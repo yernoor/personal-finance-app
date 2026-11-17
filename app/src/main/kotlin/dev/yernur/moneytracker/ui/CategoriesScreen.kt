@@ -127,8 +127,8 @@ class CategoryEditViewModel(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun CategoryEditScreen(uid: String?, type: TransactionType, onBack: () -> Unit) {
-    val vm = appViewModel(key = "category-$uid-$type") { CategoryEditViewModel(it.db, it.ledger, uid, type) }
+fun CategoryEditScreen(uid: String?, type: TransactionType, title: String? = null, onBack: () -> Unit) {
+    val vm = appViewModel(key = "category-$uid-$type") { CategoryEditViewModel(it.db, it.ledger, uid, type).also { vm -> if (uid == null && title != null) vm.title = title } }
     var confirmDelete by remember { mutableStateOf(false) }
     Scaffold(topBar = {
         AppTopBar(

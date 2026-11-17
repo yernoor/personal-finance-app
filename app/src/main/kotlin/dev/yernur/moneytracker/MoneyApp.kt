@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.room.Room
 import dev.yernur.moneytracker.data.AffordRepository
+import dev.yernur.moneytracker.data.BillRepository
 import dev.yernur.moneytracker.data.AppSettings
 import dev.yernur.moneytracker.data.ForecastRepository
 import dev.yernur.moneytracker.data.LedgerRepository
@@ -17,6 +18,7 @@ import dev.yernur.moneytracker.data.db.MIGRATION_2_3
 import dev.yernur.moneytracker.data.db.MIGRATION_3_4
 import dev.yernur.moneytracker.data.db.MIGRATION_4_5
 import dev.yernur.moneytracker.data.db.MIGRATION_5_6
+import dev.yernur.moneytracker.data.db.MIGRATION_6_7
 import dev.yernur.moneytracker.data.feedback.CrashLog
 import dev.yernur.moneytracker.data.importer.ImportRepository
 import dev.yernur.moneytracker.data.security.AppLock
@@ -60,6 +62,8 @@ class AppContainer(
     val demoMode: Boolean = false,
     /** Turns demo mode on or off; the app restarts on the other database. A no-op in tests. */
     val switchDemoMode: (Boolean) -> Unit = {},
+    /** Books the next bill reminder after a bill's settings change; a no-op in tests. */
+    billsChanged: () -> Unit = {},
 ) {
     private val dayTicks = kotlinx.coroutines.flow.MutableStateFlow(0)
     /** Today, re-read whenever a screen starts watching and on each [refreshToday]: a screen left open overnight moves on to the new day. */
@@ -82,6 +86,7 @@ class AppContainer(
     val ledger = LedgerRepository(db, allRates = { fx.allRates.first() })
     val wealth = WealthRepository(db, fx)
     val afford = AffordRepository(db, fx, forecasts, wealth)
+    val bills = BillRepository(db, ledger, today, billsChanged)
     private val notifier = notifierFor(db, settings, forecasts)
 
     /** Asks GitHub for a newer release, but at most once a day; a failure is silent (the Updates screen shows errors when asked by hand). */
@@ -125,6 +130,7 @@ class MoneyApp : Application() {
         container.crashes?.install()
         dev.yernur.moneytracker.data.sheets.WeeklySyncWorker.schedule(this)
         dev.yernur.moneytracker.data.ReminderWorker.schedule(this, container.settings)
+        dev.yernur.moneytracker.data.BillReminderWorker.schedule(this)
         kotlinx.coroutines.CoroutineScope(Dispatchers.Default).launch { dev.yernur.moneytracker.widget.updateWidgetPreviews(this@MoneyApp) }
     }
 
@@ -132,7 +138,7 @@ class MoneyApp : Application() {
         val version = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
         val demo = getSharedPreferences(MODE_PREFS, MODE_PRIVATE).getBoolean(DEMO_KEY, false)
         val dbName = if (demo) DEMO_DB_NAME else DB_NAME
-        val db = Room.databaseBuilder(this, AppDatabase::class.java, dbName).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build()
+        val db = Room.databaseBuilder(this, AppDatabase::class.java, dbName).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build()
         AppContainer(
             db,
             AppSettings(getSharedPreferences("settings", MODE_PRIVATE)),
@@ -144,6 +150,7 @@ class MoneyApp : Application() {
             crashes = CrashLog(java.io.File(filesDir, "crash/last-crash.txt")),
             demoMode = demo,
             switchDemoMode = ::switchDemoMode,
+            billsChanged = { dev.yernur.moneytracker.data.BillReminderWorker.schedule(this) },
         ).also { if (demo) kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch { DemoData.seedIfEmpty(db) } }
     }
 

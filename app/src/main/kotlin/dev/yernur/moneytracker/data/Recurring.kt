@@ -37,6 +37,8 @@ data class RecurringItem(
     val categoryUid: String? = null,
     /** Found by its category (a steady monthly total) rather than by a repeated comment. */
     val byCategory: Boolean = false,
+    /** Stable id of the bill: "comment:<lowercase comment>" or "category:<uid>" (what the owner sets for it is saved under this). */
+    val key: String = "",
 )
 
 /** One month of a group: the amount that counts, the latest date, the latest payment's category, how many payments. */
@@ -59,14 +61,14 @@ fun detectRecurring(rows: List<TxFull>, reminders: List<ReminderEntity>, today: 
     val byComment = expenses.filter { !it.comment.isNullOrBlank() }.groupBy { it.comment!!.trim().lowercase() }.mapNotNull { (key, group) ->
         val perMonth = group.groupBy(::month).mapValues { (_, l) -> l.maxBy { it.amount }.let { MonthEntry(it.amount, LocalDate.parse(it.date), it.categoryUid, 1) } }
         val title = group.maxBy { it.date }.comment!!.trim()
-        recurringRun(perMonth, thisMonth, false)?.let { item(it, title, key in reminderTitles, false) }
+        recurringRun(perMonth, thisMonth, false)?.let { item(it, title, key in reminderTitles, false, "comment:$key") }
     }
     val byCategory = expenses.filter { it.categoryUid != null }.groupBy { it.categoryUid!! }.mapNotNull { (uid, group) ->
         val perMonth = group.groupBy(::month).mapValues { (_, l) -> MonthEntry(l.sumOf { it.amount }, l.maxOf { LocalDate.parse(it.date) }, uid, l.size) }
         val title = categoryTitles[uid] ?: return@mapNotNull null
         if (byComment.any { it.categoryUid == uid }) return@mapNotNull null
         val found = recurringRun(perMonth, thisMonth, true) ?: return@mapNotNull null
-        item(found, title, title.trim().lowercase() in reminderTitles, true)
+        item(found, title, title.trim().lowercase() in reminderTitles, true, "category:$uid")
     }
     return (byComment + byCategory).sortedByDescending { it.amount }
 }
@@ -82,13 +84,13 @@ private fun recurringRun(perMonth: Map<YearMonth, MonthEntry>, thisMonth: YearMo
     return run
 }
 
-private fun item(run: List<MonthEntry>, title: String, hasReminder: Boolean, byCategory: Boolean): RecurringItem {
+private fun item(run: List<MonthEntry>, title: String, hasReminder: Boolean, byCategory: Boolean, key: String): RecurringItem {
     val latest = run.last()
     val previous = run[run.size - 2].amount
     val change = divideRounded((latest.amount - previous) * 100, previous).toInt()
     return RecurringItem(
         title, latest.amount, run.size, latest.date, latest.date.plusMonths(1),
-        change.takeIf { abs(it) >= PRICE_CHANGE_MIN_PERCENT }, previous, hasReminder, latest.categoryUid, byCategory,
+        change.takeIf { abs(it) >= PRICE_CHANGE_MIN_PERCENT }, previous, hasReminder, latest.categoryUid, byCategory, key,
     )
 }
 

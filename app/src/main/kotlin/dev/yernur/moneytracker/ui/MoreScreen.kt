@@ -308,6 +308,7 @@ fun MoreScreen(onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Uni
                     )
                 },
             )
+            BillRemindersGroup()
         }
         Section("automation", "Automation", openId, { openId = it }) {
             val walletOn by container.settings.walletCapture.collectAsStateWithLifecycle()

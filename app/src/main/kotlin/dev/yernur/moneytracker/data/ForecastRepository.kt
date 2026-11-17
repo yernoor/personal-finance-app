@@ -27,9 +27,9 @@ class ForecastRepository(
         val (from, to) = window(now)
         combine(
             db.transactionDao().observeLite(from, to), db.categoryDao().observeAll(),
-            db.transactionDao().observeEarliestDate(), settings.warnThreshold,
-        ) { rows, categories, earliest, threshold ->
-            forecast(rows, categories.filter { !it.isRemoved }, now, earliest?.let(LocalDate::parse), threshold)
+            db.transactionDao().observeEarliestDate(), settings.warnThreshold, db.billDao().observeAll(),
+        ) { rows, categories, earliest, threshold, bills ->
+            forecast(rows, categories.filter { !it.isRemoved }, now, earliest?.let(LocalDate::parse), threshold, endedLastMonth(bills, now))
         }
     }
 

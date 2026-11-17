@@ -111,7 +111,8 @@ enum class NavTab(val id: String, val label: String, val icon: ImageVector) {
 private val OWN_BAR_SCREENS = setOf("wealth", "categories", "tags")
 
 private const val ENTRY = "entry?uid={uid}&kind={kind}"
-private const val CATEGORY = "category/{uid}?type={type}"
+private const val CATEGORY = "category/{uid}?type={type}&title={title}"
+private const val MOVE = "move/{key}"
 private const val ACCOUNT = "account/{uid}"
 
 /** Where a widget tap should land: an add screen of this kind ("expense", "income", "transfer"), or the operation with this uid. Null kind and uid: just open the app. */
@@ -351,7 +352,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             screen("trend/{uid}", arguments = listOf(navArgument("uid") { type = NavType.StringType })) { entry ->
                 CategoryTrendScreen(entry.arguments?.getString("uid").orEmpty(), onBack = { nav.popBackStack() }, onOpenTransaction = { nav.navigate(entryRoute(it)) })
             }
-            screen("recurring") { RecurringScreen { nav.popBackStack() } }
+            screen("recurring") { RecurringScreen(onMove = { nav.navigate("move/${android.net.Uri.encode(it)}") }) { nav.popBackStack() } }
             screen("afford") { AffordScreen(onBack = { nav.popBackStack() }, onLogExpense = { nav.navigate(entryRoute()) }) }
             screen("sync") { SyncScreen { nav.popBackStack() } }
             screen("updates") { UpdatesScreen { nav.popBackStack() } }
@@ -371,12 +372,21 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 arguments = listOf(
                     navArgument("uid") { type = NavType.StringType },
                     navArgument("type") { type = NavType.StringType; defaultValue = TransactionType.Expense.name },
+                    navArgument("title") { type = NavType.StringType; nullable = true; defaultValue = null }, // a new category's name, filled in
                 ),
             ) { entry ->
                 CategoryEditScreen(
                     entry.arguments?.getString("uid")?.takeIf { it != "new" },
                     TransactionType.valueOf(entry.arguments?.getString("type") ?: "Expense"),
+                    entry.arguments?.getString("title"),
                 ) { nav.popBackStack() }
+            }
+            screen(MOVE, arguments = listOf(navArgument("key") { type = NavType.StringType })) { entry ->
+                MovePaymentsScreen(
+                    android.net.Uri.decode(entry.arguments?.getString("key").orEmpty()),
+                    onNewCategory = { name -> nav.navigate("category/new?type=Expense&title=${android.net.Uri.encode(name)}") },
+                    onDone = { nav.popBackStack() },
+                )
             }
             screen("tags") { TagsScreen(embedded = "tags" in tabRoutes) { nav.popBackStack() } }
         }

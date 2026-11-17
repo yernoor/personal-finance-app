@@ -66,6 +66,8 @@ fun forecast(
     today: LocalDate,
     earliest: LocalDate?,
     defaultThreshold: Int,
+    /** Category -> amount of bills inside it whose last payment was last month ([endedLastMonth]): a fixed category leaves them out. */
+    endedLastMonth: Map<String, Long> = emptyMap(),
 ): Forecast {
     val month = YearMonth.from(today)
     val daysInMonth = month.lengthOfMonth()
@@ -93,7 +95,7 @@ fun forecast(
         val fixed = category?.projectionMode == ProjectionMode.Fixed
         // A bill that changed (rent 140k -> 300k) is judged by its newest amount, so a 3-month mean does not flag it as a rise for three months.
         val lastMonth = previousOps.filter { YearMonth.from(LocalDate.parse(it.date)) == month.minusMonths(1) }.sumOf { it.amount }.takeIf { it > 0 }
-        val average = if (fixed) lastMonth ?: mean else mean
+        val average = if (fixed) (lastMonth ?: mean)?.let { (it - (uid?.let(endedLastMonth::get) ?: 0L)).coerceAtLeast(0) } else mean
         val ops = if (monthsBack == 0) (current.count { it.categoryUid == uid }).toDouble() else previousOps.size.toDouble() / monthsBack
         val threshold = category?.warnThresholdPercent ?: defaultThreshold
         val limit = category?.limitAmount?.takeIf { it > 0 }
