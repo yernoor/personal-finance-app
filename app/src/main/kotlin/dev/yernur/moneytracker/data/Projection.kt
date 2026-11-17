@@ -17,9 +17,9 @@ data class CategoryForecast(
     /** Null: expenses without a category. */
     val categoryUid: String?,
     val spent: Long,
-    /** Linear run-rate: spent so far / days elapsed * days in month. */
+    /** Linear run-rate: spent so far / days elapsed * days in month. A Fixed category: last month's amount, or what is spent already if more. */
     val runRate: Long,
-    /** Mean of the previous full months (up to 3); null when there is no earlier month with data. */
+    /** Mean of the previous full months (up to 3); null when there is no earlier month with data. A Fixed category: last month's amount when there is one. */
     val average: Long?,
     /** Monthly planned outlay in default-currency minor units. */
     val limit: Long?,
@@ -82,14 +82,22 @@ fun forecast(
     val result = uids.map { uid ->
         val category = categoryByUid[uid]
         val spent = spentBy[uid] ?: 0L
-        val runRate = if (daysElapsed >= daysInMonth) spent else divideRounded(spent * daysInMonth, daysElapsed.toLong())
         val previousOps = previousBy[uid].orEmpty()
-        val average = if (monthsBack == 0) null else divideRounded(previousOps.sumOf { it.amount }, monthsBack.toLong())
+        val mean = if (monthsBack == 0) null else divideRounded(previousOps.sumOf { it.amount }, monthsBack.toLong())
+        val fixed = category?.projectionMode == ProjectionMode.Fixed
+        // A bill that changed (rent 140k -> 300k) is judged by its newest amount, so a 3-month mean does not flag it as a rise for three months.
+        val lastMonth = previousOps.filter { YearMonth.from(LocalDate.parse(it.date)) == month.minusMonths(1) }.sumOf { it.amount }.takeIf { it > 0 }
+        val average = if (fixed) lastMonth ?: mean else mean
+        val runRate = when {
+            fixed -> maxOf(spent, average ?: spent) // paid on day 2 or not yet: either way the month costs about one bill
+            daysElapsed >= daysInMonth -> spent
+            else -> divideRounded(spent * daysInMonth, daysElapsed.toLong())
+        }
         val ops = if (monthsBack == 0) (current.count { it.categoryUid == uid }).toDouble() else previousOps.size.toDouble() / monthsBack
         val threshold = category?.warnThresholdPercent ?: defaultThreshold
         val limit = category?.limitAmount?.takeIf { it > 0 }
         val inOverall = when (category?.projectionMode ?: ProjectionMode.Auto) {
-            ProjectionMode.Include -> true
+            ProjectionMode.Include, ProjectionMode.Fixed -> true
             ProjectionMode.Exclude -> false
             ProjectionMode.Auto -> ops >= MIN_OPERATIONS_PER_MONTH
         }
