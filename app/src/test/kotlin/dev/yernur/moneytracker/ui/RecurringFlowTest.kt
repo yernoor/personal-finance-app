@@ -137,4 +137,20 @@ class RecurringFlowTest {
         compose.onNodeWithText("Undo").performClick()
         compose.waitUntil(5_000) { runBlocking { db.transactionDao().getAll() }.count { it.categoryUid == "food" } == 5 }
     }
+
+    @Test
+    fun aBillReminder_showsInNotifications_andTheBinDeletesIt_withUndo() {
+        val gym = runBlocking { container.bills.current(today) }.single { it.item.title == "Gym" }
+        runBlocking { container.bills.saveReminder(gym, 1, 10 * 60) }
+        compose.onNodeWithTag("more").performClick()
+        waitFor("open-notifications")
+        compose.onNodeWithTag("open-notifications").performScrollTo().performClick()
+        waitFor("notification-Gym")
+        compose.onNodeWithTag("notification-delete-Gym").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitUntil(5_000) { runBlocking { db.billDao().get(gym.key) }?.reminderOn == false }
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Undo").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Undo").performClick()
+        compose.waitUntil(5_000) { runBlocking { db.billDao().get(gym.key) }?.reminderOn == true }
+        waitFor("notification-Gym")
+    }
 }

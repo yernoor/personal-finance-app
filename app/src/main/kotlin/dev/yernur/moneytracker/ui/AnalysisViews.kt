@@ -1,5 +1,7 @@
 package dev.yernur.moneytracker.ui
 
+import dev.yernur.moneytracker.LocalAppContainer
+
 import androidx.compose.material3.LinearProgressIndicator
 
 import dev.yernur.moneytracker.data.CategoryForecast
@@ -109,6 +111,12 @@ enum class AnalysisTab(val label: String) { Overview("Overview"), Recurring("Rec
 fun AnalysisScreen(onOpenTrend: (String) -> Unit, onMove: (key: String) -> Unit) {
     var tab by rememberSaveable { mutableStateOf(AnalysisTab.Overview) }
     val swipe = rememberSwipeSteps()
+    val container = LocalAppContainer.current
+    val asked by container.analysisRequest.collectAsStateWithLifecycle()
+    LaunchedEffect(asked) {
+        tab = asked ?: return@LaunchedEffect
+        container.analysisRequest.value = null
+    }
     Column(Modifier.fillMaxSize().swipeSteps(swipe) { by -> AnalysisTab.entries.getOrNull(tab.ordinal + by)?.let { tab = it } != null }) {
         SlidingSegmented(
             AnalysisTab.entries.map { it.label }, tab.ordinal, AnalysisTab.entries.map { "analysis-tab-${it.name}" },

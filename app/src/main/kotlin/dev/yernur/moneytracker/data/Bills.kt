@@ -121,6 +121,9 @@ class BillRepository(
 
     suspend fun removeReminder(bill: Bill) = save(base(bill).copy(reminderOn = false, reminderPaused = false))
 
+    /** Puts back settings saved before (Undo after deleting a reminder). */
+    suspend fun restore(settings: BillEntity) = save(settings)
+
     /** The last payment is [paymentsLeft] payments from now, counting the next one. */
     suspend fun setEnd(bill: Bill, paymentsLeft: Int) =
         save(base(bill).copy(endMonth = YearMonth.from(bill.item.next).plusMonths(paymentsLeft.coerceAtLeast(1) - 1L).toString(), settled = false))

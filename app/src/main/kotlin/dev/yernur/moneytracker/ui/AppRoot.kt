@@ -339,6 +339,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             }
             screen("more") {
                 MoreScreen(
+                    onNotifications = { nav.navigate("notifications") },
                     onCategories = { nav.navigate("categories") }, onTags = { nav.navigate("tags") },
                     onNavbar = { nav.navigate("navbar-settings") }, onHomeLayout = { nav.navigate("home-settings") },
                     onSync = { nav.navigate("sync") }, onUpdates = { nav.navigate("updates") }, onFeedback = { nav.navigate("feedback") },
@@ -347,6 +348,11 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             }
             screen("wealth") {
                 WealthScreen(embedded = "wealth" in tabRoutes, onCompound = { nav.navigate("compound") }, onBack = { nav.popBackStack() })
+            }
+            screen("notifications") {
+                NotificationsScreen(
+                    onOpenRecurring = { container.analysisRequest.value = AnalysisTab.Recurring; nav.navigateTop("analysis") }, onBack = { nav.popBackStack() },
+                )
             }
             screen("compound") { CompoundScreen { nav.popBackStack() } }
             screen("trend/{uid}", arguments = listOf(navArgument("uid") { type = NavType.StringType })) { entry ->

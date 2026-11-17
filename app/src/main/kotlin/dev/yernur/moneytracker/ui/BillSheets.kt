@@ -43,8 +43,8 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
 /** How early a bill reminder goes off, and at what time (minutes after midnight): the choices the sheet offers. */
-private val REMIND_BEFORE = listOf(0 to "On the day", 1 to "1 day before", 3 to "3 days before")
-private val REMIND_AT = listOf(9 * 60, 10 * 60, 12 * 60, 19 * 60)
+internal val REMIND_BEFORE = listOf(0 to "On the day", 1 to "1 day before", 3 to "3 days before")
+internal val REMIND_AT = listOf(9 * 60, 10 * 60, 12 * 60, 19 * 60)
 
 private val dayFormat = DateTimeFormatter.ofPattern("MMM d")
 fun minuteText(minute: Int) = "%02d:%02d".format(minute / 60, minute % 60)
