@@ -380,17 +380,24 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
             Button({ vm.save(onBack) }, modifier = Modifier.fillMaxWidth().testTag("save")) { Text(if (vm.isEditing) "Save" else "Add") }
         }
     }) { padding ->
+        // Editing keeps the entry's own kind: a transaction can swap Income/Expense, a transfer stays a transfer.
+        val kinds = when {
+            !vm.isEditing -> EntryKind.entries
+            isTransfer -> listOf(EntryKind.Transfer)
+            else -> listOf(EntryKind.Expense, EntryKind.Income)
+        }
+        val swipe = rememberSwipeSteps()
+        // Swipe or tap: the kinds slide like every other switch (SwipeSteps); what is typed stays.
         Column(
-            Modifier.padding(padding).padding(horizontal = 16.dp).verticalScroll(rememberScrollState()),
+            Modifier.padding(padding).padding(horizontal = 16.dp).swipeSteps(swipe) { by -> kinds.getOrNull(kinds.indexOf(vm.kind) + by)?.also { vm.kind = it } != null }
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Editing keeps the entry's own kind: a transaction can swap Income/Expense, a transfer stays a transfer.
-            val kinds = when {
-                !vm.isEditing -> EntryKind.entries
-                isTransfer -> listOf(EntryKind.Transfer)
-                else -> listOf(EntryKind.Expense, EntryKind.Income)
-            }
-            if (kinds.size > 1) SlidingSegmented(kinds.map { it.name }, kinds.indexOf(vm.kind), kinds.map { "kind-$it" }, { vm.kind = kinds[it] }) // a transfer being edited has nothing to switch to
+            if (kinds.size > 1) SlidingSegmented( // a transfer being edited has nothing to switch to
+                kinds.map { it.name }, kinds.indexOf(vm.kind), kinds.map { "kind-$it" },
+                { i -> if (kinds[i] != vm.kind) swipe.go(i - kinds.indexOf(vm.kind), { (kinds[i] != vm.kind).also { vm.kind = kinds[i] } }) },
+            )
+            Column(Modifier.swipeShift(swipe), verticalArrangement = Arrangement.spacedBy(16.dp)) {
 
             // The received amount of a transfer between currencies sits right under the sent one and slides down out of it.
             Column {
@@ -450,6 +457,7 @@ fun EntryScreen(uid: String?, kind: EntryKind, onLeave: () -> Unit) {
             }
 
             OutlinedTextField(vm.comment, { vm.comment = it }, label = { Text("Comment") }, modifier = Modifier.fillMaxWidth().testTag("comment"))
+            }
         }
     }
 
