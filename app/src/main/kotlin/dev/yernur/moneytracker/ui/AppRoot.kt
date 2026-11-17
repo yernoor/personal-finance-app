@@ -391,7 +391,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             ) { FloatingTabBar(tabs, lastTab, onSelect = { nav.navigateTop(it.id) }, backdrop = glassBackdrop) }
             val addMenu = remember { AddMenuState() }
             val addShown = tab?.id == "home" || tab?.id == "history"
-            if (glass && addMenu.open && addShown) GlassAddMenu(backdrop, addMenu, bottom = navInset + 88.dp + 60.dp + 12.dp, end = 16.dp, onDismiss = { addMenu.open = false }) {
+            if (glass && addMenu.open && addShown) GlassAddMenu(backdrop, addMenu, bottom = navInset + 88.dp + 60.dp + 12.dp, end = 16.dp, onDismiss = addMenu::close) {
                 addMenu.open = false
                 nav.navigate(entryRoute(kind = it))
             }

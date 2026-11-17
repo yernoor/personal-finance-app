@@ -113,6 +113,9 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberUpdatedState
 import kotlin.math.roundToInt
 
+/** A press this soon after the menu closed itself is the press that closed it. */
+private const val SAME_TOUCH_MS = 300L
+
 /** How much wider the chosen tab is than the others (it shows its label; the others only their icon). */
 private const val CHOSEN_WEIGHT = 2.3f
 // Stiff enough that the bar reshapes (wide chosen tab <-> equal slots while scrubbing) in about a quarter of a second.
@@ -221,6 +224,17 @@ fun FloatingTabBar(tabs: List<NavTab>, selected: NavTab, onSelect: (NavTab) -> U
 class AddMenuState {
     var open by mutableStateOf(false)
     var hovered by mutableStateOf<EntryKind?>(null)
+    /** When the menu last closed itself (the popup closes on a touch outside it, the x included), in uptime millis. */
+    internal var closedAt = 0L
+
+    /** Closes the menu and notes when, so the touch that closed it is not then also taken as a tap on the + button. */
+    fun close() {
+        open = false
+        closedAt = android.os.SystemClock.uptimeMillis()
+    }
+
+    /** Whether a press that started at [downAt] began on an open menu (or the one it just closed, in the same touch). */
+    internal fun wasOpenAt(downAt: Long) = open || downAt - closedAt < SAME_TOUCH_MS
     internal val bounds = mutableMapOf<EntryKind, Rect>()
 
     internal fun pillAt(screen: Offset): EntryKind? = bounds.entries.firstOrNull { it.value.contains(screen) }?.key
@@ -242,7 +256,8 @@ fun AddButton(
     val scheme = MaterialTheme.colorScheme
     val haptic = LocalHapticFeedback.current
     val turn by animateFloatAsState(if (menu.open) 45f else 0f, tween(260, easing = FastOutSlowInEasing), label = "add-turn")
-    val tap by rememberUpdatedState { if (menu.open) menu.open = false else onClick() } // with the menu open, the button (now an x) closes it
+    // With the menu open, the button (now an x) closes it. The popup closes the menu on the same press first, so it is the press that decides.
+    val tap by rememberUpdatedState { wasOpen: Boolean -> if (wasOpen) menu.close() else onClick() }
     val pick by rememberUpdatedState(onPickKind)
     var origin by remember { mutableStateOf(Offset.Zero) } // the button's top left on the screen
     val look = if (backdrop != null) Modifier.clip(CircleShape).glass(backdrop, CircleShape, refraction = 14.dp, amount = 22.dp, tint = scheme.primary.copy(alpha = 0.55f))
@@ -253,15 +268,16 @@ fun AddButton(
             .onGloballyPositioned { origin = it.positionOnScreen() }
             .semantics {
                 role = Role.Button
-                onClick { tap(); true }
+                onClick { tap(menu.open); true }
                 onLongClick { menu.open = true; true }
             }
             .pointerInput(menu) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
+                    val wasOpen = menu.wasOpenAt(down.uptimeMillis)
                     var up: PointerInputChange? = null
                     val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) { up = waitForUpOrCancellation(); false } == null
-                    if (!held) { up?.let { it.consume(); tap() }; return@awaitEachGesture }
+                    if (!held) { up?.let { it.consume(); tap(wasOpen) }; return@awaitEachGesture }
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     menu.open = true
                     // Still holding: follow the finger over the pills.
@@ -284,7 +300,7 @@ fun AddButton(
         contentAlignment = Alignment.Center,
     ) {
         Icon(Icons.Outlined.Add, "Add", Modifier.size(26.dp).rotate(turn), tint = if (backdrop != null) Color.White else scheme.onPrimary)
-        if (menu.open && backdrop == null) AddMenu(menu, onDismiss = { menu.open = false }) { menu.open = false; onPickKind(it) }
+        if (menu.open && backdrop == null) AddMenu(menu, onDismiss = menu::close) { menu.close(); onPickKind(it) }
     }
 }
 
