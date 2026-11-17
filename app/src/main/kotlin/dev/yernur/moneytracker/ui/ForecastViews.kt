@@ -1,5 +1,29 @@
 package dev.yernur.moneytracker.ui
 
+import androidx.compose.ui.graphics.drawscope.clipPath
+
+import androidx.compose.ui.geometry.RoundRect
+
+import androidx.compose.ui.graphics.Path
+
+import androidx.compose.ui.semantics.semantics
+
+import androidx.compose.ui.semantics.contentDescription
+
+import androidx.compose.ui.geometry.Size
+
+import androidx.compose.ui.geometry.Offset
+
+import androidx.compose.ui.geometry.CornerRadius
+
+import androidx.compose.foundation.shape.CircleShape
+
+import androidx.compose.foundation.layout.size
+
+import androidx.compose.foundation.layout.height
+
+import androidx.compose.foundation.Canvas
+
 import androidx.compose.foundation.shape.RoundedCornerShape
 
 import androidx.compose.foundation.background
@@ -45,26 +69,7 @@ fun WarningKind.text(): String = when (this) {
 fun ForecastView(forecast: Forecast, categories: Map<String?, CategoryEntity>, onOpenCategory: (String) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + LocalChromeInset.current), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            AppCard(Modifier.fillMaxWidth().testTag("forecast-overall")) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("This month, day ${forecast.daysElapsed} of ${forecast.daysInMonth}", style = MaterialTheme.typography.labelLarge)
-                    Text("On track for ${money(forecast.projected)}", style = MaterialTheme.typography.headlineSmall)
-                    Text("Spent so far ${money(forecast.spentIncluded + forecast.oneOffSpent)}", style = MaterialTheme.typography.bodyMedium)
-                    if (forecast.oneOffSpent > 0) Text(
-                        "Includes one-offs as spent so far, not projected: ${money(forecast.oneOffSpent)}",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        forecast.averageIncluded?.let { "3-month average ${money(it)}" } ?: "3-month average: not enough history",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    val never = forecast.spentAll - forecast.spentIncluded - forecast.oneOffSpent
-                    if (never > 0) Text(
-                        "Left out: categories set to Never (${money(never)} spent)",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            ForecastOverview(forecast)
         }
         items(forecast.categories, key = { it.categoryUid ?: "none" }) { row ->
             CategoryForecastCard(row, categories[row.categoryUid], onOpenCategory)
@@ -113,3 +118,89 @@ private fun CategoryForecastCard(row: CategoryForecast, category: CategoryEntity
         }
     }
 }
+
+/** The month's figure split for the bar: spent on regular categories, one-offs (spent, not projected), and the projected rest. */
+data class ForecastSplit(val regular: Long, val oneOffs: Long, val toCome: Long, val average: Long?) {
+    val total get() = regular + oneOffs + toCome
+}
+
+fun forecastSplit(f: Forecast) = ForecastSplit(
+    f.spentIncluded, f.oneOffSpent, (f.runRateIncluded - f.spentIncluded).coerceAtLeast(0), f.averageIncluded?.takeIf { it > 0 },
+)
+
+/**
+ * The top of Forecast: the month's figure big, its change against the 3-month average as a pill, and one bar of where it comes from
+ * (spent, one-offs, still to come) with the average marked on it. Amounts sit in a short legend instead of sentences.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ForecastOverview(f: Forecast) {
+    val split = forecastSplit(f)
+    val scheme = MaterialTheme.colorScheme
+    val spentColor = scheme.primary
+    val oneOffColor = scheme.tertiary
+    val toComeColor = scheme.primary.copy(alpha = 0.28f)
+    val markColor = scheme.onSurface
+    AppCard(Modifier.fillMaxWidth().testTag("forecast-overall")) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("On track · day ${f.daysElapsed} of ${f.daysInMonth}", style = MaterialTheme.typography.labelLarge, color = scheme.onSurfaceVariant)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(Money.formatRounded(f.projected, DEFAULT_CURRENCY), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.testTag("forecast-total"))
+                split.average?.let { avg ->
+                    val change = ((split.total - avg) * 100 / avg).toInt()
+                    val over = change > 0
+                    Text(
+                        "${if (over) "+" else ""}$change% vs avg", style = MaterialTheme.typography.labelMedium,
+                        color = if (over) scheme.onErrorContainer else scheme.onSecondaryContainer,
+                        modifier = Modifier.background(if (over) scheme.errorContainer else scheme.secondaryContainer, RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                }
+            }
+            val summary = "Spent ${short(split.regular)}, one-offs ${short(split.oneOffs)}, still to come ${short(split.toCome)}" + (split.average?.let { ", 3-month average ${short(it)}" } ?: "")
+            Canvas(Modifier.fillMaxWidth().height(22.dp).semantics { contentDescription = summary }) {
+                val scale = maxOf(split.total, split.average ?: 0L, 1L).toFloat()
+                val barTop = 4.dp.toPx()
+                val barH = size.height - 2 * barTop
+                val radius = CornerRadius(barH / 2)
+                drawRoundRect(toComeColor.copy(alpha = 0.12f), Offset(0f, barTop), Size(size.width, barH), radius) // the track
+                val rounded = Path().apply { addRoundRect(RoundRect(0f, barTop, size.width, barTop + barH, radius)) }
+                clipPath(rounded) { // segments inside the rounded bar; the average mark below sticks out above and below it
+                    var x = 0f
+                    listOf(split.regular to spentColor, split.oneOffs to oneOffColor, split.toCome to toComeColor).forEach { (value, color) ->
+                        val w = size.width * value / scale
+                        if (w > 0f) drawRect(color, Offset(x, barTop), Size(w, barH))
+                        x += w
+                    }
+                }
+                split.average?.let { avg ->
+                    val ax = (size.width * avg / scale).coerceIn(1.dp.toPx(), size.width - 1.dp.toPx())
+                    drawLine(markColor, Offset(ax, 0f), Offset(ax, size.height), strokeWidth = 2.dp.toPx())
+                }
+            }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                LegendDot(spentColor, "Spent", split.regular)
+                if (split.oneOffs > 0) LegendDot(oneOffColor, "One-offs", split.oneOffs)
+                LegendDot(toComeColor, "To come", split.toCome)
+                split.average?.let { LegendMark(markColor, "3-mo avg", it) }
+            }
+            val never = f.spentAll - f.spentIncluded - f.oneOffSpent
+            if (never > 0) Text("Set to Never, not counted: ${short(never)}", style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant)
+        }
+    }
+}
+
+private fun short(minor: Long) = Money.formatRounded(minor, DEFAULT_CURRENCY)
+
+@Composable
+private fun LegendDot(color: androidx.compose.ui.graphics.Color, label: String, amount: Long) =
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        androidx.compose.foundation.layout.Box(Modifier.size(10.dp).background(color, CircleShape))
+        Text("$label ${short(amount)}", style = MaterialTheme.typography.labelMedium)
+    }
+
+@Composable
+private fun LegendMark(color: androidx.compose.ui.graphics.Color, label: String, amount: Long) =
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        androidx.compose.foundation.layout.Box(Modifier.size(width = 2.dp, height = 12.dp).background(color))
+        Text("$label ${short(amount)}", style = MaterialTheme.typography.labelMedium)
+    }
