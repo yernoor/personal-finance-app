@@ -275,7 +275,8 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
                 modifier = Modifier.clickable { container.settings.setShowAllAccounts(!showAll) }.testTag("toggle-all-accounts"),
-                leadingContent = { Icon(Icons.Outlined.Tune, null) }, headlineContent = { Text("Show \"All accounts\" on Home") },
+                leadingContent = { Icon(Icons.Outlined.Tune, null) }, headlineContent = { Text("Show all accounts on Home") },
+                supportingContent = { Text(if (showAll) "Home and History count every account, and Home shows the \"All accounts\" balance" else "Home and History count only accounts in the Total (no hidden ones)") },
                 trailingContent = { Switch(showAll, { container.settings.setShowAllAccounts(it) }) },
             )
             val historyPeriod by container.settings.historyPeriod.collectAsStateWithLifecycle()

@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import dev.yernur.moneytracker.data.hiddenAccountUids
 import dev.yernur.moneytracker.data.AppSettings
 import dev.yernur.moneytracker.data.DEFAULT_CURRENCY
 import dev.yernur.moneytracker.data.DateRange
@@ -242,8 +243,11 @@ class HistoryViewModel(
         val to = r.to.toString()
         combine(
             db.transactionDao().observeBetween(from, to), db.transferDao().observeBetween(from, to),
-            db.categoryDao().observeAll(), db.accountDao().observeAll(),
-        ) { transactions, transfers, categories, accounts ->
+            db.categoryDao().observeAll(), db.accountDao().observeAll(), settings.showAllAccounts,
+        ) { allTransactions, allTransfers, categories, accounts, showAll ->
+            val hidden = hiddenAccountUids(accounts, showAll)
+            val transactions = allTransactions.filter { it.accountUid !in hidden }
+            val transfers = allTransfers.filter { it.fromAccountUid !in hidden || it.toAccountUid !in hidden }
             val categoryByUid = categories.associateBy { it.uid }
             val accountByUid = accounts.associateBy { it.uid }
             val rows = transactions.map { t ->

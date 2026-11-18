@@ -113,7 +113,7 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 - **Charts and History share one header**: Day/Week/Month/Year slicer, then the period row, then a segmented switch (Charts: General /
   Expenses / Income / Forecast; History: Expenses / Income). Charts bars are 104 dp tall. History opens grouped by category: icon, name,
   share of that side's total, amount; no red/green; the Expenses/Income switch picks which side is listed.
-- **Home**: "All accounts" under the balance is hidden by default (More -> Home: "Show All accounts on Home").
+- **Home**: "All accounts" under the balance is hidden by default (More -> Home and History: "Show all accounts on Home"). With it off, Home totals, Recent and History also count only accounts in the Total (2026-11-19).
 - **Add screen**: the Add/Save button is pinned to the bottom, above the keyboard and the gesture bar. The selected category is outlined
   with the tile's own shape and the accent color. A balance correction can be edited without choosing a category.
 - **Swipe left/right** on a tab screen moves to the neighbouring bottom tab (a drag a child already used, such as a chart, does not count).

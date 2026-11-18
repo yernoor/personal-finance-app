@@ -27,4 +27,11 @@ class BalancesTest {
         val summary = summarize(listOf(account("eur", "EUR")), mapOf("eur" to 10_000L), rates)
         assertEquals(BalanceSummary(0, 0), summary)
     }
+
+    @Test
+    fun homeAndHistoryHideTheHiddenAccounts_unlessAllAreShown() {
+        val accounts = listOf(account("main", "KZT"), account("deposit", "KZT", hidden = true))
+        assertEquals(setOf("deposit"), hiddenAccountUids(accounts, showAll = false))
+        assertEquals(emptySet<String>(), hiddenAccountUids(accounts, showAll = true))
+    }
 }

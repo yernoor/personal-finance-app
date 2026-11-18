@@ -41,6 +41,7 @@ import dev.yernur.moneytracker.data.db.AppDatabase
 import dev.yernur.moneytracker.data.db.TransactionType
 import dev.yernur.moneytracker.data.rangeOf
 import dev.yernur.moneytracker.data.summarize
+import dev.yernur.moneytracker.data.hiddenAccountUids
 import java.time.LocalDate
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
@@ -86,10 +87,13 @@ class HomeViewModel(
         summarize(accounts, balances.associate { it.uid to it.balance }, rateTable)
     }
 
+    private val hidden = combine(db.accountDao().observeAll(), settings.showAllAccounts, ::hiddenAccountUids)
+
     /** Totals and the biggest spending categories for the configured period (a month unless the owner changed it). */
     private val period = combine(settings.homeTotalsPeriod, days) { unit, day -> unit to day }.flatMapLatest { (unit, day) ->
         val range = unit.rangeOf(day)
-        combine(db.transactionDao().observeLite(range.from.toString(), range.to.toString()), db.categoryDao().observeAll()) { rows, categories ->
+        combine(db.transactionDao().observeLite(range.from.toString(), range.to.toString()), db.categoryDao().observeAll(), hidden) { all, categories, hidden ->
+            val rows = all.filter { it.accountUid !in hidden }
             val byUid = categories.associateBy { it.uid }
             val expenses = rows.filter { it.type == TransactionType.Expense }
             val spent = expenses.sumOf { it.amount }.coerceAtLeast(1L)
@@ -106,10 +110,11 @@ class HomeViewModel(
         forecast.warnings.map { HomeWarning(titles[it.categoryUid] ?: "Balance correction", warningLine(it)) }
     }
 
-    private val recent = combine(db.transactionDao().observeRecent(5), db.categoryDao().observeAll(), db.accountDao().observeAll()) { transactions, categories, accounts ->
+    // shortcut: the last 5 among the newest 50, so 45+ recent operations on hidden accounts leave Recent short; filter in SQL if that happens.
+    private val recent = combine(db.transactionDao().observeRecent(50), db.categoryDao().observeAll(), db.accountDao().observeAll(), hidden) { transactions, categories, accounts, hidden ->
         val categoryByUid = categories.associateBy { it.uid }
         val accountByUid = accounts.associateBy { it.uid }
-        transactions.map { t ->
+        transactions.filter { it.accountUid !in hidden }.take(5).map { t ->
             val account = accountByUid[t.accountUid]
             val category = categoryByUid[t.categoryUid]
             RecentEntry(
