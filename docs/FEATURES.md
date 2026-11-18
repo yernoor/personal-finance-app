@@ -43,7 +43,10 @@ Target device: Android 16 (API 36) -> `minSdk = 36` is possible; owner to confir
   summary and six monthly bars against one average, Worth a look with limit warnings and rises/falls, one category list with limit bars) and
   **Recurring** (bills, reminders, ends, moving payments, duplicates). The average is the last **3** full months everywhere (was 6 on Trends).
   "Can I afford it?" moved from More to a card on Overview under the month card (owner's choice 2026-11-18): price in, verdict out (main account,
-  no category); Details opens the full screen with the price filled in.
+  no category). Since 2026-11-19 (owner picked option A of the "Overview afford block" canvas) the separate screen is gone and the card is the
+  whole feature: one line (price + arrow) until asked; the answer fills the card's lower half in the verdict colour ("Yes · ₸61,000 left until
+  Nov 30"), with a category chip (the Add screen's icon tiles in a sheet) and an account dropdown chip that re-check at once, and "Why" unfolds
+  the breakdown, limit and goals in place. "Log as expense" went with the screen.
   Changed 2026-11-18 (owner): the month's figure is one number on every screen (Forecast "On track for", the Trends dashed bar and its
   change against the average, the widget's "on pace for"): regular categories at their pace **plus what one-offs have cost so far**
   (real spending that will not recur, so not projected). Categories set to Never stay out entirely.
@@ -290,7 +293,7 @@ LLM, no new network call.
 
 | Feature | Rating | Notes |
 |---|---|---|
-| "Can I afford this?" check | **BUILT** (More -> Can I afford this?) | Price (default currency), category, paying-from account. Verdict Yes / Tight / No with the numbers behind it. Not built: item name, purchase date other than today (the mock-up had them), prefilling the add screen from "Log as expense" (it opens an empty one). Never run on a device; unit and Robolectric tests only. |
+| "Can I afford this?" check | **BUILT** (Analysis -> Overview card; the screen was removed 2026-11-19) | Price (default currency), category, paying-from account. Verdict Yes / Tight / No with the numbers behind it. Not built: item name, purchase date other than today (the mock-up had them), prefilling the add screen from "Log as expense" (it opens an empty one). Never run on a device; unit and Robolectric tests only. |
 | Spending analysis | **BUILT** (own bottom-bar tab "Analysis", Trends segment; the Forecast segment holds the former Charts > Forecast) | Six monthly bars with a projected current month and an average line, "worth a look" insights, per-category sparkline and change vs the 3-month average. Taps open the category trend. Not run on a device. |
 | Category trend screen | **BUILT** (tap a category in Analysis) | 12-month line (current month drawn as the run-rate segment) with limit and 3-month average, Friday-to-Sunday share and weekday bars, three largest operations this month. Not built: the mock-up's "Open all in History" button (History has no category filter). |
 | Recurring costs, price changes, possible duplicates | **BUILT** (Analysis -> Recurring costs and duplicates) | Detected from the ledger's own history; nothing changes unless the owner confirms. "Keep both" is remembered per second operation in settings; "Delete the second" is a soft delete. Not built: the mock-up's "Add reminder" button (the app has no reminder editor yet) and the "share of monthly spending" figure. Duplicate time of day is not shown (`created` is UTC). |

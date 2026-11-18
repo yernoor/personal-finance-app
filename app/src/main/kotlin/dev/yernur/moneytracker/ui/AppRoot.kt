@@ -319,7 +319,6 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                 AnalysisScreen(
                     onOpenTrend = { nav.navigate("trend/$it") }, onMove = { nav.navigate("move/${android.net.Uri.encode(it)}") },
                     onAddBill = { nav.navigate("recurring/add") },
-                    onAffordDetails = { price -> nav.navigate("afford?price=${android.net.Uri.encode(price)}") },
                 )
             }
             screen("accounts") {
@@ -361,9 +360,6 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             screen("compound") { CompoundScreen { nav.popBackStack() } }
             screen("trend/{uid}", arguments = listOf(navArgument("uid") { type = NavType.StringType })) { entry ->
                 CategoryTrendScreen(entry.arguments?.getString("uid").orEmpty(), onBack = { nav.popBackStack() }, onOpenTransaction = { nav.navigate(entryRoute(it)) })
-            }
-            screen("afford?price={price}", arguments = listOf(navArgument("price") { type = NavType.StringType; defaultValue = "" })) { entry ->
-                AffordScreen(entry.arguments?.getString("price").orEmpty(), onBack = { nav.popBackStack() }, onLogExpense = { nav.navigate(entryRoute()) })
             }
             screen("sync") { SyncScreen { nav.popBackStack() } }
             screen("updates") { UpdatesScreen { nav.popBackStack() } }

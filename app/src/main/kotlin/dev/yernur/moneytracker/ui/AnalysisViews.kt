@@ -108,7 +108,7 @@ enum class AnalysisTab(val label: String) { Overview("Overview"), Recurring("Rec
  * one average.
  */
 @Composable
-fun AnalysisScreen(onOpenTrend: (String) -> Unit, onMove: (key: String) -> Unit, onAddBill: () -> Unit = {}, onAffordDetails: (price: String) -> Unit = {}) {
+fun AnalysisScreen(onOpenTrend: (String) -> Unit, onMove: (key: String) -> Unit, onAddBill: () -> Unit = {}) {
     var tab by rememberSaveable { mutableStateOf(AnalysisTab.Overview) }
     val swipe = rememberSwipeSteps()
     val container = LocalAppContainer.current
@@ -125,14 +125,14 @@ fun AnalysisScreen(onOpenTrend: (String) -> Unit, onMove: (key: String) -> Unit,
         )
         androidx.compose.foundation.layout.Box(Modifier.weight(1f).swipeShift(swipe)) {
             if (tab == AnalysisTab.Recurring) RecurringScreen(onMove, onAddBill)
-            else OverviewView(onOpenTrend, onAffordDetails)
+            else OverviewView(onOpenTrend)
         }
     }
 }
 
 /** This month against the last 3, what stands out, and every category with its trend and limit. Design: the "Analysis, merged" mock-up. */
 @Composable
-private fun OverviewView(onOpenTrend: (String) -> Unit, onAffordDetails: (price: String) -> Unit) {
+private fun OverviewView(onOpenTrend: (String) -> Unit) {
     val vm = appViewModel { AnalysisViewModel(it.db, it.forecasts, it.today) }
     val state by vm.state.collectAsStateWithLifecycle()
     val forecast by vm.forecast.collectAsStateWithLifecycle()
@@ -143,7 +143,7 @@ private fun OverviewView(onOpenTrend: (String) -> Unit, onAffordDetails: (price:
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         MonthCard(analysis, forecast)
-        AffordCard(onAffordDetails)
+        AffordCard()
         WorthALook(analysis.insights, forecast?.warnings.orEmpty(), categories)
         Text("Categories", style = MaterialTheme.typography.titleMedium)
         Text("This month against its last 3 months (last month for fixed bills).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
