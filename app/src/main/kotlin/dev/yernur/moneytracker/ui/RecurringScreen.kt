@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.PushPin
@@ -105,6 +106,7 @@ fun RecurringScreen(onMove: (key: String) -> Unit = {}, onAdd: () -> Unit = {}) 
     val scope = rememberCoroutineScope()
     var reminderFor by remember { mutableStateOf<Bill?>(null) }
     var endFor by remember { mutableStateOf<Bill?>(null) }
+    var renameFor by remember { mutableStateOf<Bill?>(null) }
     // After moving a bill's payments (MovePaymentsScreen): say so, with Undo.
     val snackbar = remember { SnackbarHostState() }
     val moved by container.bills.lastMove.collectAsStateWithLifecycle()
@@ -134,7 +136,7 @@ fun RecurringScreen(onMove: (key: String) -> Unit = {}, onAdd: () -> Unit = {}) 
                 BillCard(
                     bill,
                     onFixed = { scope.launch { container.bills.toggleFixed(bill) } },
-                    onReminder = { reminderFor = bill }, onEnd = { endFor = bill }, onMove = { onMove(bill.key) },
+                    onReminder = { reminderFor = bill }, onEnd = { endFor = bill }, onMove = { onMove(bill.key) }, onRename = { renameFor = bill },
                 )
             }
 
@@ -157,6 +159,12 @@ fun RecurringScreen(onMove: (key: String) -> Unit = {}, onAdd: () -> Unit = {}) 
             onRemove = { scope.launch { container.bills.removeReminder(bill) }; reminderFor = null }, onDismiss = { reminderFor = null },
         )
     }
+    renameFor?.let { bill ->
+        RenameBillDialog(bill.item.title, onDismiss = { renameFor = null }) { name ->
+            renameFor = null
+            scope.launch { if (!container.bills.rename(bill, name)) snackbar.showSnackbar("Another bill is already called ${name.trim()}") }
+        }
+    }
     endFor?.let { bill ->
         BillEndSheet(
             bill, onSave = { left -> scope.launch { container.bills.setEnd(bill, left) }; endFor = null },
@@ -167,7 +175,7 @@ fun RecurringScreen(onMove: (key: String) -> Unit = {}, onAdd: () -> Unit = {}) 
 
 /** One bill: what it is, then full-size buttons for what can be done about it. */
 @Composable
-private fun BillCard(bill: Bill, onFixed: () -> Unit, onReminder: () -> Unit, onEnd: () -> Unit, onMove: () -> Unit) {
+private fun BillCard(bill: Bill, onFixed: () -> Unit, onReminder: () -> Unit, onEnd: () -> Unit, onMove: () -> Unit, onRename: () -> Unit) {
     val item = bill.item
     val tag = item.title
     AppCard(Modifier.fillMaxWidth().testTag("recurring-$tag")) {
@@ -175,7 +183,12 @@ private fun BillCard(bill: Bill, onFixed: () -> Unit, onReminder: () -> Unit, on
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 IconBadge(bill.category?.icon, bill.category?.color, size = 44.dp)
                 Column(Modifier.weight(1f)) {
-                    Text(item.title, style = MaterialTheme.typography.titleMedium)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(item.title, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.titleMedium)
+                        IconButton(onRename, Modifier.size(32.dp).testTag("rename-$tag")) {
+                            Icon(Icons.Outlined.Edit, "Rename", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                     Text(
                         "${item.months} months · next about ${item.next.format(dayFormat)}" + (bill.category?.title?.takeIf { !item.byCategory }?.let { " · in $it" } ?: ""),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -230,6 +243,25 @@ private fun BillCard(bill: Bill, onFixed: () -> Unit, onReminder: () -> Unit, on
             }
         }
     }
+}
+
+/** The pencil next to a bill's name: the new name becomes its payments' comment and what its reminder says. */
+@Composable
+private fun RenameBillDialog(current: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var name by remember { mutableStateOf(current) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss, containerColor = glassContainer(androidx.compose.material3.AlertDialogDefaults.containerColor),
+        title = { Text("Rename bill") },
+        text = {
+            GlassWindowBlur()
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                androidx.compose.material3.OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth().testTag("rename-field"), singleLine = true)
+                Text("Its payments get this name as their comment, and its reminder uses it.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        confirmButton = { androidx.compose.material3.TextButton({ onSave(name) }, enabled = name.isNotBlank(), modifier = Modifier.testTag("rename-save")) { Text("Save") } },
+        dismissButton = { androidx.compose.material3.TextButton(onDismiss) { Text("Cancel") } },
+    )
 }
 
 /** Under the detected bills: why one can be missing, and the way to add it by hand (ManualBillScreen). */

@@ -183,4 +183,33 @@ class BillsTest {
         assertNull(db.transactionDao().get("b")!!.comment)
         assertNull(repo.lastMove.value)
     }
+
+    @Test
+    fun renamingABill_rewritesItsComments_andKeepsItsReminder() = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java).allowMainThreadQueries().build()
+        db.accountDao().upsert(AccountEntity("main", "Main", "KZT", "cash", null, 0, null, false, true, false, false, "", ""))
+        db.categoryDao().upsert(category("rent", "Rent"))
+        fun entity(uid: String, date: String, comment: String?) = TransactionEntity(uid, TransactionType.Expense, "main", "rent", 1_000_000, null, null, 1_000_000, "KZT", date, comment, "c", "c")
+        listOf("09", "10", "11").forEach { m -> db.transactionDao().upsert(entity("n$m", "2026-$m-06", "internet")) }
+        db.transactionDao().upsert(entity("other", "2026-11-01", "Rent"))
+        val repo = BillRepository(db, LedgerRepository(db), flowOf(today))
+        val bill = repo.current(today).single { it.key == "comment:internet" }
+        repo.saveReminder(bill, 2, 600)
+
+        // A case-only rename keeps the same key: the settings must survive it.
+        assertTrue(repo.rename(repo.current(today).single { it.key == "comment:internet" }, "Internet"))
+        assertTrue(db.billDao().get("comment:internet")!!.reminderOn)
+
+        assertTrue(repo.rename(repo.current(today).single { it.key == "comment:internet" }, " Home Wi-Fi "))
+        assertEquals(listOf("Home Wi-Fi"), listOf("09", "10", "11").map { db.transactionDao().get("n$it")!!.comment }.distinct())
+        assertEquals("Rent", db.transactionDao().get("other")!!.comment) // not the bill's payment
+        assertNull(db.billDao().get("comment:internet"))
+        val moved = db.billDao().get("comment:home wi-fi")!!
+        assertTrue(moved.reminderOn)
+        assertEquals(2, moved.reminderDaysBefore)
+        assertEquals("Home Wi-Fi", repo.current(today).single { it.key == "comment:home wi-fi" }.item.title) // what the reminder says
+
+        val renamed = repo.current(today).single { it.key == "comment:home wi-fi" }
+        assertFalse(repo.rename(renamed, "  ")) // blank
+    }
 }

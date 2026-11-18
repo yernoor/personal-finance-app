@@ -324,6 +324,9 @@ stored its own tab choice keeps it: add Analysis in More -> Navigation bar.
   Saved as a `bill` row with `manual = 1` (DB v8): listed from its payments with no run or steadiness rule, next payment rolled past today.
   Found by the comment (set on all ticked payments, replacing others) or, without it, by the category they moved to. Undo removes it again.
   Not built: removing a hand-added bill later (set an end instead), editing its payments.
+  Added 2026-11-19 (owner): a **pencil next to a bill's name** renames it. Its payments get the new name as their comment (a comment bill: all
+  payments with the old comment; a category bill: only the uncommented ones in that category, and it becomes a hand-added bill), the reminder text
+  follows, and reminder/end settings move to the new key. Refused when blank or another bill already has the name.
 - Duplicate: same type, account, category, account-currency amount and date, created within 10 minutes of each other. Keep both / delete the second (soft delete through the ledger).
 
 ## Other / unverified, decide later
