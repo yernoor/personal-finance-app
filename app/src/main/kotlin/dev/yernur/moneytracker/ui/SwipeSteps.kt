@@ -33,8 +33,9 @@ import kotlinx.coroutines.launch
  * Quick repeated inputs (several days swiped or tapped in a row) are gathered: the first starts the slide out at once, the rest are collected
  * until [SETTLE_MS] pass without another, then all are applied, the new data is waited for once, and it slides in once. An input while the new
  * content is coming in turns it round. With Reduce motion nothing travels: a quick fade out and in.
+ * Without [batch] (a switch with only two options, where a run of taps has nothing to add up) the change is applied as soon as the content is out.
  */
-class SwipeSteps(private val scope: CoroutineScope) {
+class SwipeSteps(private val scope: CoroutineScope, private val batch: Boolean = true) {
     val offset = Animatable(0f)
     internal val alpha = Animatable(1f)
     internal var width = 0f
@@ -74,7 +75,7 @@ class SwipeSteps(private val scope: CoroutineScope) {
                 val out = dir
                 interruptible { if (reduced || out == 0) alpha.animateTo(0f, tween(REDUCED_MS)) else offset.animateTo(-out * width * FADE_FRACTION, tween(OUT_MS, easing = FastOutLinearInEasing)) }
                 // Listen a moment for more: a run of swipes or taps becomes one change.
-                while (true) {
+                while (batch) {
                     val seen = inputs
                     settle.snapTo(0f)
                     settle.animateTo(1f, tween(SETTLE_MS))
@@ -123,9 +124,9 @@ private const val SETTLE_MS = 120
 private const val FADE_FRACTION = 0.35f
 
 @Composable
-fun rememberSwipeSteps(): SwipeSteps {
+fun rememberSwipeSteps(batch: Boolean = true): SwipeSteps {
     val scope = rememberCoroutineScope()
-    val state = remember { SwipeSteps(scope) }
+    val state = remember { SwipeSteps(scope, batch) }
     state.reduced = LocalReduceMotion.current
     return state
 }

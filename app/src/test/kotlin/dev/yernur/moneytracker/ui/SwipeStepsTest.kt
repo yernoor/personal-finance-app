@@ -52,6 +52,19 @@ class SwipeStepsTest {
     }
 
     @Test
+    fun aTwoOptionSwitch_appliesWithoutWaitingForMoreInput() {
+        fun msUntilApplied(batch: Boolean): Long {
+            val scope = TestScope(StandardTestDispatcher() + FrameClock)
+            val swipe = SwipeSteps(scope, batch).apply { width = 1000f; reduced = true }
+            var applied = false
+            swipe.go(1, { applied = true; true })
+            while (!applied) scope.testScheduler.advanceTimeBy(16)
+            return scope.testScheduler.currentTime
+        }
+        assertTrue("without batching the change comes at least the settle wait sooner", msUntilApplied(batch = false) + 100 <= msUntilApplied(batch = true))
+    }
+
+    @Test
     fun historyStep_neverGoesPastTheCurrentPeriod() {
         val db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java).allowMainThreadQueries().build()
         val today = LocalDate.of(2026, 11, 17)

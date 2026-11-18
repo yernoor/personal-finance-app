@@ -83,7 +83,7 @@ fun AccountsScreen(onOpen: (String) -> Unit, onNew: () -> Unit, onNewTransfer: (
     val vm = appViewModel { AccountsViewModel(it.db, it.fx.allRates) }
     val state by vm.state.collectAsStateWithLifecycle()
     var hidden by remember { mutableStateOf(false) } // which list: counted in the Total, or hidden from it
-    val swipe = rememberSwipeSteps()
+    val swipe = rememberSwipeSteps(batch = false) // two options: no run of taps to gather
     Column(Modifier.fillMaxSize().swipeSteps(swipe, canGo = { by -> by > 0 != hidden }) { by -> (by > 0 != hidden).also { if (it) hidden = by > 0 } }) {
         Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Total", style = MaterialTheme.typography.labelLarge)

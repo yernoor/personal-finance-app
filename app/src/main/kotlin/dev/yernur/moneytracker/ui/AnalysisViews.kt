@@ -110,7 +110,7 @@ enum class AnalysisTab(val label: String) { Overview("Overview"), Recurring("Rec
 @Composable
 fun AnalysisScreen(onOpenTrend: (String) -> Unit, onMove: (key: String) -> Unit, onAddBill: () -> Unit = {}) {
     var tab by rememberSaveable { mutableStateOf(AnalysisTab.Overview) }
-    val swipe = rememberSwipeSteps()
+    val swipe = rememberSwipeSteps(batch = false) // two options: no run of taps to gather
     val container = LocalAppContainer.current
     val asked by container.analysisRequest.collectAsStateWithLifecycle()
     LaunchedEffect(asked) {

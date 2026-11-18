@@ -75,7 +75,7 @@ fun CategoriesScreen(onOpen: (uid: String) -> Unit, onNew: (TransactionType) -> 
         )
     }) { padding ->
         val tabs = listOf(TransactionType.Expense, TransactionType.Income)
-        val swipe = rememberSwipeSteps()
+        val swipe = rememberSwipeSteps(batch = false) // two options: no run of taps to gather
         // Swipe or tap: Expenses and Income slide like every other switch (SwipeSteps).
         Column(Modifier.padding(padding).fillMaxSize().swipeSteps(swipe, canGo = { by -> tabs.getOrNull(tabs.indexOf(tab) + by) != null }) { by -> tabs.getOrNull(tabs.indexOf(tab) + by)?.also { tab = it } != null }) {
             Row(verticalAlignment = Alignment.CenterVertically) {
