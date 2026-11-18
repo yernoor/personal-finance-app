@@ -45,4 +45,16 @@ class KaspiParserTest {
         settings.setWalletAccount("freedom")
         assertNull(settings.paymentAccount(kaspi = true).value)
     }
+
+    @Test
+    fun aPaymentAnnouncedByBothApps_promptsOnce() {
+        val settings = AppSettings().apply { setWalletCapture(true); setKaspiCapture(true) }
+        val intake = WalletIntake(settings, RecentPayments())
+        val wallet = WalletRaw("SHOP", "KZT 1,630.00 with Kaspi Gold ••0000", isGroupSummary = false)
+        val kaspi = WalletRaw("Kaspi Gold", "Покупка: 1 630 ₸\nSHOP", isGroupSummary = false)
+        assertEquals(163_000L, intake.accept(WALLET_PACKAGE, 1_000) { wallet }?.payment?.amount)
+        assertNull("the same payment from Kaspi a moment later", intake.accept(KASPI_PACKAGE, 5_000) { kaspi })
+        assertEquals("two equal Wallet payments are both offered", 163_000L, intake.accept(WALLET_PACKAGE, 6_000) { wallet }?.payment?.amount)
+        assertEquals("a later one from Kaspi is its own payment", 163_000L, intake.accept(KASPI_PACKAGE, 6_000 + RecentPayments.WINDOW_MS + 1) { kaspi }?.payment?.amount)
+    }
 }
