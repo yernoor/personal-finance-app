@@ -96,6 +96,17 @@ class HistoryChartFlowTest {
     }
 
     @Test
+    fun tappingSearch_foldsTheRingFirst_thenFocusesTheField() {
+        runBlocking { container.ledger.saveTransaction(TransactionDraft(null, TransactionType.Expense, "main", "cafe", 1_000, LocalDate.now().toString(), "row", emptySet())) }
+        compose.onNodeWithTag("tab-history").performClick()
+        eventually { exists("history-chart-ring") }
+        compose.onNodeWithTag("search-tap").performClick()
+        eventually { exists("history-chart-bar") && !exists("history-chart-ring") }
+        eventually { compose.onAllNodes(androidx.compose.ui.test.hasTestTag("search") and androidx.compose.ui.test.isFocused()).fetchSemanticsNodes().isNotEmpty() }
+        assertEquals(false, exists("search-tap")) // focused: typing goes straight to the field
+    }
+
+    @Test
     @Config(qualifiers = "w411dp-h600dp")
     fun onAShortScreen_theRingIsScaledToFitItsArea_insteadOfBeingCutOff() {
         compose.onNodeWithTag("tab-history").performClick()

@@ -113,6 +113,11 @@ class ChartCollapse(private val rangePx: Float) : NestedScrollConnection {
         return Velocity.Zero
     }
 
+    /** Folds the ring into the bar (before the search keyboard opens over it). */
+    suspend fun collapse() {
+        if (rangePx > 0f && fraction < 1f) animate(fraction, 1f, animationSpec = tween(200, easing = FastOutSlowInEasing)) { value, _ -> fraction = value }
+    }
+
     // What the list could not take (it is at the top) opens the chart again.
     override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
         if (available.y <= 0f || fraction <= 0f || rangePx <= 0f) return Offset.Zero
