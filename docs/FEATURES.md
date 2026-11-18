@@ -164,6 +164,7 @@ network call is the daily rate fetch.
 2. **Net worth over time + goals.** Snapshots of all account balances (in KZT) plus manual assets/liabilities; goals with a target amount and date.
 3. **Projected net worth.** The same engine fed with salary, monthly obligations and investment returns / bond coupons.
 4. **Financial health summary.** Monthly income and obligations (mortgage, loans, subscriptions) entered by hand; shows what is left to save/invest, savings rate, months of expenses covered.
+   Added 2026-11-19 (owner): Monthly money lists recurring bills (Analysis -> Recurring) not yet in it by name, each with an Add button (saved as a payment already entered as expenses). Nothing is added by itself.
 5. **Investment portfolio.** Owner holds one broker account, 100% bonds: each bond has face value, price paid, coupon rate and frequency, maturity, currency. Coupon schedule, income per year, maturity ladder. Prices are entered by hand (no live quotes).
 6. **Currency converter.** Rates from the National Bank of Kazakhstan feed (`nationalbank.kz/rss/get_rates.cfm?fdate=DD.MM.YYYY`, verified 2026-11-04: returns KZT per `quant` units).
    The owner allows **one request per day**, cached, plus (2026-11-12) a manual refresh from the Rates widget, at most one an hour (`FxRepository.refreshNow`; the daily fetch also starts that hour; offline does not); the converter works offline on the cached rates. The backup's `rate` table is not used.

@@ -5,18 +5,31 @@ import androidx.lifecycle.viewModelScope
 import dev.yernur.moneytracker.AppContainer
 import dev.yernur.moneytracker.data.db.AccountEntity
 import dev.yernur.moneytracker.data.db.BondEntity
+import dev.yernur.moneytracker.data.Bill
+import dev.yernur.moneytracker.data.DEFAULT_CURRENCY
 import dev.yernur.moneytracker.data.db.CashflowItemEntity
+import dev.yernur.moneytracker.data.db.CashflowKind
 import dev.yernur.moneytracker.data.wealth.WealthOverview
 import dev.yernur.moneytracker.data.wealth.toDefault
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+
+/** Recurring bills not yet in Monthly money (matched by name, any case), offered there with a one-tap Add. */
+fun billSuggestions(bills: List<Bill>, items: List<CashflowItemEntity>): List<Bill> {
+    val have = items.map { it.title.trim().lowercase() }.toSet()
+    return bills.filter { it.item.title.trim().lowercase() !in have }
+}
+
+/** A bill as a Monthly money payment: in tenge (bills are in the default currency) and already logged as expenses, so not subtracted twice. */
+fun Bill.asCashflow() = CashflowItemEntity("", item.title.trim(), CashflowKind.Obligation, DEFAULT_CURRENCY, item.amount, inLedger = true, created = "", modified = "")
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WealthViewModel(private val container: AppContainer) : ViewModel() {
@@ -48,6 +61,9 @@ class WealthViewModel(private val container: AppContainer) : ViewModel() {
     fun saveBond(uid: String?, bond: BondEntity) = viewModelScope.launch { wealth.saveBond(uid, bond) }
 
     fun deleteBond(uid: String) = viewModelScope.launch { wealth.deleteBond(uid) }
+
+    val suggestions: StateFlow<List<Bill>> = combine(container.bills.observe(), overview) { bills, data -> billSuggestions(bills, data?.cashflowItems.orEmpty()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun saveCashflow(uid: String?, item: CashflowItemEntity) = viewModelScope.launch { wealth.saveCashflowItem(uid, item) }
 

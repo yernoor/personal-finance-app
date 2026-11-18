@@ -135,7 +135,8 @@ fun WealthScreen(embedded: Boolean = false, onCompound: () -> Unit, onBack: () -
             Breakdown(data, ::show, onAsset = { editing = Editing.Asset(it) })
             GoalsCard(data, ::show, onEdit = { editing = Editing.Goal(it) })
             PortfolioCard(data, ::show, onEdit = { editing = Editing.Bond(it) })
-            HealthCard(data, ::show, onEdit = { editing = Editing.Cashflow(it) })
+            val suggestions by vm.suggestions.collectAsStateWithLifecycle()
+            HealthCard(data, ::show, onEdit = { editing = Editing.Cashflow(it) }, suggestions = suggestions, onAddBill = { vm.saveCashflow(null, it.asCashflow()) })
             ProjectionCard(data, ::show)
             OutlinedButton(onCompound, Modifier.fillMaxWidth().testTag("open-compound-from-wealth")) { Text("Compound interest calculator") }
         }
@@ -303,7 +304,10 @@ private fun PortfolioCard(data: WealthOverview, show: (Long) -> String, onEdit: 
 }
 
 @Composable
-private fun HealthCard(data: WealthOverview, show: (Long) -> String, onEdit: (CashflowItemEntity?) -> Unit) {
+private fun HealthCard(
+    data: WealthOverview, show: (Long) -> String, onEdit: (CashflowItemEntity?) -> Unit,
+    suggestions: List<dev.yernur.moneytracker.data.Bill> = emptyList(), onAddBill: (dev.yernur.moneytracker.data.Bill) -> Unit = {},
+) {
     val h = data.health
     SectionCard("Monthly money", { onEdit(null) }, "add-cashflow") {
         if (data.cashflowItems.isEmpty()) Text("Add your income and regular payments (mortgage, loans, subscriptions).", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -311,6 +315,16 @@ private fun HealthCard(data: WealthOverview, show: (Long) -> String, onEdit: (Ca
             Row(Modifier.fillMaxWidth().clickable { onEdit(item) }.padding(vertical = 4.dp).testTag("cashflow-${item.title}"), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(item.title)
                 Text((if (item.kind == CashflowKind.Obligation) "-" else "+") + Money.format(item.monthlyMinor, item.currencyCode))
+            }
+        }
+        if (suggestions.isNotEmpty()) {
+            Text("From your recurring bills", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+            suggestions.forEach { bill ->
+                Row(Modifier.fillMaxWidth().testTag("suggest-${bill.item.title}"), verticalAlignment = Alignment.CenterVertically) {
+                    Text(bill.item.title, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("-" + Money.format(bill.item.amount, dev.yernur.moneytracker.data.DEFAULT_CURRENCY), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    androidx.compose.material3.TextButton({ onAddBill(bill) }, Modifier.testTag("suggest-add-${bill.item.title}")) { Text("Add") }
+                }
             }
         }
         if (h.missingCurrencies.isNotEmpty()) {
