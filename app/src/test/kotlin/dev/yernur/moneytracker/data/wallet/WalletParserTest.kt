@@ -16,6 +16,12 @@ class WalletParserTest {
     }
 
     @Test
+    fun spaceAfterTheCurrencyCodeIsAccepted() {
+        assertEquals(WalletPayment("KZT", 544_000, "SOME SHOP", "Test Gold", "0000"), parse("KZT 5,440.00 with Test Gold ••0000"))
+        assertEquals(544_000L, parse("KZT\u00A05,440.00 with Test Gold ••0000")?.amount)
+    }
+
+    @Test
     fun amountsKeepCentsAndHandleThousandsSeparators() {
         assertEquals(19L, parse("KZT0.19 with Card ••1111")?.amount)
         assertEquals(56_000L, parse("KZT560.00 with Card ••1111")?.amount)
