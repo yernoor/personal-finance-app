@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,6 +27,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
@@ -65,21 +67,24 @@ fun CategoriesScreen(onOpen: (uid: String) -> Unit, onNew: (TransactionType) -> 
     // Holding a tile turns on edit mode; there, hold a tile again and move it to reorder. Done (or Back) leaves it.
     var editing by remember { mutableStateOf(false) }
     androidx.activity.compose.BackHandler(editing) { editing = false }
+    val done: @Composable () -> Unit = { IconButton({ editing = false }, Modifier.testTag("reorder-done")) { Icon(Icons.Outlined.Check, "Done reordering") } }
     Scaffold(contentWindowInsets = embeddedInsets(embedded), topBar = {
-        if (!embedded) AppTopBar(title = { Text("Categories") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } })
+        if (!embedded) AppTopBar(
+            title = { Text("Categories") }, navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
+            actions = { if (editing) done() },
+        )
     }) { padding ->
         val tabs = listOf(TransactionType.Expense, TransactionType.Income)
         val swipe = rememberSwipeSteps()
         // Swipe or tap: Expenses and Income slide like every other switch (SwipeSteps).
         Column(Modifier.padding(padding).fillMaxSize().swipeSteps(swipe, canGo = { by -> tabs.getOrNull(tabs.indexOf(tab) + by) != null }) { by -> tabs.getOrNull(tabs.indexOf(tab) + by)?.also { tab = it } != null }) {
-            SlidingSegmented(
-                listOf("Expenses", "Income"), tabs.indexOf(tab), tabs.map { "tab-$it" },
-                { i -> if (tabs[i] != tab) swipe.go(i - tabs.indexOf(tab), { (tabs[i] != tab).also { tab = tabs[i] } }) },
-                Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
-            if (editing) Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Hold a category and move it", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                androidx.compose.material3.TextButton({ editing = false }, Modifier.testTag("reorder-done")) { Text("Done") }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SlidingSegmented(
+                    listOf("Expenses", "Income"), tabs.indexOf(tab), tabs.map { "tab-$it" },
+                    { i -> if (tabs[i] != tab) swipe.go(i - tabs.indexOf(tab), { (tabs[i] != tab).also { tab = tabs[i] } }) },
+                    Modifier.weight(1f).padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+                if (editing && embedded) done() // as a tab there is no app bar of its own: the tick sits at the top right of the content
             }
             val shown = categories.filter { it.type == tab && !it.isArchived }
             ReorderableTiles(shown, editing, onStartEditing = { editing = true }, onOpen = onOpen, onReordered = vm::reorder, modifier = Modifier.swipeShift(swipe)) {
@@ -103,18 +108,27 @@ private fun ReorderableTiles(
     val bounds = remember { androidx.compose.runtime.mutableStateMapOf<String, androidx.compose.ui.geometry.Rect>() }
     var dragged by remember { mutableStateOf<String?>(null) }
     var offset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    // In edit mode the tiles wobble a little (each out of step with its neighbours) to say they can be moved; not with reduced motion.
+    val wobble = if (editing && !LocalReduceMotion.current) {
+        androidx.compose.animation.core.rememberInfiniteTransition(label = "wobble").animateFloat(
+            0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(280, easing = androidx.compose.animation.core.LinearEasing)), label = "wobble",
+        )
+    } else null
     FlowRow(
         modifier.verticalScroll(rememberScrollState(), enabled = dragged == null).padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + LocalChromeInset.current),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        order.forEach { c ->
+        order.forEachIndexed { index, c ->
             key(c.uid) { // the tile, and its drag in progress, moves with the category when the order changes
                 val isDragged = dragged == c.uid
                 val tile = Modifier.onGloballyPositioned { bounds[c.uid] = it.boundsInRoot() }
                     .zIndex(if (isDragged) 1f else 0f)
                     .graphicsLayer {
                         if (isDragged) { translationX = offset.x; translationY = offset.y; scaleX = 1.12f; scaleY = 1.12f }
-                        else if (editing) { scaleX = 0.94f; scaleY = 0.94f }
+                        else if (editing) {
+                            scaleX = 0.94f; scaleY = 0.94f
+                            wobble?.let { rotationZ = WOBBLE_DEGREES * kotlin.math.sin(2 * Math.PI * (it.value + index * 0.37)).toFloat() }
+                        }
                     }
                     .then(if (!editing) Modifier else Modifier.pointerInput(c.uid) {
                         detectDragGesturesAfterLongPress(
@@ -138,6 +152,8 @@ private fun ReorderableTiles(
         trailing()
     }
 }
+
+private const val WOBBLE_DEGREES = 2.5f
 
 /** Categories whose position changes when they are shown in [order]: each gets its index. */
 fun reorderedPositions(order: List<CategoryEntity>): List<CategoryEntity> =

@@ -16,7 +16,7 @@ Target device: Android 16 (API 36) -> `minSdk = 36` is possible; owner to confir
 | Transfer history | must | Seen. Day / Week / Month / Year / Period filter, search. |
 | Home: per-period category breakdown | must | Seen. Day / Week / Month / Year / Period tabs, Expenses / Income tabs, stacked bar, category rows with % and amount, previous-period arrow. |
 | Operation history / edit / delete | must | Home has a receipt icon (top right), presumably the operation list. Screen not captured: unverified. |
-| Categories: create/edit/delete, icon, color | must | Seen. Separate Expense and Income lists. Reorder BUILT 2026-11-19: hold a tile for edit mode, then hold and move tiles; Done or Back leaves it. The order is each category's `position` (stamped, so sync carries it) and is what the Add screen shows. |
+| Categories: create/edit/delete, icon, color | must | Seen. Separate Expense and Income lists. Reorder BUILT 2026-11-19: hold a tile for edit mode (tiles wobble unless Reduce motion is on; the tick at the top right or Back ends it), then hold and move tiles. The order is each category's `position` (stamped, so sync carries it) and is what the Add screen shows. |
 | Per-category planned outlay | must | Seen: "Planned outlay 50 000 KZT per month" on Досуг = `category.limitAmount`. |
 | Tags | must | Seen in add-transaction. Tag management screen not captured. |
 | Archive / hide accounts | must | Seen. Eye-off icon = hidden from the Total (matches `ignoreInBalance = 1`); trash-badged grey accounts in the chart picker = inactive/archived. |
