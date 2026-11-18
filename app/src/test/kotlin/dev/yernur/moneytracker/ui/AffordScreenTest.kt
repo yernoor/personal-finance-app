@@ -4,6 +4,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -47,7 +48,7 @@ class AffordScreenTest {
 
     private fun check(price: String) {
         compose.onNodeWithTag("afford-price").performTextInput(price)
-        compose.onNodeWithTag("afford-check").performClick()
+        compose.onNodeWithTag("afford-check").performScrollTo().performClick() // the icon tiles push it below the small test screen
         compose.waitUntil(5_000) { compose.onAllNodesWithTagCount("afford-verdict") > 0 }
     }
 

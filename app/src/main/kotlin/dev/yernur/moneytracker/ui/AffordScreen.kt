@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -16,7 +17,6 @@ import androidx.compose.material3.Button
 
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +45,7 @@ import dev.yernur.moneytracker.data.DEFAULT_CURRENCY
 import dev.yernur.moneytracker.data.Money
 import dev.yernur.moneytracker.data.Verdict
 import dev.yernur.moneytracker.data.db.TransactionType
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 private fun money(minor: Long) = Money.formatRounded(minor, DEFAULT_CURRENCY)
@@ -66,6 +67,7 @@ fun AffordScreen(initialPrice: String = "", onBack: () -> Unit, onLogExpense: ()
     val accounts by remember { container.db.accountDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
     val expenseCategories = categories.filter { it.type == TransactionType.Expense && !it.isArchived }.sortedBy { it.position }
     val usable = accounts.filter { it.isActive && !it.isArchived }
+    val balances by remember { container.db.accountDao().observeBalances().map { list -> list.associate { it.uid to it.balance } } }.collectAsStateWithLifecycle(emptyMap())
 
     var price by rememberSaveable { mutableStateOf(initialPrice) } // from the Overview card's Details
     var categoryUid by rememberSaveable { mutableStateOf<String?>(null) }
@@ -94,18 +96,17 @@ fun AffordScreen(initialPrice: String = "", onBack: () -> Unit, onLogExpense: ()
                 price, { price = it; result = null }, Modifier.fillMaxWidth().testTag("afford-price"), singleLine = true,
                 label = { Text("Price ($DEFAULT_CURRENCY)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             )
+            // The Add screen's pieces: icon tiles, two rows then More, and the account picker in its one-line (dropdown) form.
             Text("Category", style = MaterialTheme.typography.labelLarge)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                expenseCategories.forEach { c ->
-                    FilterChip(categoryUid == c.uid, { categoryUid = if (categoryUid == c.uid) null else c.uid; result = null }, { Text(c.title) }, Modifier.testTag("afford-category-${c.uid}"))
+            var expanded by rememberSaveable { mutableStateOf(false) }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                visibleCategories(expenseCategories, expanded, categoryUid).forEach { c ->
+                    CategoryTile(c, selected = categoryUid == c.uid) { categoryUid = if (categoryUid == c.uid) null else c.uid; result = null }
                 }
+                if (expenseCategories.size > COLLAPSED_CATEGORIES) ExpandTile(expanded, Modifier.width(76.dp)) { expanded = !expanded }
             }
             Text("Paying from", style = MaterialTheme.typography.labelLarge)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                usable.forEach { a ->
-                    FilterChip(account?.uid == a.uid, { accountUid = a.uid; result = null }, { Text(a.title) }, Modifier.testTag("afford-account-${a.uid}"))
-                }
-            }
+            AccountPicker(usable, balances, account?.uid, "afford-account", compact = true) { accountUid = it; result = null }
             Button(
                 {
                     val target = account ?: return@Button
