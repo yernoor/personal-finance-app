@@ -107,7 +107,7 @@ class MoreSections : androidx.lifecycle.ViewModel() {
 }
 
 @Composable
-fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onFeedback: () -> Unit, onCompound: () -> Unit, onWealth: () -> Unit, onOpenTab: (NavTab) -> Unit) {
+fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onFeedback: () -> Unit, onWealth: () -> Unit, onOpenTab: (NavTab) -> Unit) {
     var showWalletConsent by remember { mutableStateOf(false) }
     var showKaspiConsent by remember { mutableStateOf(false) }
     var showWalletAccount by remember { mutableStateOf(false) }
@@ -190,18 +190,13 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
                 )
             }
         }
-        SectionHeader("Wealth")
+        // Compound interest lives on the Wealth screen now (owner 2026-11-19), so this section is only Wealth's own row.
+        if ("wealth" !in navbar) SectionHeader("Wealth")
         if ("wealth" !in navbar) ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
             modifier = Modifier.clickable(onClick = onWealth).testTag("open-wealth"),
             leadingContent = { Icon(Icons.AutoMirrored.Outlined.TrendingUp, null) }, headlineContent = { Text("Wealth") },
             supportingContent = { Text("Net worth, goals, bonds, monthly money") },
-        )
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable(onClick = onCompound).testTag("open-compound"),
-            leadingContent = { Icon(Icons.Outlined.Calculate, null) }, headlineContent = { Text("Compound interest") },
-            supportingContent = { Text("Where a balance and monthly savings end up") },
         )
         SectionHeader("Manage") // always: Notifications lives here
         if ("categories" !in navbar) ListItem(

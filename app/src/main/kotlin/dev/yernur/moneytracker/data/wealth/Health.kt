@@ -52,12 +52,13 @@ data class ProjectionInputs(
     val years: Int,
 )
 
-data class NetWorthYear(val year: Int, val totalMinor: Long)
+/** One year of a projection; the parts let the chart stack them ([otherMinor] = manual assets minus liabilities). */
+data class NetWorthYear(val year: Int, val totalMinor: Long, val accountsMinor: Long = 0, val investmentsMinor: Long = 0, val otherMinor: Long = 0)
 
 /** Net worth year by year: accounts and investments each compound at their own rate, the monthly surplus is split between them, manual items stay flat. */
 fun projectNetWorth(i: ProjectionInputs): List<NetWorthYear> {
     val toInvest = i.monthlySurplusMinor * i.investSharePercent / 100
     val accounts = compound(CompoundInput(i.accountsMinor, i.accountsRatePercent, i.monthlySurplusMinor - toInvest, i.years))
     val investments = compound(CompoundInput(i.investmentsMinor, i.investmentsRatePercent, toInvest, i.years))
-    return accounts.zip(investments) { a, b -> NetWorthYear(a.year, a.balance + b.balance + i.otherNetMinor) }
+    return accounts.zip(investments) { a, b -> NetWorthYear(a.year, a.balance + b.balance + i.otherNetMinor, a.balance, b.balance, i.otherNetMinor) }
 }

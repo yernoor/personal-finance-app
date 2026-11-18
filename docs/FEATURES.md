@@ -190,6 +190,16 @@ Code in `data/wealth/`, schema 2 -> 6 (one migration per step, each tested). All
 - Known gap: an investment logged as an expense category (current practice, question 6 above) counts as spending in the health summary.
 - The file backup (item 4 below) copies the whole database, so it covers these phone-only wealth tables too.
 
+### Wealth screen redesign (owner, 2026-11-19; "Wealth screen redesign" canvas). BUILT, checked on the emulator with demo data
+- Overview: net worth with its change and the day-by-day line, one horizontal bar of what it is made of (accounts, bonds, other assets), and the
+  parts as rows (loans in red); Goals and Monthly money tiles; a Projection card (5 years, half of each month's saving invested, as a line); the
+  Compound interest calculator as a button below. Every row, tile and card opens that part's page (Back returns): Accounts (read-only list, edited on
+  Accounts), Bonds, Other assets, Loans (each with the bar, its slice lit), Goals, Monthly money, Projection.
+- Projection page: 5/10/20 years, None/Half/All of the saving invested, the result split into saving and coupons, a stacked chart by year, "Based on"
+  (saving -> Monthly money, coupon yield -> Bonds, accounts earn nothing), and "Try other numbers in the calculator", which opens the calculator
+  filled with net worth, the monthly saving, the coupon yield and the years (whole tenge).
+- Compound interest left More (only Wealth's own row stays there, when Wealth is not a tab).
+
 ## Planned, not built (owner requests, 2026-11-04)
 
 ### 1. PIN lock and hidden recents. BUILT (More -> Privacy): PIN 4-6 digits with back-off, auto-lock delay, recents Off / Blur / Hide. BIOMETRIC UNLOCK built (More -> Privacy, only shown when the phone has an enrolled strong biometric; androidx.biometric 1.1.0 = newest stable, newer ones are alpha; MainActivity is now a FragmentActivity for it; the prompt appears when the lock screen shows, "Use PIN" falls back to the keypad; it skips the wrong-PIN wait; removing the PIN switches it off; convenience gate with no crypto object). **The prompt itself has never been run**, on no device or emulator: only the lock logic is unit-tested. Not built: private warning notifications, "phone screen lock" fallback. Recents Hide checked on the emulator (Android 16) 2026-11-09, not yet on the Nothing phone (Android 17); Blur was removed, see below

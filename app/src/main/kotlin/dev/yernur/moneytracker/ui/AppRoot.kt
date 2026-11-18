@@ -346,18 +346,27 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                     onCategories = { nav.navigate("categories") }, onTags = { nav.navigate("tags") },
                     onNavbar = { nav.navigate("navbar-settings") }, onHomeLayout = { nav.navigate("home-settings") },
                     onSync = { nav.navigate("sync") }, onUpdates = { nav.navigate("updates") }, onFeedback = { nav.navigate("feedback") },
-                    onCompound = { nav.navigate("compound") }, onWealth = { nav.navigate("wealth") }, onOpenTab = { nav.navigate(it.id) },
+                    onWealth = { nav.navigate("wealth") }, onOpenTab = { nav.navigate(it.id) },
                 )
             }
             screen("wealth") {
-                WealthScreen(embedded = "wealth" in tabRoutes, onCompound = { nav.navigate("compound") }, onBack = { nav.popBackStack() })
+                WealthScreen(
+                    embedded = "wealth" in tabRoutes, onCompound = { nav.navigate("compound") }, onBack = { nav.popBackStack() },
+                    onCompoundWith = { start, monthly, rate, years -> nav.navigate("compound?start=$start&monthly=$monthly&rate=$rate&years=$years") },
+                )
             }
             screen("notifications") {
                 NotificationsScreen(
                     onOpenRecurring = { container.analysisRequest.value = AnalysisTab.Recurring; nav.navigateTop("analysis") }, onBack = { nav.popBackStack() },
                 )
             }
-            screen("compound") { CompoundScreen { nav.popBackStack() } }
+            screen(
+                "compound?start={start}&monthly={monthly}&rate={rate}&years={years}",
+                arguments = listOf("start", "monthly", "rate", "years").map { name -> navArgument(name) { type = NavType.StringType; nullable = true; defaultValue = null } },
+            ) { entry ->
+                val arg = { name: String -> entry.arguments?.getString(name) }
+                CompoundScreen(arg("start"), arg("monthly"), arg("rate"), arg("years")) { nav.popBackStack() }
+            }
             screen("trend/{uid}", arguments = listOf(navArgument("uid") { type = NavType.StringType })) { entry ->
                 CategoryTrendScreen(entry.arguments?.getString("uid").orEmpty(), onBack = { nav.popBackStack() }, onOpenTransaction = { nav.navigate(entryRoute(it)) })
             }
