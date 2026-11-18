@@ -375,6 +375,9 @@ Owner wants a payment made with a Google Wallet card to become an expense in the
   Post (wrap the whole command in quotes so `adb shell` keeps spaces in values):
   `adb shell "am broadcast -a dev.yernur.moneytracker.walletstub.POST -n com.google.android.apps.walletnfcrel/dev.yernur.moneytracker.walletstub.PostReceiver --es merchant 'Test Cafe' --es amount 1234.5"`.
   Extras: `currency`, `card`, `last4`, and `text` (replaces the text line, for formats not seen yet). Checked on the emulator 2026-11-11: the main app answered with its "Which account do you pay with?" prompt.
+  Since 2026-11-19 the stub has two flavors: `wallet` (`walletstub-wallet-debug.apk`, Wallet's package, text now `KZT 1,234.00 with ...` with a no-break space as on the phone)
+  and `kaspi` (`walletstub-kaspi-debug.apk`, package `kz.kaspi.mobile`, title `Kaspi Gold`, text `Покупка: 1 630 ₸` / merchant / `Доступно: ...`). Kaspi post:
+  `adb shell "am broadcast -a dev.yernur.moneytracker.walletstub.POST -n kz.kaspi.mobile/dev.yernur.moneytracker.walletstub.PostReceiver --es merchant 'D mart' --es amount 1630"` (extras `available`, `card`, `text`).
 - Rating: **must** (owner request).
 
 ## Open questions for the owner
