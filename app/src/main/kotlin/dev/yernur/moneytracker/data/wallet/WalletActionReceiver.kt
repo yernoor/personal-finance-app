@@ -23,11 +23,11 @@ class WalletActionReceiver : BroadcastReceiver() {
             try {
                 when (intent.action) {
                     PICK_ACCOUNT -> {
-                        container.settings.setWalletAccount(uid)
+                        container.settings.setPaymentAccount(pending.kaspi, uid)
                         prompts.prompt(pending) // now the category question, in the same notification slot
                     }
                     SAVE -> {
-                        val accountUid = container.settings.walletAccountUid.value ?: return@launch
+                        val accountUid = container.settings.paymentAccount(pending.kaspi).value ?: return@launch
                         WalletPlan.save(container.ledger, pending, accountUid, uid)
                         container.afterLedgerChange()
                         val account = container.db.accountDao().get(accountUid)?.title.orEmpty()

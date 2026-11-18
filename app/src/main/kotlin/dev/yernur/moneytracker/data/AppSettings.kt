@@ -42,7 +42,9 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _reminderEnabled = MutableStateFlow(prefs?.getBoolean(REMINDER_ENABLED, true) ?: true)
     private val _reminderMinute = MutableStateFlow(prefs?.getInt(REMINDER_MINUTE, 20 * 60) ?: (20 * 60))
     private val _walletCapture = MutableStateFlow(prefs?.getBoolean(WALLET_CAPTURE, false) ?: false)
+    private val _kaspiCapture = MutableStateFlow(prefs?.getBoolean(KASPI_CAPTURE, false) ?: false)
     private val _walletAccountUid = MutableStateFlow(prefs?.getString(WALLET_ACCOUNT, null))
+    private val _kaspiAccountUid = MutableStateFlow(prefs?.getString(KASPI_ACCOUNT, null))
     private val _autoSync = MutableStateFlow(prefs?.getBoolean(AUTO_SYNC, true) ?: true)
     private val _lastSyncAt = MutableStateFlow(prefs?.getString(LAST_SYNC_AT, null))
     private val _pendingSpreadsheetId = MutableStateFlow(prefs?.getString(PENDING_SPREADSHEET_ID, null))
@@ -162,6 +164,14 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         prefs?.edit()?.putBoolean(WALLET_CAPTURE, enabled)?.apply()
     }
 
+    /** The owner's consent to read Kaspi.kz purchase notifications (More -> Automation, owner request 2026-11-19). Off until they agree. */
+    val kaspiCapture: StateFlow<Boolean> = _kaspiCapture
+
+    fun setKaspiCapture(enabled: Boolean) {
+        _kaspiCapture.value = enabled
+        prefs?.edit()?.putBoolean(KASPI_CAPTURE, enabled)?.apply()
+    }
+
     private val walletSeen = ArrayDeque(prefs?.getString(WALLET_SEEN, null)?.split(SEEN_SEPARATOR)?.filter { it.isNotEmpty() }.orEmpty())
 
     /** True the first time a Wallet payment key is offered, false for a repeat (the last 100 are remembered, also across restarts). */
@@ -181,6 +191,19 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         _walletAccountUid.value = uid
         prefs?.edit()?.apply { if (uid != null) putString(WALLET_ACCOUNT, uid) else remove(WALLET_ACCOUNT) }?.apply()
     }
+
+    /** The account Kaspi purchases go to (Kaspi pays from its own card, not the Wallet one); null until the first purchase asks. */
+    val kaspiAccountUid: StateFlow<String?> = _kaspiAccountUid
+
+    fun setKaspiAccount(uid: String?) {
+        _kaspiAccountUid.value = uid
+        prefs?.edit()?.apply { if (uid != null) putString(KASPI_ACCOUNT, uid) else remove(KASPI_ACCOUNT) }?.apply()
+    }
+
+    /** The default account for a captured payment from Kaspi ([kaspi]) or Wallet. */
+    fun paymentAccount(kaspi: Boolean): StateFlow<String?> = if (kaspi) kaspiAccountUid else walletAccountUid
+
+    fun setPaymentAccount(kaspi: Boolean, uid: String?) = if (kaspi) setKaspiAccount(uid) else setWalletAccount(uid)
 
     /** Sync with the sheet once a week in the background (only matters while a sheet is linked). */
     val autoSync: StateFlow<Boolean> = _autoSync
@@ -411,6 +434,8 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val REMINDER_ENABLED = "reminderEnabled"
         private const val REMINDER_MINUTE = "reminderMinute"
         private const val WALLET_CAPTURE = "walletCapture"
+        private const val KASPI_CAPTURE = "kaspiCapture"
+        private const val KASPI_ACCOUNT = "kaspiAccountUid"
         private const val WALLET_ACCOUNT = "walletAccountUid"
         private const val WALLET_SEEN = "walletSeen"
         private const val WALLET_SEEN_MAX = 100
