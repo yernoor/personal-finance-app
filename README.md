@@ -149,7 +149,3 @@ Stack: Kotlin, Jetpack Compose + Material 3, Room, WorkManager, hand-wired DI. M
 | [docs/RELEASING.md](docs/RELEASING.md) | Branches, tags, signed release APK |
 | [docs/WALLET_LOGGER.md](docs/WALLET_LOGGER.md) | The notification logger used to check Google Wallet's format |
 | [CLAUDE.md](CLAUDE.md) | Project rules and milestones for the AI-assisted workflow |
-
-## Status
-
-Version 0.8.1. Unit tests and the debug build pass; the live Google round trip and the app on a physical phone are not yet verified. The wealth data lives on the phone only (it is not in the Google Sheet); use *Back up to a file* for it. Not built: Apps Script `onEdit` stamping, sync conflict log, per-card Wallet account mapping (planned, see [docs/FEATURES.md](docs/FEATURES.md)).
