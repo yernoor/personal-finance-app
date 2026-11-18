@@ -86,7 +86,7 @@ fun WalletPickerDialog(pending: PendingPayment, onClose: () -> Unit) {
         val scope = rememberCoroutineScope()
         val accounts by remember { container.db.accountDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
         val categories by remember { container.db.categoryDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
-        val defaultUid by container.settings.walletAccountUid.collectAsStateWithLifecycle()
+        val defaultUid by container.settings.paymentAccount(pending.kaspi).collectAsStateWithLifecycle()
         val balances by remember { container.db.accountDao().observeBalances().map { list -> list.associate { it.uid to it.balance } } }.collectAsStateWithLifecycle(emptyMap())
         var otherUid by rememberSaveable { mutableStateOf<String?>(null) } // an account picked for this payment only
         var selectedUid by rememberSaveable { mutableStateOf<String?>(null) } // a tap only selects: nothing is saved until Add
@@ -117,7 +117,7 @@ fun WalletPickerDialog(pending: PendingPayment, onClose: () -> Unit) {
                     label = "wallet-step",
                 ) { asking ->
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (asking) AccountQuestion(choosable) { container.settings.setWalletAccount(it.uid) } else if (account != null) {
+                if (asking) AccountQuestion(choosable) { container.settings.setPaymentAccount(pending.kaspi, it.uid) } else if (account != null) {
                     Text("Account", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     // The add screen's account picker in its one-line form: the chosen account, a tap opens the tiles of every account.
                     AccountPicker(choosable, balances, account.uid, "wallet-account", compact = true) { otherUid = it }

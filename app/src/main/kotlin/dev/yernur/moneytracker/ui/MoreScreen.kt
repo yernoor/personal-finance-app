@@ -107,9 +107,11 @@ class MoreSections : androidx.lifecycle.ViewModel() {
 }
 
 @Composable
-fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onFeedback: () -> Unit, onCompound: () -> Unit, onWealth: () -> Unit, onOpenTab: (NavTab) -> Unit) {
+fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onFeedback: () -> Unit, onWealth: () -> Unit, onOpenTab: (NavTab) -> Unit) {
     var showWalletConsent by remember { mutableStateOf(false) }
+    var showKaspiConsent by remember { mutableStateOf(false) }
     var showWalletAccount by remember { mutableStateOf(false) }
+    var showKaspiAccount by remember { mutableStateOf(false) }
     var showHistoryPeriod by remember { mutableStateOf(false) }
     var showIconStyle by remember { mutableStateOf(false) }
     var showWidgetStyle by remember { mutableStateOf(false) }
@@ -188,18 +190,13 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
                 )
             }
         }
-        SectionHeader("Wealth")
+        // Compound interest lives on the Wealth screen now (owner 2026-11-19), so this section is only Wealth's own row.
+        if ("wealth" !in navbar) SectionHeader("Wealth")
         if ("wealth" !in navbar) ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
             modifier = Modifier.clickable(onClick = onWealth).testTag("open-wealth"),
             leadingContent = { Icon(Icons.AutoMirrored.Outlined.TrendingUp, null) }, headlineContent = { Text("Wealth") },
             supportingContent = { Text("Net worth, goals, bonds, monthly money") },
-        )
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
-            modifier = Modifier.clickable(onClick = onCompound).testTag("open-compound"),
-            leadingContent = { Icon(Icons.Outlined.Calculate, null) }, headlineContent = { Text("Compound interest") },
-            supportingContent = { Text("Where a balance and monthly savings end up") },
         )
         SectionHeader("Manage") // always: Notifications lives here
         if ("categories" !in navbar) ListItem(
@@ -275,7 +272,8 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent), // lets the glass glow show through
                 modifier = Modifier.clickable { container.settings.setShowAllAccounts(!showAll) }.testTag("toggle-all-accounts"),
-                leadingContent = { Icon(Icons.Outlined.Tune, null) }, headlineContent = { Text("Show \"All accounts\" on Home") },
+                leadingContent = { Icon(Icons.Outlined.Tune, null) }, headlineContent = { Text("Show all accounts on Home") },
+                supportingContent = { Text(if (showAll) "Home and History count every account, and Home shows the \"All accounts\" balance" else "Home and History count only accounts in the Total (no hidden ones)") },
                 trailingContent = { Switch(showAll, { container.settings.setShowAllAccounts(it) }) },
             )
             val historyPeriod by container.settings.historyPeriod.collectAsStateWithLifecycle()
@@ -288,6 +286,7 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
         }
         Section("automation", "Automation", openId, { openId = it }) {
             val walletOn by container.settings.walletCapture.collectAsStateWithLifecycle()
+            val kaspiOn by container.settings.kaspiCapture.collectAsStateWithLifecycle()
             val walletAccountUid by container.settings.walletAccountUid.collectAsStateWithLifecycle()
             val accounts by remember { container.db.accountDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
             val walletAccessGranted = {
@@ -311,7 +310,22 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
                 },
                 trailingContent = { Switch(walletOn, { if (it) showWalletConsent = true else container.settings.setWalletCapture(false) }) },
             )
-            if (walletOn && !walletAccess) ListItem(
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable { if (kaspiOn) container.settings.setKaspiCapture(false) else showKaspiConsent = true }.testTag("kaspi-capture"),
+                leadingContent = { Icon(Icons.Outlined.AccountBalanceWallet, null) }, headlineContent = { Text("Kaspi Alaqan purchases") },
+                supportingContent = {
+                    Text(
+                        when {
+                            !kaspiOn -> "Off. Offer each Kaspi Alaqan purchase as an expense"
+                            !walletAccess -> "On, but Android notification access is still off (see the next row)"
+                            else -> "On: each Kaspi Alaqan purchase is offered as an expense"
+                        },
+                    )
+                },
+                trailingContent = { Switch(kaspiOn, { if (it) showKaspiConsent = true else container.settings.setKaspiCapture(false) }) },
+            )
+            if ((walletOn || kaspiOn) && !walletAccess) ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 modifier = Modifier.clickable { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.testTag("wallet-access"),
                 leadingContent = { Icon(Icons.Outlined.AccountBalanceWallet, null) }, headlineContent = { Text("Allow notification access") },
@@ -323,6 +337,15 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
                 leadingContent = { Icon(Icons.Outlined.AccountBalanceWallet, null) }, headlineContent = { Text("Default account for payments") },
                 supportingContent = { Text(accounts.firstOrNull { it.uid == walletAccountUid }?.title ?: "Not chosen: the first payment asks") },
             )
+            if (kaspiOn) {
+                val kaspiAccountUid by container.settings.kaspiAccountUid.collectAsStateWithLifecycle()
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.clickable { showKaspiAccount = true }.testTag("kaspi-account"),
+                    leadingContent = { Icon(Icons.Outlined.AccountBalanceWallet, null) }, headlineContent = { Text("Default account for Kaspi") },
+                    supportingContent = { Text(accounts.firstOrNull { it.uid == kaspiAccountUid }?.title ?: "Not chosen: the first purchase asks") },
+                )
+            }
         }
         Section("privacy", "Privacy and security", openId, { openId = it }) {
             val pin by container.settings.pin.collectAsStateWithLifecycle()
@@ -453,10 +476,15 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
         }
     }) { showWidgetStyle = false }
     if (showHistoryPeriod) HistoryPeriodDialog(container.settings) { showHistoryPeriod = false }
-    if (showWalletConsent) WalletConsentDialog(container.settings, context) { showWalletConsent = false }
+    if (showWalletConsent) CaptureConsentDialog("Google Wallet", "payment", "wallet-allow", { container.settings.setWalletCapture(true) }, context) { showWalletConsent = false }
+    if (showKaspiConsent) CaptureConsentDialog("Kaspi.kz", "Alaqan purchase", "kaspi-allow", { container.settings.setKaspiCapture(true) }, context) { showKaspiConsent = false }
     if (showWalletAccount) {
         val accounts by remember { container.db.accountDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
         ChoiceDialog("Default account for payments", accounts.map { it.uid to it.title }, container.settings.walletAccountUid.value.orEmpty(), { container.settings.setWalletAccount(it) }) { showWalletAccount = false }
+    }
+    if (showKaspiAccount) {
+        val accounts by remember { container.db.accountDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
+        ChoiceDialog("Default account for Kaspi", accounts.map { it.uid to it.title }, container.settings.kaspiAccountUid.value.orEmpty(), { container.settings.setKaspiAccount(it) }) { showKaspiAccount = false }
     }
     staged?.let { (file, info) ->
         AlertDialog(
@@ -548,16 +576,16 @@ private fun SectionHeader(title: String) {
 
 /** The consent step: what is read, what is not, then Android's own notification-access screen (only the owner can grant that). */
 @Composable
-private fun WalletConsentDialog(settings: AppSettings, context: android.content.Context, onDismiss: () -> Unit) {
+private fun CaptureConsentDialog(app: String, what: String, allowTag: String, enable: () -> Unit, context: android.content.Context, onDismiss: () -> Unit) {
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     AlertDialog(
         containerColor = glassContainer(AlertDialogDefaults.containerColor),
         onDismissRequest = onDismiss,
-        title = { Text("Read Google Wallet payments?") },
+        title = { Text("Read $app ${what}s?") },
         text = {
             GlassWindowBlur()
             Text(
-                "Money Tracker will read notifications from Google Wallet only, to offer each card payment as an expense " +
+                "Money Tracker will read notifications from $app only, to offer each $what as an expense " +
                     "(you choose the category). Notifications from every other app are ignored without being read. " +
                     "Nothing is sent over the network, and you can turn this off here at any time.\n\n" +
                     "Next, Android asks you to allow notification access for Money Tracker.",
@@ -565,13 +593,13 @@ private fun WalletConsentDialog(settings: AppSettings, context: android.content.
         },
         confirmButton = {
             TextButton({
-                settings.setWalletCapture(true)
+                enable()
                 if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
                     permission.launch(Manifest.permission.POST_NOTIFICATIONS) // the payment prompts are notifications
                 }
                 context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 onDismiss()
-            }, Modifier.testTag("wallet-allow")) { Text("Allow") }
+            }, Modifier.testTag(allowTag)) { Text("Allow") }
         },
         dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
     )

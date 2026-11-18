@@ -1,5 +1,7 @@
 package dev.yernur.moneytracker.ui
 
+import dev.yernur.moneytracker.data.PeriodUnit
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -85,5 +87,13 @@ class HistoryGroupingTest {
         assertEquals(1f, expenses.sumOf { it.fraction.toDouble() }.toFloat(), 0.0001f)
         assertEquals(listOf(100), chartSlices(groups, income = true).map { it.percent })
         assertEquals(emptyList<ChartSlice>(), chartSlices(emptyList(), income = false))
+    }
+
+    @Test
+    fun anEmptyChart_saysWhatIsMissing_forTheSideAndPeriodShown() {
+        assertEquals("No expenses today. Keep it up!", emptyChartText(income = false, PeriodUnit.Day, current = true))
+        assertEquals("No expenses in this month", emptyChartText(income = false, PeriodUnit.Month, current = false))
+        assertEquals("No income this week yet", emptyChartText(income = true, PeriodUnit.Week, current = true))
+        assertEquals("No income today", emptyChartText(income = true, PeriodUnit.Day, current = true))
     }
 }

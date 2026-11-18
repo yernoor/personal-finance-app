@@ -16,11 +16,12 @@ data class WalletPayment(
 
 /**
  * Wallet's payment notification: title = merchant, text = `KZT1,234.00 with <card name> ••<last4>` (two samples from the owner's phone;
- * a 3-letter ISO code, `,` thousands, `.` decimals). Anything else returns null: declines, refunds, foreign-currency formats and
+ * a 3-letter ISO code, `,` thousands, `.` decimals). Since 2026-11 Wallet puts a space after the code (`KZT 5,440.00 with ...`,
+ * Wallet logger export), so one space is allowed there. Anything else returns null: declines, refunds, foreign-currency formats and
  * group summaries have not been seen yet (unverified), so they are ignored instead of guessed at.
  */
 object WalletParser {
-    private val text = Regex("""([A-Z]{3})(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?) with (.+) ••(\d{4})""")
+    private val text = Regex("""([A-Z]{3})[ \u00A0\u202F]?(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?) with (.+) ••(\d{4})""")
 
     fun parse(title: String?, body: String?): WalletPayment? {
         val merchant = title?.trim()?.takeIf { it.isNotEmpty() } ?: return null

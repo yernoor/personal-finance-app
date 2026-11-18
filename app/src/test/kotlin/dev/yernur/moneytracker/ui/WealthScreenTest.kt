@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
@@ -39,6 +40,8 @@ class WealthScreenTest {
     @get:Rule val compose = createComposeRule()
     private lateinit var db: AppDatabase
     private lateinit var container: AppContainer
+    /** What "Try other numbers in the calculator" handed over. */
+    private var handed: List<Any>? = null
 
     @Before
     fun setUp() = runBlocking {
@@ -48,7 +51,7 @@ class WealthScreenTest {
         // 100,000.00 in the account
         db.transactionDao().insertAll(listOf(TransactionEntity("t", TransactionType.Income, "main", null, 10_000_000, null, null, 10_000_000, null, "2026-10-20", null, "", "")))
         container = AppContainer(db)
-        compose.setContent { CompositionLocalProvider(LocalAppContainer provides container) { AppTheme { WealthScreen(onCompound = {}, onBack = {}) } } }
+        compose.setContent { CompositionLocalProvider(LocalAppContainer provides container) { AppTheme { WealthScreen(onCompound = {}, onBack = {}, onCompoundWith = { s, m, r, y -> handed = listOf(s, m, r, y) }) } } }
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("net-worth").fetchSemanticsNodes().isNotEmpty() }
     }
 
@@ -59,6 +62,9 @@ class WealthScreenTest {
     private fun open(tag: String) {
         compose.onNodeWithTag(tag).performScrollTo().performClick()
     }
+
+    /** Back from a part's page to the overview (the screen's own top bar, as when opened from More). */
+    private fun back() = compose.onNodeWithContentDescription("Back").performClick()
 
     private fun waitForText(text: String) = compose.waitUntil(10_000) { compose.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty() }
 
@@ -88,27 +94,34 @@ class WealthScreenTest {
 
     @Test
     fun addingAnAsset_raisesNetWorth() {
+        open("wealth-part-Assets")
         open("add-asset")
         compose.onNodeWithTag("form-0").performTextInput("Flat")
         compose.onNodeWithTag("form-3").performTextInput("5000000")
         compose.onNodeWithTag("form-save").performClick()
+        waitForText("Flat")
+        back()
         waitForText("₸5,100,000")
         assertEquals("Flat", runBlocking { db.manualAssetDao().getLive().single().title })
     }
 
     @Test
     fun aLoan_isSubtracted() {
+        open("wealth-part-Loans")
         open("add-asset")
         compose.onNodeWithTag("form-0").performTextInput("Car loan")
         compose.onNodeWithTag("form-1-1").performClick() // Loan or debt
         compose.onNodeWithTag("form-3").performTextInput("30000")
         compose.onNodeWithTag("form-save").performClick()
+        waitForText("Car loan")
+        back()
         waitForText("₸70,000")
         assertEquals(ManualKind.Liability, runBlocking { db.manualAssetDao().getLive().single().kind })
     }
 
     @Test
     fun aGoal_showsProgressAgainstNetWorth() {
+        open("wealth-part-Goals")
         open("add-goal")
         compose.onNodeWithTag("form-0").performTextInput("Cushion")
         compose.onNodeWithTag("form-1").performTextInput("200000")
@@ -119,12 +132,14 @@ class WealthScreenTest {
 
     @Test
     fun saveStaysOffUntilTheFormIsValid() {
+        open("wealth-part-Goals")
         open("add-goal")
         compose.onNodeWithTag("form-save").assertIsNotEnabled()
     }
 
     @Test
     fun incomeAndPayments_giveWhatIsLeftEachMonth() {
+        open("wealth-part-Monthly")
         open("add-cashflow")
         compose.onNodeWithTag("form-0").performTextInput("Salary")
         compose.onNodeWithTag("form-2").performTextInput("500000")
@@ -142,6 +157,7 @@ class WealthScreenTest {
     @Test
     fun anIncomeWithoutARate_showsAWarningInsteadOfAWrongTotal() {
         runBlocking { container.wealth.saveCashflowItem(null, dev.yernur.moneytracker.data.db.CashflowItemEntity("", "Pension", CashflowKind.Income, "GBP", 50_000, false, "", "")) }
+        open("wealth-part-Monthly")
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("health-missing-rates").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("health-missing-rates").assertTextContains("GBP", substring = true)
     }
@@ -149,6 +165,7 @@ class WealthScreenTest {
     @Test
     fun aBond_appearsWithItsCouponsAndMaturity() {
         val maturity = LocalDate.now().plusYears(2).toString()
+        open("wealth-part-Bonds")
         open("add-bond")
         compose.onNodeWithTag("form-0").performTextInput("Gov 2028")
         compose.onNodeWithTag("form-2").performTextInput("1000")
@@ -158,6 +175,16 @@ class WealthScreenTest {
         compose.onNodeWithTag("form-save").performClick()
         waitForText("Matures $maturity")
         compose.onNodeWithTag("bond-Gov 2028").assertTextContains("coupons ₸100 a year", substring = true)
+    }
+
+    @Test
+    fun projection_opensItsPage_andHandsItsNumbersToTheCalculator() {
+        open("wealth-part-Projection")
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("projected").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("projected").assertTextContains("₸100,000") // nothing saved, no bonds: it stays put
+        open("years-20")
+        open("projection-calculator")
+        assertEquals(listOf("100000", "0", "0", 20), handed)
     }
 }
 

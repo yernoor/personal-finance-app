@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import dev.yernur.moneytracker.data.hiddenAccountUids
 import dev.yernur.moneytracker.data.AppSettings
 import dev.yernur.moneytracker.data.DEFAULT_CURRENCY
 import dev.yernur.moneytracker.data.DateRange
@@ -86,6 +87,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -242,8 +245,11 @@ class HistoryViewModel(
         val to = r.to.toString()
         combine(
             db.transactionDao().observeBetween(from, to), db.transferDao().observeBetween(from, to),
-            db.categoryDao().observeAll(), db.accountDao().observeAll(),
-        ) { transactions, transfers, categories, accounts ->
+            db.categoryDao().observeAll(), db.accountDao().observeAll(), settings.showAllAccounts,
+        ) { allTransactions, allTransfers, categories, accounts, showAll ->
+            val hidden = hiddenAccountUids(accounts, showAll)
+            val transactions = allTransactions.filter { it.accountUid !in hidden }
+            val transfers = allTransfers.filter { it.fromAccountUid !in hidden || it.toAccountUid !in hidden }
             val categoryByUid = categories.associateBy { it.uid }
             val accountByUid = accounts.associateBy { it.uid }
             val rows = transactions.map { t ->
@@ -332,6 +338,9 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
     val grouped by vm.grouped.collectAsStateWithLifecycle()
     val expanded = remember { mutableStateListOf<String>() }
     val collapse = rememberChartCollapse()
+    val searchScope = rememberCoroutineScope()
+    val searchFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    var searchFocused by remember { mutableStateOf(false) }
     var chartIncome by remember { mutableStateOf(false) }
     val container = LocalAppContainer.current
     val request by container.historyRequest.collectAsStateWithLifecycle()
@@ -377,12 +386,26 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
         )
         // No +income / -expense line here (owner request 2026-11-13): the ring below already shows the chosen side's total.
         // Pinned above the list: scrolling the list shrinks the ring into the bar first (nestedScroll), so there is no toggle button.
-        HistoryChart(slices, chartIncome, collapse, Modifier.swipeShift(swipe).padding(horizontal = 16.dp, vertical = 8.dp))
+        HistoryChart(
+            slices, chartIncome, collapse, Modifier.swipeShift(swipe).padding(horizontal = 16.dp, vertical = 8.dp),
+            emptyText = emptyChartText(chartIncome, unit, LocalDate.now() in range),
+        )
         // Bottom padding keeps the last row's amount clear of the add button.
         LazyColumn(Modifier.weight(1f).swipeShift(swipe).nestedScroll(collapse).testTag("history-list"), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
             item(key = "search") {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(query, { vm.query.value = it }, label = { Text("Search") }, singleLine = true, modifier = Modifier.weight(1f).testTag("search"))
+                Box(Modifier.weight(1f)) {
+                    OutlinedTextField(
+                        query, { vm.query.value = it }, label = { Text("Search") }, singleLine = true,
+                        modifier = Modifier.fillMaxWidth().focusRequester(searchFocus).onFocusChanged { searchFocused = it.isFocused }.testTag("search"),
+                    )
+                    // Until it has focus, a tap first folds the ring into the bar and only then focuses the field, so the keyboard opens after (owner 2026-11-19).
+                    if (!searchFocused) Box(
+                        Modifier.matchParentSize().clickable(interactionSource = null, indication = null, onClickLabel = "Search") {
+                            searchScope.launch { collapse.collapse(); searchFocus.requestFocus() }
+                        }.testTag("search-tap"),
+                    )
+                }
                 FilledIconToggleButton(grouped, { vm.grouped.value = it }, modifier = Modifier.padding(start = 8.dp).testTag("group-toggle")) {
                     Icon(Icons.Outlined.Category, "Group by category")
                 }

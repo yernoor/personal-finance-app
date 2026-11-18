@@ -5,6 +5,10 @@ import dev.yernur.moneytracker.data.db.AccountEntity
 /** Totals in [DEFAULT_CURRENCY] minor units. [counted] skips accounts hidden from the Total; [all] includes them. */
 data class BalanceSummary(val counted: Long, val all: Long)
 
+/** Accounts whose operations Home and History leave out: the ones hidden from the Total, unless the owner shows all accounts (More). */
+fun hiddenAccountUids(accounts: List<AccountEntity>, showAll: Boolean): Set<String> =
+    if (showAll) emptySet() else accounts.filter { it.ignoreInBalance }.mapTo(HashSet()) { it.uid }
+
 fun summarize(
     accounts: List<AccountEntity>,
     balances: Map<String, Long>,

@@ -14,7 +14,7 @@ data class AccountSum(val accountUid: String, val total: Long)
 data class AccountBalance(val uid: String, val balance: Long)
 
 /** The few columns reports need; a missing default-currency amount counts as 0. */
-data class TxLite(val date: String, val type: TransactionType, val categoryUid: String?, val amount: Long)
+data class TxLite(val date: String, val type: TransactionType, val categoryUid: String?, val amount: Long, val accountUid: String? = null)
 
 /** One operation for the chart's category drill-down; the amount is in the default currency, like the bars. */
 data class TxDetail(
@@ -138,13 +138,13 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to ORDER BY date DESC, created DESC")
     fun observeBetween(from: String, to: String): Flow<List<TransactionEntity>>
 
-    @Query("SELECT date, type, categoryUid, COALESCE(amountInDefaultCurrency, 0) AS amount FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to")
+    @Query("SELECT date, type, categoryUid, COALESCE(amountInDefaultCurrency, 0) AS amount, accountUid FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to")
     fun observeLite(from: String, to: String): Flow<List<TxLite>>
 
     @Query("SELECT uid, date, type, categoryUid, accountUid, comment, COALESCE(amountInDefaultCurrency, 0) AS amount FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to ORDER BY date DESC, created DESC")
     fun observeDetail(from: String, to: String): Flow<List<TxDetail>>
 
-    @Query("SELECT date, type, categoryUid, COALESCE(amountInDefaultCurrency, 0) AS amount FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to")
+    @Query("SELECT date, type, categoryUid, COALESCE(amountInDefaultCurrency, 0) AS amount, accountUid FROM transactions WHERE isRemoved = 0 AND date BETWEEN :from AND :to")
     suspend fun getLite(from: String, to: String): List<TxLite>
 
     @Query("SELECT * FROM transactions WHERE isRemoved = 0 ORDER BY date DESC, created DESC LIMIT :limit")

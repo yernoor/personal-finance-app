@@ -89,16 +89,20 @@ fun CompoundForm.inCurrency(from: String, to: String, kztPerUnit: Map<String, Do
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CompoundScreen(onBack: () -> Unit) {
+fun CompoundScreen(
+    /** Filled in from the Wealth projection ("Try other numbers in the calculator"), in tenge; null keeps the examples. */
+    start0: String? = null, monthly0: String? = null, rate0: String? = null, years0: String? = null,
+    onBack: () -> Unit,
+) {
     val container = LocalAppContainer.current
     val rates by container.fx.rates.collectAsStateWithLifecycle(emptyMap())
     val currency by container.settings.wealthCurrency.collectAsStateWithLifecycle()
     val choices = remember(rates) { currencyChoices(rates) }
 
-    var start by rememberSaveable { mutableStateOf("1000000") }
-    var monthly by rememberSaveable { mutableStateOf("100000") }
-    var rate by rememberSaveable { mutableStateOf("12") }
-    var years by rememberSaveable { mutableStateOf("10") }
+    var start by rememberSaveable { mutableStateOf(start0 ?: "1000000") }
+    var monthly by rememberSaveable { mutableStateOf(monthly0 ?: "100000") }
+    var rate by rememberSaveable { mutableStateOf(rate0 ?: "12") }
+    var years by rememberSaveable { mutableStateOf(years0 ?: "10") }
     var capitalization by rememberSaveable { mutableStateOf(Capitalization.Monthly) }
     var timing by rememberSaveable { mutableStateOf(ContributionTiming.End) }
     /** The currency the typed amounts are in. The examples start in tenge; whenever the chosen currency differs (the owner switched it, or it was already chosen on opening) they are converted. */

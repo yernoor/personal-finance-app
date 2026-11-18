@@ -15,6 +15,8 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.performTextReplacement
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -190,6 +192,30 @@ class AppFlowTest {
         assertEquals(5_000_000L, created.limitAmount) // 50,000.00 in minor units
         assertEquals(TransactionType.Expense, created.type)
         assertEquals(1, created.position) // after the one existing expense category (position 0)
+    }
+
+    @Test
+    fun holdingACategory_entersEditMode_andDraggingReordersIt() {
+        runBlocking { db.categoryDao().insertAll(listOf(category("food", "Еда", TransactionType.Expense))) } // same position 0: Еда sorts first by title
+        tap("more")
+        tapInForm("open-categories")
+        waitForText("Кафе")
+        compose.onNodeWithTag("category-cafe").performTouchInput { longClick() }
+        compose.onNodeWithTag("reorder-done").assertIsDisplayed()
+        compose.onAllNodesWithTag("new-category").assertCountEquals(0) // no Create tile while reordering
+
+        val from = compose.onNodeWithTag("category-cafe").fetchSemanticsNode().boundsInRoot
+        val to = compose.onNodeWithTag("category-food").fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithTag("category-cafe").performTouchInput {
+            down(center)
+            advanceEventTime(1_000) // hold
+            val target = to.center - from.topLeft
+            repeat(10) { i -> moveTo(center + (target - center) * ((i + 1) / 10f)) }
+            up()
+        }
+        eventually { runBlocking { db.categoryDao().get("cafe")!!.position == 0 && db.categoryDao().get("food")!!.position == 1 } }
+        tap("reorder-done")
+        compose.onNodeWithTag("new-category").assertIsDisplayed()
     }
 
     @Test

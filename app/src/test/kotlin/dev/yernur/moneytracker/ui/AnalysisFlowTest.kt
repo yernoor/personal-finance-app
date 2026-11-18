@@ -72,6 +72,6 @@ class AnalysisFlowTest {
         compose.onNodeWithTag("afford-card-price").performScrollTo().performTextInput("1000000") // far more than the main account holds
         compose.onNodeWithTag("afford-card-check").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         waitFor("afford-card-verdict")
-        compose.onNodeWithTag("afford-card-verdict").assertTextEquals("NO")
+        compose.onNodeWithTag("afford-card-verdict").assertTextEquals("No")
     }
 }

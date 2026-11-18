@@ -2,6 +2,7 @@ package dev.yernur.moneytracker.ui
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.outlined.SwapVert
@@ -536,10 +537,11 @@ fun ExpandTile(expanded: Boolean, modifier: Modifier = Modifier, onClick: () -> 
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun CategoryTile(category: CategoryEntity, selected: Boolean, onClick: () -> Unit) {
+fun CategoryTile(category: CategoryEntity, selected: Boolean, modifier: Modifier = Modifier, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
     Column(
-        Modifier.width(76.dp).clickable(onClick = onClick).testTag("category-${category.uid}"),
+        modifier.width(76.dp).combinedClickable(onLongClick = onLongClick, onClick = onClick).testTag("category-${category.uid}"),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         IconBadge(

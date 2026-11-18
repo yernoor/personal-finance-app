@@ -16,6 +16,7 @@ import kotlin.math.abs
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.sync.withLock
 
@@ -192,6 +193,29 @@ class BillRepository(
         val saved = db.billDao().get(key)
         save((saved ?: BillEntity(key, name, categoryUid, amount)).copy(title = name, manual = true))
         lastMove.value = MoveDone("Added $name" + (categoryTitle?.let { " · moved ${before.size} to $it" } ?: ""), before, key, saved)
+    }
+
+    /**
+     * Renames a bill (the pencil on Recurring). Its payments get [name] as their comment, so it is found by that name and its reminder says it,
+     * and what was set for it (reminder, end) moves to the new key. A bill found by category becomes a hand-added bill of that category named
+     * [name]; only its uncommented payments get the comment, so other notes in the category stay. Returns false for a blank name or one another bill has.
+     */
+    suspend fun rename(bill: Bill, name: String): Boolean {
+        val clean = name.trim()
+        val key = "comment:${clean.lowercase()}"
+        if (clean.isEmpty()) return false
+        if (key != bill.key && (db.billDao().get(key) != null || current(days.first()).any { it.key == key })) return false
+        val byCategory = bill.key.startsWith("category:")
+        val oldComment = bill.key.removePrefix("comment:")
+        val payments = db.transactionDao().getAll().filter { t ->
+            !t.isRemoved && t.type == TransactionType.Expense &&
+                if (byCategory) t.categoryUid == bill.item.categoryUid else t.comment?.trim()?.lowercase() == oldComment
+        }
+        ledger.moveToCategory(payments.map { it.uid }, null, clean, replaceComment = !byCategory)
+        val old = bill.settings
+        if (old != null || byCategory) save(base(bill).copy(key = key, title = clean, manual = byCategory || old?.manual == true))
+        if (key != bill.key && old != null) db.billDao().delete(bill.key)
+        return true
     }
 
     suspend fun undo(done: MoveDone) {

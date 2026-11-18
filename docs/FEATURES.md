@@ -16,7 +16,7 @@ Target device: Android 16 (API 36) -> `minSdk = 36` is possible; owner to confir
 | Transfer history | must | Seen. Day / Week / Month / Year / Period filter, search. |
 | Home: per-period category breakdown | must | Seen. Day / Week / Month / Year / Period tabs, Expenses / Income tabs, stacked bar, category rows with % and amount, previous-period arrow. |
 | Operation history / edit / delete | must | Home has a receipt icon (top right), presumably the operation list. Screen not captured: unverified. |
-| Categories: create/edit/delete, icon, color | must | Seen. Separate Expense and Income lists; reorder icon (top right, unverified). |
+| Categories: create/edit/delete, icon, color | must | Seen. Separate Expense and Income lists. Reorder BUILT 2026-11-19: hold a tile for edit mode (tiles wobble unless Reduce motion is on; the tick at the top right or Back ends it), then hold and move tiles. The order is each category's `position` (stamped, so sync carries it) and is what the Add screen shows. |
 | Per-category planned outlay | must | Seen: "Planned outlay 50 000 KZT per month" on Досуг = `category.limitAmount`. |
 | Tags | must | Seen in add-transaction. Tag management screen not captured. |
 | Archive / hide accounts | must | Seen. Eye-off icon = hidden from the Total (matches `ignoreInBalance = 1`); trash-badged grey accounts in the chart picker = inactive/archived. |
@@ -43,7 +43,10 @@ Target device: Android 16 (API 36) -> `minSdk = 36` is possible; owner to confir
   summary and six monthly bars against one average, Worth a look with limit warnings and rises/falls, one category list with limit bars) and
   **Recurring** (bills, reminders, ends, moving payments, duplicates). The average is the last **3** full months everywhere (was 6 on Trends).
   "Can I afford it?" moved from More to a card on Overview under the month card (owner's choice 2026-11-18): price in, verdict out (main account,
-  no category); Details opens the full screen with the price filled in.
+  no category). Since 2026-11-19 (owner picked option A of the "Overview afford block" canvas) the separate screen is gone and the card is the
+  whole feature: one line (price + arrow) until asked; the answer fills the card's lower half in the verdict colour ("Yes · ₸61,000 left until
+  Nov 30"), with a category chip (the Add screen's icon tiles in a sheet) and an account dropdown chip that re-check at once, and "Why" unfolds
+  the breakdown, limit and goals in place. "Log as expense" went with the screen.
   Changed 2026-11-18 (owner): the month's figure is one number on every screen (Forecast "On track for", the Trends dashed bar and its
   change against the average, the widget's "on pace for"): regular categories at their pace **plus what one-offs have cost so far**
   (real spending that will not recur, so not projected). Categories set to Never stay out entirely.
@@ -113,7 +116,7 @@ Android 16 notes: `POST_NOTIFICATIONS` runtime permission and exact alarms (`SCH
 - **Charts and History share one header**: Day/Week/Month/Year slicer, then the period row, then a segmented switch (Charts: General /
   Expenses / Income / Forecast; History: Expenses / Income). Charts bars are 104 dp tall. History opens grouped by category: icon, name,
   share of that side's total, amount; no red/green; the Expenses/Income switch picks which side is listed.
-- **Home**: "All accounts" under the balance is hidden by default (More -> Home: "Show All accounts on Home").
+- **Home**: "All accounts" under the balance is hidden by default (More -> Home and History: "Show all accounts on Home"). With it off, Home totals, Recent and History also count only accounts in the Total (2026-11-19).
 - **Add screen**: the Add/Save button is pinned to the bottom, above the keyboard and the gesture bar. The selected category is outlined
   with the tile's own shape and the accent color. A balance correction can be edited without choosing a category.
 - **Swipe left/right** on a tab screen moves to the neighbouring bottom tab (a drag a child already used, such as a chart, does not count).
@@ -164,6 +167,7 @@ network call is the daily rate fetch.
 2. **Net worth over time + goals.** Snapshots of all account balances (in KZT) plus manual assets/liabilities; goals with a target amount and date.
 3. **Projected net worth.** The same engine fed with salary, monthly obligations and investment returns / bond coupons.
 4. **Financial health summary.** Monthly income and obligations (mortgage, loans, subscriptions) entered by hand; shows what is left to save/invest, savings rate, months of expenses covered.
+   Added 2026-11-19 (owner): Monthly money lists recurring bills (Analysis -> Recurring) not yet in it by name, each with an Add button (saved as a payment already entered as expenses). Nothing is added by itself.
 5. **Investment portfolio.** Owner holds one broker account, 100% bonds: each bond has face value, price paid, coupon rate and frequency, maturity, currency. Coupon schedule, income per year, maturity ladder. Prices are entered by hand (no live quotes).
 6. **Currency converter.** Rates from the National Bank of Kazakhstan feed (`nationalbank.kz/rss/get_rates.cfm?fdate=DD.MM.YYYY`, verified 2026-11-04: returns KZT per `quant` units).
    The owner allows **one request per day**, cached, plus (2026-11-12) a manual refresh from the Rates widget, at most one an hour (`FxRepository.refreshNow`; the daily fetch also starts that hour; offline does not); the converter works offline on the cached rates. The backup's `rate` table is not used.
@@ -185,6 +189,16 @@ Code in `data/wealth/`, schema 2 -> 6 (one migration per step, each tested). All
 - Phone only: goals, bonds, manual assets, income/payments and the net worth history live in the local database only. The Sheets sync and the `.mmbackup` importer do not know these tables, and the local database backup (milestone 8) is not built, so clearing app data or losing the phone loses them, history included. A `Wealth` tab in the sheet is the planned fix.
 - Known gap: an investment logged as an expense category (current practice, question 6 above) counts as spending in the health summary.
 - The file backup (item 4 below) copies the whole database, so it covers these phone-only wealth tables too.
+
+### Wealth screen redesign (owner, 2026-11-19; "Wealth screen redesign" canvas). BUILT, checked on the emulator with demo data
+- Overview: net worth with its change and the day-by-day line, one horizontal bar of what it is made of (accounts, bonds, other assets), and the
+  parts as rows (loans in red); Goals and Monthly money as full-width cards; a Projection card (5 years, half of each month's saving invested, as a line); the
+  Compound interest calculator as a button below. Every row, tile and card opens that part's page (Back returns): Accounts (read-only list, edited on
+  Accounts), Bonds, Other assets, Loans (each with the bar, its slice lit), Goals, Monthly money, Projection.
+- Projection page: 5/10/20 years, None/Half/All of the saving invested, the result split into saving and coupons, a stacked chart by year, "Based on"
+  (saving -> Monthly money, coupon yield -> Bonds, accounts earn nothing), and "Try other numbers in the calculator", which opens the calculator
+  filled with net worth, the monthly saving, the coupon yield and the years (whole tenge).
+- Compound interest left More (only Wealth's own row stays there, when Wealth is not a tab).
 
 ## Planned, not built (owner requests, 2026-11-04)
 
@@ -289,7 +303,7 @@ LLM, no new network call.
 
 | Feature | Rating | Notes |
 |---|---|---|
-| "Can I afford this?" check | **BUILT** (More -> Can I afford this?) | Price (default currency), category, paying-from account. Verdict Yes / Tight / No with the numbers behind it. Not built: item name, purchase date other than today (the mock-up had them), prefilling the add screen from "Log as expense" (it opens an empty one). Never run on a device; unit and Robolectric tests only. |
+| "Can I afford this?" check | **BUILT** (Analysis -> Overview card; the screen was removed 2026-11-19) | Price (default currency), category, paying-from account. Verdict Yes / Tight / No with the numbers behind it. Not built: item name, purchase date other than today (the mock-up had them), prefilling the add screen from "Log as expense" (it opens an empty one). Never run on a device; unit and Robolectric tests only. |
 | Spending analysis | **BUILT** (own bottom-bar tab "Analysis", Trends segment; the Forecast segment holds the former Charts > Forecast) | Six monthly bars with a projected current month and an average line, "worth a look" insights, per-category sparkline and change vs the 3-month average. Taps open the category trend. Not run on a device. |
 | Category trend screen | **BUILT** (tap a category in Analysis) | 12-month line (current month drawn as the run-rate segment) with limit and 3-month average, Friday-to-Sunday share and weekday bars, three largest operations this month. Not built: the mock-up's "Open all in History" button (History has no category filter). |
 | Recurring costs, price changes, possible duplicates | **BUILT** (Analysis -> Recurring costs and duplicates) | Detected from the ledger's own history; nothing changes unless the owner confirms. "Keep both" is remembered per second operation in settings; "Delete the second" is a soft delete. Not built: the mock-up's "Add reminder" button (the app has no reminder editor yet) and the "share of monthly spending" figure. Duplicate time of day is not shown (`created` is UTC). |
@@ -324,6 +338,9 @@ stored its own tab choice keeps it: add Analysis in More -> Navigation bar.
   Saved as a `bill` row with `manual = 1` (DB v8): listed from its payments with no run or steadiness rule, next payment rolled past today.
   Found by the comment (set on all ticked payments, replacing others) or, without it, by the category they moved to. Undo removes it again.
   Not built: removing a hand-added bill later (set an end instead), editing its payments.
+  Added 2026-11-19 (owner): a **pencil next to a bill's name** renames it. Its payments get the new name as their comment (a comment bill: all
+  payments with the old comment; a category bill: only the uncommented ones in that category, and it becomes a hand-added bill), the reminder text
+  follows, and reminder/end settings move to the new key. Refused when blank or another bill already has the name.
 - Duplicate: same type, account, category, account-currency amount and date, created within 10 minutes of each other. Keep both / delete the second (soft delete through the ledger).
 
 ## Other / unverified, decide later
@@ -362,11 +379,18 @@ Owner wants a payment made with a Google Wallet card to become an expense in the
   Picking a category saves the expense (account = default, date = local day of the post, comment = merchant) and shows a short "Added" confirmation. Lock-screen version shows only "Wallet payment".
   Not done: per-card account mapping (all payments use the default account), converting foreign-currency payments, auto-dismissing Wallet's own notification, the PIN lock is not asked for these prompts.
   Unverified on a device: the prompts' look and buttons, the "More…" activity, what Android 17 does with the listener of a release-signed build.
+- **Fix 2026-11-19:** Wallet now writes `KZT 5,440.00 with ...` (a space after the code, logger export); the parser required no space, so every payment was dropped silently. One space is now allowed.
+- **Kaspi purchases (owner request 2026-11-19, BUILT, unit-tested, not run on the phone):** a second switch "Kaspi Alaqan purchases" in More -> Automation with its own consent; reads only `kz.kaspi.mobile`.
+  Format from one sample (a Kaspi Alaqan payment): title `Kaspi Gold`, text `Покупка: 1 630 ₸` / merchant / `Доступно: ...`. Only `Покупка` in ₸ is read; top-ups, transit tickets and other currencies are ignored (`KaspiParser`).
+  Same prompts as Wallet, with its own default account ("Default account for Kaspi"; the first purchase asks), since Kaspi pays from the Kaspi card. A payment both apps announce (same currency and amount from the other app within 3 minutes) prompts once; the first announcement wins with its account. Unseen today (Kaspi posts nothing for a Wallet payment), so this guards ahead.
 - **Emulator test, `walletstub/`:** a test-only app with Wallet's own package name that posts a Wallet-shaped payment notification, so the main app's listener can be run without a phone (the listener ignores every other package). Never install it beside the real Wallet.
   Setup: install both debug APKs, `pm grant` POST_NOTIFICATIONS to both, `cmd notification allow_listener dev.yernur.moneytracker/dev.yernur.moneytracker.data.wallet.WalletListenerService`, switch "Google Wallet payments" on in More -> Automation.
   Post (wrap the whole command in quotes so `adb shell` keeps spaces in values):
   `adb shell "am broadcast -a dev.yernur.moneytracker.walletstub.POST -n com.google.android.apps.walletnfcrel/dev.yernur.moneytracker.walletstub.PostReceiver --es merchant 'Test Cafe' --es amount 1234.5"`.
   Extras: `currency`, `card`, `last4`, and `text` (replaces the text line, for formats not seen yet). Checked on the emulator 2026-11-11: the main app answered with its "Which account do you pay with?" prompt.
+  Since 2026-11-19 the stub has two flavors: `wallet` (`walletstub-wallet-debug.apk`, Wallet's package, text now `KZT 1,234.00 with ...` with a no-break space as on the phone)
+  and `kaspi` (`walletstub-kaspi-debug.apk`, package `kz.kaspi.mobile`, title `Kaspi Gold`, text `Покупка: 1 630 ₸` / merchant / `Доступно: ...`). Kaspi post:
+  `adb shell "am broadcast -a dev.yernur.moneytracker.walletstub.POST -n kz.kaspi.mobile/dev.yernur.moneytracker.walletstub.PostReceiver --es merchant 'D mart' --es amount 1630"` (extras `available`, `card`, `text`).
 - Rating: **must** (owner request).
 
 ## Open questions for the owner

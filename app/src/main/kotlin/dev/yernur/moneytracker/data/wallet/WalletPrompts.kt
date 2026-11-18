@@ -24,7 +24,7 @@ class WalletPrompts(private val context: Context, private val container: AppCont
         val accounts = WalletPlan.choosableAccounts(container.db.accountDao().observeLive().first())
         if (accounts.isEmpty()) return
         manager.createNotificationChannel(NotificationChannel(CHANNEL, "Wallet payments", NotificationManager.IMPORTANCE_HIGH))
-        when (val step = WalletPlan.decide(pending.payment, accounts, container.settings.walletAccountUid.value)) {
+        when (val step = WalletPlan.decide(pending.payment, accounts, container.settings.paymentAccount(pending.kaspi).value)) {
             WalletStep.AskAccount -> askAccount(pending, accounts)
             is WalletStep.CurrencyMismatch -> notify(pending, "Wallet payment not added", "${amount(pending)} is not in ${step.account.title}'s currency (${step.account.currencyCode}). Add it by hand.", openApp())
             is WalletStep.AskCategory -> askCategory(pending, step.account)
@@ -37,7 +37,7 @@ class WalletPrompts(private val context: Context, private val container: AppCont
         }
         notify(
             pending, "Which account do you pay with?",
-            "${amount(pending)} at ${pending.payment.merchant}. Saved as the default for Wallet payments (change it in More, Automation).",
+            "${amount(pending)} at ${pending.payment.merchant}. Saved as the default for ${if (pending.kaspi) "Kaspi Alaqan purchases" else "Wallet payments"} (change it in More, Automation).",
             openPicker(pending), actions,
         )
     }
@@ -108,9 +108,10 @@ class WalletPrompts(private val context: Context, private val container: AppCont
         private const val X_CARD = "wallet.card"
         private const val X_LAST4 = "wallet.last4"
         private const val X_TIME = "wallet.time"
+        private const val X_KASPI = "wallet.kaspi"
 
         fun PendingPayment.putInto(intent: Intent): Intent = intent.putExtra(X_CURRENCY, payment.currency).putExtra(X_AMOUNT, payment.amount)
-            .putExtra(X_MERCHANT, payment.merchant).putExtra(X_CARD, payment.cardName).putExtra(X_LAST4, payment.last4).putExtra(X_TIME, postTime)
+            .putExtra(X_MERCHANT, payment.merchant).putExtra(X_CARD, payment.cardName).putExtra(X_LAST4, payment.last4).putExtra(X_TIME, postTime).putExtra(X_KASPI, kaspi)
 
         fun pendingFrom(intent: Intent): PendingPayment? {
             val currency = intent.getStringExtra(X_CURRENCY) ?: return null
@@ -119,7 +120,7 @@ class WalletPrompts(private val context: Context, private val container: AppCont
             val payment = WalletPayment(
                 currency, intent.getLongExtra(X_AMOUNT, 0), merchant, intent.getStringExtra(X_CARD).orEmpty(), intent.getStringExtra(X_LAST4).orEmpty(),
             )
-            return PendingPayment(payment, intent.getLongExtra(X_TIME, 0))
+            return PendingPayment(payment, intent.getLongExtra(X_TIME, 0), intent.getBooleanExtra(X_KASPI, false))
         }
     }
 }
