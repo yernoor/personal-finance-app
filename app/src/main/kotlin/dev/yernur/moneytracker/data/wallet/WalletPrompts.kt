@@ -37,7 +37,7 @@ class WalletPrompts(private val context: Context, private val container: AppCont
         }
         notify(
             pending, "Which account do you pay with?",
-            "${amount(pending)} at ${pending.payment.merchant}. Saved as the default for ${if (pending.kaspi) "Kaspi purchases" else "Wallet payments"} (change it in More, Automation).",
+            "${amount(pending)} at ${pending.payment.merchant}. Saved as the default for ${if (pending.kaspi) "Kaspi Alaqan purchases" else "Wallet payments"} (change it in More, Automation).",
             openPicker(pending), actions,
         )
     }

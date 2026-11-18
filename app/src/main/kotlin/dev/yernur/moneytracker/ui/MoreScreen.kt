@@ -318,13 +318,13 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 modifier = Modifier.clickable { if (kaspiOn) container.settings.setKaspiCapture(false) else showKaspiConsent = true }.testTag("kaspi-capture"),
-                leadingContent = { Icon(Icons.Outlined.AccountBalanceWallet, null) }, headlineContent = { Text("Kaspi purchases") },
+                leadingContent = { Icon(Icons.Outlined.AccountBalanceWallet, null) }, headlineContent = { Text("Kaspi Alaqan purchases") },
                 supportingContent = {
                     Text(
                         when {
-                            !kaspiOn -> "Off. Offer each Kaspi.kz purchase (card or Alaqan) as an expense"
+                            !kaspiOn -> "Off. Offer each Kaspi Alaqan purchase as an expense"
                             !walletAccess -> "On, but Android notification access is still off (see the next row)"
-                            else -> "On: each Kaspi purchase is offered as an expense"
+                            else -> "On: each Kaspi Alaqan purchase is offered as an expense"
                         },
                     )
                 },
@@ -482,7 +482,7 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
     }) { showWidgetStyle = false }
     if (showHistoryPeriod) HistoryPeriodDialog(container.settings) { showHistoryPeriod = false }
     if (showWalletConsent) CaptureConsentDialog("Google Wallet", "payment", "wallet-allow", { container.settings.setWalletCapture(true) }, context) { showWalletConsent = false }
-    if (showKaspiConsent) CaptureConsentDialog("Kaspi.kz", "purchase", "kaspi-allow", { container.settings.setKaspiCapture(true) }, context) { showKaspiConsent = false }
+    if (showKaspiConsent) CaptureConsentDialog("Kaspi.kz", "Alaqan purchase", "kaspi-allow", { container.settings.setKaspiCapture(true) }, context) { showKaspiConsent = false }
     if (showWalletAccount) {
         val accounts by remember { container.db.accountDao().observeLive() }.collectAsStateWithLifecycle(emptyList())
         ChoiceDialog("Default account for payments", accounts.map { it.uid to it.title }, container.settings.walletAccountUid.value.orEmpty(), { container.settings.setWalletAccount(it) }) { showWalletAccount = false }
