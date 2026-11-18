@@ -386,7 +386,10 @@ fun HistoryScreen(onOpen: (uid: String, isTransfer: Boolean) -> Unit) {
         )
         // No +income / -expense line here (owner request 2026-11-13): the ring below already shows the chosen side's total.
         // Pinned above the list: scrolling the list shrinks the ring into the bar first (nestedScroll), so there is no toggle button.
-        HistoryChart(slices, chartIncome, collapse, Modifier.swipeShift(swipe).padding(horizontal = 16.dp, vertical = 8.dp))
+        HistoryChart(
+            slices, chartIncome, collapse, Modifier.swipeShift(swipe).padding(horizontal = 16.dp, vertical = 8.dp),
+            emptyText = emptyChartText(chartIncome, unit, LocalDate.now() in range),
+        )
         // Bottom padding keeps the last row's amount clear of the add button.
         LazyColumn(Modifier.weight(1f).swipeShift(swipe).nestedScroll(collapse).testTag("history-list"), contentPadding = PaddingValues(bottom = 88.dp + LocalChromeInset.current)) {
             item(key = "search") {

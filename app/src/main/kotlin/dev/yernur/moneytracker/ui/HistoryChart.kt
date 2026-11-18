@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import dev.yernur.moneytracker.data.DEFAULT_CURRENCY
 import dev.yernur.moneytracker.data.Money
+import dev.yernur.moneytracker.data.PeriodUnit
 import kotlin.math.roundToInt
 
 /** One category's share of the chart; [colorKey] is the category's stored color (themed when drawn). */
@@ -135,6 +136,21 @@ fun rememberChartCollapse(): ChartCollapse {
     return remember(rangePx) { ChartCollapse(rangePx) }
 }
 
+/** The empty chart's line, for the side shown: no expenses now is good news, no income is just stated. [current]: the period holds today. */
+fun emptyChartText(income: Boolean, unit: PeriodUnit, current: Boolean): String {
+    val span = when (unit) {
+        PeriodUnit.Day -> if (current) "today" else "on this day"
+        PeriodUnit.Week -> if (current) "this week" else "in this week"
+        PeriodUnit.Month -> if (current) "this month" else "in this month"
+        PeriodUnit.Year -> if (current) "this year" else "in this year"
+    }
+    return when {
+        !income -> "No expenses $span" + if (current) ". Keep it up!" else ""
+        current && unit != PeriodUnit.Day -> "No income $span yet"
+        else -> "No income $span"
+    }
+}
+
 /** A ring in the category colors with the total in the middle that shrinks into a thin stacked bar as [collapse] closes. */
 @Composable
 fun HistoryChart(
@@ -142,6 +158,8 @@ fun HistoryChart(
     income: Boolean,
     collapse: ChartCollapse,
     modifier: Modifier = Modifier,
+    /** Shown instead of the ring when the period has nothing on this side (see [emptyChartText]). */
+    emptyText: String = "Nothing to chart in this period",
 ) {
     val f = collapse.fraction
     val total = Money.format(slices.sumOf { it.amount }, DEFAULT_CURRENCY)
@@ -152,7 +170,7 @@ fun HistoryChart(
     AppCard(modifier.fillMaxWidth().testTag("history-chart")) {
         Column(Modifier.padding(12.dp)) {
             if (slices.isEmpty()) {
-                Text("Nothing to chart in this period", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 8.dp))
+                Text(emptyText, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 8.dp).testTag("history-chart-empty"))
                 return@Column
             }
             Box(
