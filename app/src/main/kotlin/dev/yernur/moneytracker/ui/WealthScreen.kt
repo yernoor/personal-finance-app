@@ -177,10 +177,9 @@ fun WealthScreen(
                 when (shownPart) {
                     null -> {
                         NetWorthCard(data, ::show) { part = it }
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            GoalsTile(data, Modifier.weight(1f)) { part = WealthPart.Goals }
-                            MonthlyTile(data, ::show, Modifier.weight(1f)) { part = WealthPart.Monthly }
-                        }
+                        // Full width each (owner 2026-11-19): side by side, a goal's name and progress had too little room.
+                        GoalsTile(data, Modifier.fillMaxWidth()) { part = WealthPart.Goals }
+                        MonthlyTile(data, ::show, Modifier.fillMaxWidth()) { part = WealthPart.Monthly }
                         ProjectionTile(data, ::show) { part = WealthPart.Projection }
                         OutlinedButton(onCompound, Modifier.fillMaxWidth().height(48.dp).testTag("open-compound-from-wealth")) {
                             Icon(Icons.Outlined.Calculate, null, Modifier.size(20.dp))

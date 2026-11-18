@@ -192,7 +192,7 @@ Code in `data/wealth/`, schema 2 -> 6 (one migration per step, each tested). All
 
 ### Wealth screen redesign (owner, 2026-11-19; "Wealth screen redesign" canvas). BUILT, checked on the emulator with demo data
 - Overview: net worth with its change and the day-by-day line, one horizontal bar of what it is made of (accounts, bonds, other assets), and the
-  parts as rows (loans in red); Goals and Monthly money tiles; a Projection card (5 years, half of each month's saving invested, as a line); the
+  parts as rows (loans in red); Goals and Monthly money as full-width cards; a Projection card (5 years, half of each month's saving invested, as a line); the
   Compound interest calculator as a button below. Every row, tile and card opens that part's page (Back returns): Accounts (read-only list, edited on
   Accounts), Bonds, Other assets, Loans (each with the bar, its slice lit), Goals, Monthly money, Projection.
 - Projection page: 5/10/20 years, None/Half/All of the saving invested, the result split into saving and coupons, a stacked chart by year, "Based on"
