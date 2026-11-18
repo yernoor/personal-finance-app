@@ -144,15 +144,9 @@ fun AffordCard() {
                     Verdict.Tight -> Triple(scheme.tertiaryContainer, scheme.onTertiaryContainer, "Tight")
                     Verdict.No -> Triple(scheme.errorContainer, scheme.onErrorContainer, "No")
                 }
-                Column(Modifier.fillMaxWidth().background(bg).padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Row {
-                        Text(word, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = fg, modifier = Modifier.testTag("afford-card-verdict"))
-                        Text(" · ${r.answer(category?.title)}", style = MaterialTheme.typography.titleSmall, color = fg)
-                    }
-                    Text(
-                        "Counts this purchase" + (if (r.scheduledCount > 0) ", your usual spending until then and ${r.scheduledCount} scheduled payment${if (r.scheduledCount == 1) "" else "s"}" else " and your usual spending until then"),
-                        style = MaterialTheme.typography.bodySmall, color = fg,
-                    )
+                Row(Modifier.fillMaxWidth().background(bg).padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Text(word, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = fg, modifier = Modifier.testTag("afford-card-verdict"))
+                    Text(" · ${r.answer(category?.title)}", style = MaterialTheme.typography.titleSmall, color = fg)
                 }
                 FlowRow(
                     Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
@@ -223,6 +217,9 @@ private fun CategorySheet(all: List<CategoryEntity>, selectedUid: String?, onPic
 @Composable
 private fun Breakdown(r: AffordResult, accountTitle: String, categoryTitle: String?) {
     Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp).testTag("afford-card-breakdown"), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Note(
+            "Counts this purchase" + (if (r.scheduledCount > 0) ", your usual spending until then and ${r.scheduledCount} scheduled payment${if (r.scheduledCount == 1) "" else "s"}" else " and your usual spending until then") + ".",
+        )
         Line("Balance on ${accountTitle.ifBlank { "Main" }}", money(r.balance))
         Line("Expected spending, ${r.daysToHorizon} days", "-${money(r.expected)}")
         Line("Scheduled payments (${r.scheduledCount})", "-${money(r.scheduled)}")
