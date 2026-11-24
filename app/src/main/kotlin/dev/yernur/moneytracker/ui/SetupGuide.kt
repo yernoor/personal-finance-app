@@ -55,6 +55,7 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.yernur.moneytracker.data.AccentPalette
 
@@ -110,8 +111,8 @@ private val PAGES = listOf(
     },
     GuidePage(
         "Step 4 · Automation", "Let payments come to you",
-        "In More, turn on Google Wallet or Kaspi capture. Each card payment then arrives as a ready expense and you only pick the category. " +
-            "A daily reminder nudges you in the evening if you forgot to log.",
+        "In More, under Automation, turn on Google Wallet payments or Kaspi Alaqan purchases and allow notification access. " +
+            "Each payment then arrives as a ready expense and you only pick the category. A daily reminder (8 pm by default) keeps the habit going.",
     ) {
         AppCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -129,13 +130,38 @@ private val PAGES = listOf(
         "Analysis compares this month with the last three and lists every category. " +
             "Recurring finds bills that repeat and can remind you before they're due.",
     ) {
-        Row(Modifier.fillMaxWidth().height(120.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Bottom) {
-            listOf(0.55f, 0.7f, 0.62f, 0.9f).forEachIndexed { i, h ->
-                val now = i == 3
-                Box(
-                    Modifier.weight(1f).fillMaxHeight(h).clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
-                        .background(if (now) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant),
-                )
+        val scheme = MaterialTheme.colorScheme
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            // This month against the last three; the current month's faded top is the projection to month-end.
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                listOf("Aug" to 0.55f, "Sep" to 0.7f, "Oct" to 0.62f, "Nov" to 0.9f).forEachIndexed { i, (month, h) ->
+                    val now = i == 3
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(Modifier.fillMaxWidth().height(110.dp), verticalArrangement = Arrangement.Bottom) {
+                            val shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
+                            if (now) {
+                                Box(Modifier.fillMaxWidth().height(110.dp * 0.3f).clip(shape).background(scheme.primary.copy(alpha = 0.35f)))
+                                Box(Modifier.fillMaxWidth().height(110.dp * 0.6f).background(scheme.primary))
+                            } else Box(Modifier.fillMaxWidth().height(110.dp * h).clip(shape).background(scheme.surfaceVariant))
+                        }
+                        Text(if (now) "$month · projected" else month, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                    }
+                }
+            }
+            AppCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(vertical = 8.dp)) {
+                    Text("Recurring found 2 bills", Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.labelLarge, color = scheme.primary)
+                    listOf(Triple("internet", "Internet", "6 990 ₸"), Triple("mobile", "Phone plan", "4 500 ₸")).forEachIndexed { i, (icon, name, amount) ->
+                        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            IconBadge(icon, AccentPalette.KEYS[(5 + i * 4) % AccentPalette.KEYS.size], size = 36.dp)
+                            Column(Modifier.weight(1f)) {
+                                Text(name, style = MaterialTheme.typography.titleSmall)
+                                Text(if (i == 0) "Every month · due in 3 days" else "Every month · due on the 28th", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+                            }
+                            Text(amount, style = MaterialTheme.typography.titleSmall)
+                        }
+                    }
+                }
             }
         }
     },
