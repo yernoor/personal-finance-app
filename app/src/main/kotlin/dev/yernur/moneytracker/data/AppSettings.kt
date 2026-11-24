@@ -54,6 +54,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     private val _lastRatesDate = MutableStateFlow(prefs?.getString(LAST_RATES_DATE, null))
     private val _ratesAttemptAt = MutableStateFlow(prefs?.getLong(RATES_ATTEMPT_AT, 0L)?.takeIf { it > 0 })
     private val _availableUpdate = MutableStateFlow(prefs?.getString(AVAILABLE_UPDATE, null))
+    private val _notifiedUpdate = MutableStateFlow(prefs?.getString(NOTIFIED_UPDATE, null))
     private val _googleConnected = MutableStateFlow(prefs?.getBoolean(GOOGLE_CONNECTED, false) ?: false)
     // Before 2026-11-17 there were five animation switches; turning off screen transitions is the closest to reduced motion.
     private val _reduceMotion = MutableStateFlow(
@@ -127,6 +128,14 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
     fun setLastUpdateCheck(millis: Long) {
         _lastUpdateCheck.value = millis
         prefs?.edit()?.putLong(LAST_UPDATE_CHECK, millis)?.apply()
+    }
+
+    /** The release tag the "new version" notification last named, so each version is announced once. */
+    val notifiedUpdate: StateFlow<String?> = _notifiedUpdate
+
+    fun setNotifiedUpdate(tag: String) {
+        _notifiedUpdate.value = tag
+        prefs?.edit()?.putString(NOTIFIED_UPDATE, tag)?.apply()
     }
 
     fun setAvailableUpdate(tag: String?) {
@@ -457,6 +466,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val RATES_UPDATED_AT = "ratesUpdatedAt"
         private const val RATES_ATTEMPT_AT = "ratesAttemptAt"
         private const val AVAILABLE_UPDATE = "availableUpdate"
+        private const val NOTIFIED_UPDATE = "notifiedUpdate"
         private const val PENDING_SPREADSHEET_ID = "pendingSpreadsheetId"
         private const val SPREADSHEET_ID = "spreadsheetId"
         private const val SPREADSHEET_URL = "spreadsheetUrl"

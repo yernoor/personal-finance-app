@@ -146,6 +146,9 @@ val LocalChrome = staticCompositionLocalOf<ChromeInsets?> { null }
 
 private const val GUIDE = "guide"
 
+/** The launch kind the "new version" notification opens the app with. */
+const val UPDATES_LAUNCH = "updates"
+
 private fun entryRoute(uid: String? = null, kind: EntryKind = EntryKind.Expense) = "entry?uid=${uid.orEmpty()}&kind=$kind"
 
 // Motion: screens always overlap while they swap, so nothing blinks out before the next one is there.
@@ -161,6 +164,7 @@ private val slideEasing = FastOutSlowInEasing
 fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch? = null, onLaunched: () -> Unit = {}) {
     LaunchedEffect(launch) {
         val target = launch ?: return@LaunchedEffect
+        if (target.kind == UPDATES_LAUNCH) { nav.navigate("updates") { launchSingleTop = true }; onLaunched(); return@LaunchedEffect } // the "new version" notification
         val kind = when (target.kind) {
             "income" -> EntryKind.Income
             "transfer" -> EntryKind.Transfer

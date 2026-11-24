@@ -193,8 +193,10 @@ class UpdatesViewModelTest {
 
         container.checkForUpdateDaily(now = 10 * day + 3_600_000) // an hour later: no second request
         assertEquals(1, transport.requests.size)
-        container.checkForUpdateDaily(now = 11 * day + 1) // a day later
+        container.checkForUpdateDaily(now = 10 * day + 21 * 3_600_000L, minGapMillis = 20 * 3_600_000L) // the background job's shorter gap
         assertEquals(2, transport.requests.size)
+        container.checkForUpdateDaily(now = 11 * day + 21 * 3_600_000L + 1) // a day after that
+        assertEquals(3, transport.requests.size)
 
         val broken = AppContainer(db, AppSettings(), updateChecker = UpdateChecker(FakeTransport { HttpResponse(500, "") }, "0.2.1"))
         broken.checkForUpdateDaily(now = 20 * day) // must not throw

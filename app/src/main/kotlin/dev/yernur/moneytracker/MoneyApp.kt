@@ -94,10 +94,13 @@ class AppContainer(
     val bills = BillRepository(db, ledger, today, billsChanged)
     private val notifier = notifierFor(db, settings, forecasts)
 
-    /** Asks GitHub for a newer release, but at most once a day; a failure is silent (the Updates screen shows errors when asked by hand). */
-    suspend fun checkForUpdateDaily(now: Long = System.currentTimeMillis()) {
+    /**
+     * Asks GitHub for a newer release, at most once per [minGapMillis] (the More screen and the daily background job share the clock);
+     * a failure is silent (the Updates screen shows errors when asked by hand).
+     */
+    suspend fun checkForUpdateDaily(now: Long = System.currentTimeMillis(), minGapMillis: Long = DAY_MILLIS) {
         val checker = updateChecker ?: return
-        if (now - settings.lastUpdateCheck.value < DAY_MILLIS) return
+        if (now - settings.lastUpdateCheck.value < minGapMillis) return
         settings.setLastUpdateCheck(now)
         runCatching { withContext(Dispatchers.IO) { checker.check() } }.onSuccess { settings.setAvailableUpdate(it?.tag) }
     }
@@ -136,6 +139,7 @@ class MoneyApp : Application() {
         dev.yernur.moneytracker.data.sheets.WeeklySyncWorker.schedule(this)
         dev.yernur.moneytracker.data.ReminderWorker.schedule(this, container.settings)
         dev.yernur.moneytracker.data.BillReminderWorker.schedule(this)
+        dev.yernur.moneytracker.data.update.UpdateCheckWorker.schedule(this)
         kotlinx.coroutines.CoroutineScope(Dispatchers.Default).launch { dev.yernur.moneytracker.widget.updateWidgetPreviews(this@MoneyApp) }
     }
 

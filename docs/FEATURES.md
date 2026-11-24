@@ -468,3 +468,12 @@ BUILT and unit-tested; looked at on the emulator, not yet on the phone.
   Never shown in demo mode (settings are shared with the demo data), and Analysis opened in a demo does not tick the step. A restore from a
   backup file or a .mmbackup import turns the card off: that data is not a new user's. The capture step opens More with Automation expanded.
   It sits outside the Home layout settings on purpose.
+
+## New-version notification (owner request 2026-11-24)
+- A daily background job (`UpdateCheckWorker`, WorkManager, online only) asks GitHub for a newer release. It shares the once-a-day clock with the
+  More screen's own check (the job's gap is 20 h, so it never skips a day after an in-app check); still at most about one request a day.
+- After its check it announces the newest known release, whichever check found it (a More visit earlier that day must not swallow the
+  notification), as long as it is still newer than the installed app.
+- The first time a version shows up it posts "Version X is available · Tap to see what's new and install it." on its own channel ("New versions",
+  default importance), once per version. The tap opens More -> App updates. Turn it off in Android's notification settings for the app (no in-app switch).
+- Covered by Robolectric tests (notification text, once per version, tap target, no permission); not seen on a device, since no newer release existed.
