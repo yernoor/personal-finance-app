@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Slideshow
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
@@ -107,7 +108,7 @@ class MoreSections : androidx.lifecycle.ViewModel() {
 }
 
 @Composable
-fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onFeedback: () -> Unit, onWealth: () -> Unit, onOpenTab: (NavTab) -> Unit) {
+fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onFeedback: () -> Unit, onWealth: () -> Unit, onOpenTab: (NavTab) -> Unit, onGuide: () -> Unit = {}) {
     var showWalletConsent by remember { mutableStateOf(false) }
     var showKaspiConsent by remember { mutableStateOf(false) }
     var showWalletAccount by remember { mutableStateOf(false) }
@@ -423,6 +424,12 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
                 modifier = Modifier.clickable(onClick = onFeedback).testTag("open-feedback"),
                 leadingContent = { Icon(Icons.Outlined.BugReport, null) }, headlineContent = { Text("Report a bug or suggest a feature") },
                 supportingContent = { Text("Opens a GitHub issue") },
+            )
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable(onClick = onGuide).testTag("open-guide"),
+                leadingContent = { Icon(Icons.Outlined.School, null) }, headlineContent = { Text("Setup guide") },
+                supportingContent = { Text("Five quick steps: accounts, categories, adding, automation, analysis") },
             )
             val pinSet = container.settings.pin.collectAsStateWithLifecycle().value != null
             if (!container.demoMode) ListItem(

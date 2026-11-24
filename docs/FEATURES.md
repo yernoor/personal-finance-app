@@ -454,3 +454,10 @@ BUILT and unit-tested; looked at on the emulator, not yet on the phone.
   and act on the demo database (its pre-update copy goes to `demo-backups/`).
 - More -> About -> Return to my data asks for the PIN when app lock is set, then restarts on the real database.
 - Shared with the real data: all settings (theme, PIN, Wallet capture). A Wallet payment caught during a demo goes into the demo data.
+
+## Setup guide for new users (owner request 2026-11-24; stories + Home checklist chosen from the design canvas)
+- Five "stories" pages (`SetupGuide.kt`): accounts, categories, adding, automation, analysis/recurring. Each fills a bar at the top and moves on by
+  itself after 12 s; holding a finger pauses it, a tap on the left third goes back, elsewhere forward; Back / Next buttons do the same for TalkBack.
+  With Reduce motion nothing advances by itself. Skip or "Start tracking" closes it; More -> About -> Setup guide reopens it.
+- Opens by itself once, on a fresh install only (no accounts and no operations). Any existing data (an upgrade, a restored backup) just marks it seen.
+  Not in demo mode, and not when the app was opened from a widget. The copy names no other app.

@@ -18,6 +18,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.runtime.SideEffect
@@ -143,6 +144,8 @@ class ChromeInsets(val tabRoutes: Set<String>, val barRoutes: Set<String>, val g
 }
 val LocalChrome = staticCompositionLocalOf<ChromeInsets?> { null }
 
+private const val GUIDE = "guide"
+
 private fun entryRoute(uid: String? = null, kind: EntryKind = EntryKind.Expense) = "entry?uid=${uid.orEmpty()}&kind=$kind"
 
 // Motion: screens always overlap while they swap, so nothing blinks out before the next one is there.
@@ -176,6 +179,15 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
         }
     }
     val settings = container.settings
+    // A fresh install (no accounts, no operations) opens the setup guide once. Any data (an upgrade, a restored backup) just marks it seen.
+    LaunchedEffect(Unit) {
+        if (settings.setupGuideSeen.value || launch != null || container.demoMode) return@LaunchedEffect
+        val fresh = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            container.db.accountDao().observeAll().first().isEmpty() && container.db.transactionDao().observeRecent(1).first().isEmpty()
+        }
+        settings.setSetupGuideSeen(true)
+        if (fresh) nav.navigate(GUIDE)
+    }
     val tabIds by settings.navTabs.collectAsStateWithLifecycle()
     val tabs = tabIds.mapNotNull { id -> NavTab.entries.firstOrNull { it.id == id } }
     val tabRoutes = tabs.map { it.id }.toSet()
@@ -346,7 +358,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                     onCategories = { nav.navigate("categories") }, onTags = { nav.navigate("tags") },
                     onNavbar = { nav.navigate("navbar-settings") }, onHomeLayout = { nav.navigate("home-settings") },
                     onSync = { nav.navigate("sync") }, onUpdates = { nav.navigate("updates") }, onFeedback = { nav.navigate("feedback") },
-                    onWealth = { nav.navigate("wealth") }, onOpenTab = { nav.navigate(it.id) },
+                    onWealth = { nav.navigate("wealth") }, onOpenTab = { nav.navigate(it.id) }, onGuide = { nav.navigate(GUIDE) },
                 )
             }
             screen("wealth") {
@@ -370,6 +382,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             screen("trend/{uid}", arguments = listOf(navArgument("uid") { type = NavType.StringType })) { entry ->
                 CategoryTrendScreen(entry.arguments?.getString("uid").orEmpty(), onBack = { nav.popBackStack() }, onOpenTransaction = { nav.navigate(entryRoute(it)) })
             }
+            screen(GUIDE) { SetupGuideScreen { nav.popBackStack() } }
             screen("sync") { SyncScreen { nav.popBackStack() } }
             screen("updates") { UpdatesScreen { nav.popBackStack() } }
             screen("feedback") { FeedbackScreen { nav.popBackStack() } }
