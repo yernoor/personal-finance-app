@@ -379,7 +379,8 @@ private fun AddMenuPills(backdrop: Backdrop?, menu: AddMenuState, onPick: (Entry
                     style = MaterialTheme.typography.labelLarge,
                 )
                 Box(Modifier.size(44.dp).then(bubble).clickable { onPick(kind) }, contentAlignment = Alignment.Center) {
-                    Icon(icon, kind.name, tint = Color.White)
+                    // The accent bubble (Transfer) is pale in dark mode, so its icon takes onPrimary; glass and the fixed red/green keep white.
+                    Icon(icon, kind.name, tint = if (backdrop == null && color == null) scheme.onPrimary else Color.White)
                 }
             }
         }

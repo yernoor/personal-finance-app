@@ -454,3 +454,17 @@ BUILT and unit-tested; looked at on the emulator, not yet on the phone.
   and act on the demo database (its pre-update copy goes to `demo-backups/`).
 - More -> About -> Return to my data asks for the PIN when app lock is set, then restarts on the real database.
 - Shared with the real data: all settings (theme, PIN, Wallet capture). A Wallet payment caught during a demo goes into the demo data.
+
+## Setup guide for new users (owner request 2026-11-24; stories + Home checklist chosen from the design canvas)
+- Five "stories" pages (`SetupGuide.kt`): accounts, categories, adding, automation, analysis/recurring. Each fills a bar at the top and moves on by
+  itself after 12 s; holding a finger pauses it (letting go does not turn the page), a tap on the left third goes back, elsewhere forward.
+  No Back / Next buttons (owner's call): TalkBack gets "Next step" / "Previous step" actions on the page instead. With Reduce motion or TalkBack on,
+  nothing advances by itself. The x or "Start tracking" (last page only) closes it; More -> About -> Setup guide reopens it.
+- Opens by itself once, on a fresh install only (no accounts and no operations). Any existing data (an upgrade, a restored backup) just marks it seen.
+  Not in demo mode, and not when the app was opened from a widget. The copy names no other app.
+- "Get set up" card at the top of Home (`SetupChecklist.kt`), switched on with the guide on a fresh install (so the owner's phone never shows it).
+  Steps tick from the data: an account exists, a category exists, any operation exists, Wallet or Kaspi capture is on, Analysis was opened.
+  Each open step leads to its screen (new account, new category, add screen, More, Analysis). "Hide this card" turns it off for good; it also hides once all five are done.
+  Never shown in demo mode (settings are shared with the demo data), and Analysis opened in a demo does not tick the step. A restore from a
+  backup file or a .mmbackup import turns the card off: that data is not a new user's. The capture step opens More with Automation expanded.
+  It sits outside the Home layout settings on purpose.

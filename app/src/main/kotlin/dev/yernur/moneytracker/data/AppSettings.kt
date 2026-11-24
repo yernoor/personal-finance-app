@@ -61,6 +61,10 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
             ?: (prefs?.getString(OLD_ANIMATIONS_OFF, null)?.split(',')?.contains("screens") ?: false),
     )
     private val _glass = MutableStateFlow(prefs?.getBoolean(GLASS, false) ?: false)
+    // In-memory settings (tests) count the guide as seen, so UI tests start on Home.
+    private val _setupGuideSeen = MutableStateFlow(prefs?.getBoolean(SETUP_GUIDE_SEEN, false) ?: true)
+    private val _setupCard = MutableStateFlow(prefs?.getBoolean(SETUP_CARD, false) ?: false)
+    private val _analysisSeen = MutableStateFlow(prefs?.getBoolean(ANALYSIS_SEEN, false) ?: false)
     private val warned = HashSet<String>(prefs?.getStringSet(WARNED, emptySet()).orEmpty())
 
     /** Warn when a projection passes this percent of a category limit (categories can override). */
@@ -338,6 +342,31 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         prefs?.edit()?.putBoolean(GLASS, enabled)?.apply()
     }
 
+    /** The setup stories were shown (or skipped as not needed): they open by themselves only once, on a fresh install. */
+    val setupGuideSeen: StateFlow<Boolean> = _setupGuideSeen
+
+    fun setSetupGuideSeen(seen: Boolean) {
+        _setupGuideSeen.value = seen
+        prefs?.edit()?.putBoolean(SETUP_GUIDE_SEEN, seen)?.apply()
+    }
+
+    /** The "Get set up" checklist on Home: turned on with the guide on a fresh install, off when hidden. It also hides itself once every step is done. */
+    val setupCard: StateFlow<Boolean> = _setupCard
+
+    fun setSetupCard(on: Boolean) {
+        _setupCard.value = on
+        prefs?.edit()?.putBoolean(SETUP_CARD, on)?.commit() // commit: a restore kills the process right after turning it off
+    }
+
+    /** Analysis was opened at least once (the checklist's last step). */
+    val analysisSeen: StateFlow<Boolean> = _analysisSeen
+
+    fun markAnalysisSeen() {
+        if (_analysisSeen.value) return
+        _analysisSeen.value = true
+        prefs?.edit()?.putBoolean(ANALYSIS_SEEN, true)?.apply()
+    }
+
     /** Ids of the bottom-bar tabs, in order (2 to 5 of [NAV_POOL]). */
     val navTabs: StateFlow<List<String>> = _navTabs
 
@@ -407,6 +436,9 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
         private const val OLD_ANIMATIONS_OFF = "animationsOff"
         private const val REDUCE_MOTION = "reduceMotion"
         private const val GLASS = "glass"
+        private const val SETUP_GUIDE_SEEN = "setupGuideSeen"
+        private const val SETUP_CARD = "setupCard"
+        private const val ANALYSIS_SEEN = "analysisSeen"
         private const val WIDGET_STYLE = "widgetStyle"
         private const val WIDGET_GLASS = "widgetGlass" // old two-switch settings, read once to pick the style
         private const val WIDGET_DOT_NUMERALS = "widgetDotNumerals"

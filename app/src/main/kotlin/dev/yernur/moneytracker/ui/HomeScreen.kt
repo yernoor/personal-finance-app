@@ -72,6 +72,8 @@ data class HomeState(
     val period: PeriodTotals = PeriodTotals(),
     val warnings: List<HomeWarning> = emptyList(),
     val recent: List<RecentEntry> = emptyList(),
+    /** Done steps of the "Get set up" card; null when the card is off or every step is done. */
+    val setup: Set<SetupStep>? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -125,19 +127,30 @@ class HomeViewModel(
         }
     }
 
-    val state: StateFlow<HomeState> = combine(summary, period, warnings, recent) { summary, period, warnings, recent ->
-        HomeState(summary.counted, summary.all, period, warnings, recent)
+    private val captureAndAnalysis = combine(settings.walletCapture, settings.kaspiCapture, settings.analysisSeen) { wallet, kaspi, analysis -> (wallet || kaspi) to analysis }
+
+    private val setup = combine(
+        settings.setupCard, db.accountDao().observeLive(), db.categoryDao().observeLive(), db.transactionDao().observeRecent(1), captureAndAnalysis,
+    ) { on, accounts, categories, operations, (capture, analysis) ->
+        val done = doneSetupSteps(accounts.size, categories.size, operations.isNotEmpty(), capture, analysis)
+        done.takeIf { on && it.size < SetupStep.entries.size }
+    }
+
+    val state: StateFlow<HomeState> = combine(summary, period, warnings, recent, setup) { summary, period, warnings, recent, setup ->
+        HomeState(summary.counted, summary.all, period, warnings, recent, setup)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeState())
 }
 
 @Composable
-fun HomeScreen(onOpenHistory: (HistoryRequest) -> Unit = {}) {
+fun HomeScreen(onOpenHistory: (HistoryRequest) -> Unit = {}, onSetupStep: (SetupStep) -> Unit = {}) {
     val container = LocalAppContainer.current
     val vm = appViewModel { HomeViewModel(it.db, it.forecasts, it.settings, it.fx.allRates, it.today) }
     val state by vm.state.collectAsStateWithLifecycle()
     val cards by container.settings.homeCards.collectAsStateWithLifecycle()
     val showAll by container.settings.showAllAccounts.collectAsStateWithLifecycle()
     Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        // Settings are shared with demo data: the card is about the real data only.
+        if (!container.demoMode) state.setup?.let { done -> SetupCard(done, onSetupStep) { container.settings.setSetupCard(false) } }
         cards.forEach { id ->
             when (id) {
                 "warnings" -> if (state.warnings.isNotEmpty()) WarningsCard(state.warnings)

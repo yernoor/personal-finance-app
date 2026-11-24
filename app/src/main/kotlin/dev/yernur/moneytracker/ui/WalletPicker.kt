@@ -49,7 +49,6 @@ import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.yernur.moneytracker.LocalAppContainer
@@ -138,7 +137,7 @@ fun WalletPickerDialog(pending: PendingPayment, onClose: () -> Unit) {
                                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
                                     ) {
                                         IconBadge(category.icon, category.color, size = 52.dp, ringColor = if (selectedUid == category.uid) MaterialTheme.colorScheme.primary else null)
-                                        Text(category.title, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        TileLabel(category.title)
                                     }
                                 }
                                 repeat(GRID_COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }

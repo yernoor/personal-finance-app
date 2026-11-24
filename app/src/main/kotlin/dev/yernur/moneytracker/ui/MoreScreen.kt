@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Slideshow
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
@@ -107,7 +108,7 @@ class MoreSections : androidx.lifecycle.ViewModel() {
 }
 
 @Composable
-fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onFeedback: () -> Unit, onWealth: () -> Unit, onOpenTab: (NavTab) -> Unit) {
+fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: () -> Unit, onNavbar: () -> Unit, onHomeLayout: () -> Unit, onSync: () -> Unit, onUpdates: () -> Unit, onFeedback: () -> Unit, onWealth: () -> Unit, onOpenTab: (NavTab) -> Unit, onGuide: () -> Unit = {}) {
     var showWalletConsent by remember { mutableStateOf(false) }
     var showKaspiConsent by remember { mutableStateOf(false) }
     var showWalletAccount by remember { mutableStateOf(false) }
@@ -136,6 +137,7 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
                     MmbackupMapper.map(MmbackupReader.read(bytes, context.cacheDir))
                 }
                 container.importer.store(result)
+                container.settings.setSetupCard(false) // imported data is not a new user's: no "Get set up" card over it
                 "Imported ${result.transactions.size} transactions, ${result.transfers.size} transfers, " +
                     "${result.accounts.size} accounts, ${result.categories.size} categories." +
                     result.warnings.take(5).joinToString("") { "\n• $it" }
@@ -177,6 +179,11 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
     // One group open at a time keeps the page short. Held in a ViewModel: switching liquid glass rebuilds the screen, and plain state would close the group.
     val sections = appViewModel { MoreSections() }
     var openId by sections::open
+    val askedSection by container.moreRequest.collectAsStateWithLifecycle()
+    LaunchedEffect(askedSection) {
+        openId = askedSection ?: return@LaunchedEffect
+        container.moreRequest.value = null
+    }
     Column(Modifier.verticalScroll(rememberScrollState())) {
         val hidden = NavTab.entries.filter { it.id !in navbar }
         val tools = hidden.filter { it.id !in setOf("wealth", "categories", "tags") } // those three have their own rows below
@@ -424,6 +431,12 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
                 leadingContent = { Icon(Icons.Outlined.BugReport, null) }, headlineContent = { Text("Report a bug or suggest a feature") },
                 supportingContent = { Text("Opens a GitHub issue") },
             )
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable(onClick = onGuide).testTag("open-guide"),
+                leadingContent = { Icon(Icons.Outlined.School, null) }, headlineContent = { Text("Setup guide") },
+                supportingContent = { Text("Five quick steps: accounts, categories, adding, automation, analysis") },
+            )
             val pinSet = container.settings.pin.collectAsStateWithLifecycle().value != null
             if (!container.demoMode) ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -497,6 +510,7 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
             confirmButton = {
                 TextButton({
                     staged = null
+                    container.settings.setSetupCard(false) // restored data is not a new user's
                     scope.launch {
                         withContext(Dispatchers.IO) { backups?.restore(file) }
                         restartApp(context)
