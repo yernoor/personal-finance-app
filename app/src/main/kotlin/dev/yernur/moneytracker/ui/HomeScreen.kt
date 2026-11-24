@@ -149,7 +149,8 @@ fun HomeScreen(onOpenHistory: (HistoryRequest) -> Unit = {}, onSetupStep: (Setup
     val cards by container.settings.homeCards.collectAsStateWithLifecycle()
     val showAll by container.settings.showAllAccounts.collectAsStateWithLifecycle()
     Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        state.setup?.let { done -> SetupCard(done, onSetupStep) { container.settings.setSetupCard(false) } }
+        // Settings are shared with demo data: the card is about the real data only.
+        if (!container.demoMode) state.setup?.let { done -> SetupCard(done, onSetupStep) { container.settings.setSetupCard(false) } }
         cards.forEach { id ->
             when (id) {
                 "warnings" -> if (state.warnings.isNotEmpty()) WarningsCard(state.warnings)

@@ -341,7 +341,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             }
             screen("charts") { ChartsScreen(onOpenTransaction = { nav.navigate(entryRoute(it)) }) }
             screen("analysis") {
-                LaunchedEffect(Unit) { settings.markAnalysisSeen() }
+                LaunchedEffect(Unit) { if (!container.demoMode) settings.markAnalysisSeen() }
                 AnalysisScreen(
                     onOpenTrend = { nav.navigate("trend/$it") }, onMove = { nav.navigate("move/${android.net.Uri.encode(it)}") },
                     onAddBill = { nav.navigate("recurring/add") },

@@ -465,4 +465,6 @@ BUILT and unit-tested; looked at on the emulator, not yet on the phone.
 - "Get set up" card at the top of Home (`SetupChecklist.kt`), switched on with the guide on a fresh install (so the owner's phone never shows it).
   Steps tick from the data: an account exists, a category exists, any operation exists, Wallet or Kaspi capture is on, Analysis was opened.
   Each open step leads to its screen (new account, new category, add screen, More, Analysis). "Hide this card" turns it off for good; it also hides once all five are done.
+  Never shown in demo mode (settings are shared with the demo data), and Analysis opened in a demo does not tick the step. A restore from a
+  backup file or a .mmbackup import turns the card off: that data is not a new user's.
   It sits outside the Home layout settings on purpose.

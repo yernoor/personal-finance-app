@@ -128,6 +128,7 @@ class SetupGuideFlowTest {
         eventually { settings.setupGuideSeen.value }
         compose.waitForIdle()
         assertTrue(!shown("setup-guide"))
+        assertTrue(!settings.setupCard.value && !shown("home-setup")) // the owner, upgrading, never gets the checklist either
     }
 
     @Test

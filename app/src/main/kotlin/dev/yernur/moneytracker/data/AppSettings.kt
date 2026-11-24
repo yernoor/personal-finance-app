@@ -355,7 +355,7 @@ class AppSettings(private val prefs: SharedPreferences? = null) {
 
     fun setSetupCard(on: Boolean) {
         _setupCard.value = on
-        prefs?.edit()?.putBoolean(SETUP_CARD, on)?.apply()
+        prefs?.edit()?.putBoolean(SETUP_CARD, on)?.commit() // commit: a restore kills the process right after turning it off
     }
 
     /** Analysis was opened at least once (the checklist's last step). */

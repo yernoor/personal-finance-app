@@ -137,6 +137,7 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
                     MmbackupMapper.map(MmbackupReader.read(bytes, context.cacheDir))
                 }
                 container.importer.store(result)
+                container.settings.setSetupCard(false) // imported data is not a new user's: no "Get set up" card over it
                 "Imported ${result.transactions.size} transactions, ${result.transfers.size} transfers, " +
                     "${result.accounts.size} accounts, ${result.categories.size} categories." +
                     result.warnings.take(5).joinToString("") { "\n• $it" }
@@ -504,6 +505,7 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
             confirmButton = {
                 TextButton({
                     staged = null
+                    container.settings.setSetupCard(false) // restored data is not a new user's
                     scope.launch {
                         withContext(Dispatchers.IO) { backups?.restore(file) }
                         restartApp(context)
