@@ -1,6 +1,8 @@
 package dev.yernur.moneytracker.ui
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -14,6 +16,9 @@ import dev.yernur.moneytracker.LocalAppContainer
 import dev.yernur.moneytracker.data.AppSettings
 import dev.yernur.moneytracker.data.db.AccountEntity
 import dev.yernur.moneytracker.data.db.AppDatabase
+import dev.yernur.moneytracker.data.db.CategoryEntity
+import dev.yernur.moneytracker.data.db.TransactionEntity
+import dev.yernur.moneytracker.data.db.TransactionType
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertTrue
@@ -68,6 +73,39 @@ class SetupGuideFlowTest {
         compose.onNodeWithTag("guide-next").performClick()
         compose.onNodeWithTag("guide-next").performClick() // Start tracking
         eventually { !shown("setup-guide") && shown("home-balance") }
+        eventually { shown("home-setup") && hasText("0 of 5") } // the checklist comes on with the guide
+    }
+
+    @Test
+    fun checklist_ticksFromData_andHides() {
+        settings.setReduceMotion(true)
+        launch()
+        eventually { shown("setup-guide") }
+        compose.onNodeWithTag("guide-skip").performClick()
+        eventually { shown("home-setup") && hasText("0 of 5") }
+        runBlocking { db.accountDao().insertAll(listOf(AccountEntity("main", "Main", "KZT", "cash", null, 0, null, false, true, false, false, "", ""))) }
+        eventually { hasText("1 of 5") }
+        settings.setWalletCapture(true)
+        eventually { hasText("2 of 5") }
+        compose.onNodeWithTag("setup-hide").performSemanticsAction(SemanticsActions.OnClick) // under the floating bar on the tiny test screen
+        eventually { !settings.setupCard.value }
+        eventually { !shown("home-setup") }
+    }
+
+    @Test
+    fun checklist_disappearsWhenEveryStepIsDone() {
+        settings.setSetupGuideSeen(true)
+        settings.setSetupCard(true)
+        settings.setWalletCapture(true)
+        settings.markAnalysisSeen()
+        runBlocking { db.accountDao().insertAll(listOf(AccountEntity("main", "Main", "KZT", "cash", null, 0, null, false, true, false, false, "", ""))) }
+        launch()
+        eventually { hasText("3 of 5") }
+        runBlocking {
+            db.categoryDao().insertAll(listOf(CategoryEntity("cafe", "Cafe", TransactionType.Expense, "cafe", null, 0, null, null, 0, false, "", "")))
+            db.transactionDao().insertAll(listOf(TransactionEntity("t", TransactionType.Expense, "main", "cafe", 100, null, null, 100, null, "2026-11-24", null, "", "")))
+        }
+        eventually { !shown("home-setup") }
     }
 
     @Test

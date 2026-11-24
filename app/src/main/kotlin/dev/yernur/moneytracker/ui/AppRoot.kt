@@ -186,7 +186,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             container.db.accountDao().observeAll().first().isEmpty() && container.db.transactionDao().observeRecent(1).first().isEmpty()
         }
         settings.setSetupGuideSeen(true)
-        if (fresh) nav.navigate(GUIDE)
+        if (fresh) { settings.setSetupCard(true); nav.navigate(GUIDE) }
     }
     val tabIds by settings.navTabs.collectAsStateWithLifecycle()
     val tabs = tabIds.mapNotNull { id -> NavTab.entries.firstOrNull { it.id == id } }
@@ -322,12 +322,26 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
             predictivePopEnterTransition = { if (isTabSwap(initialState, targetState)) slideInHorizontally { -it } else slideInHorizontally { -it / 6 } },
             predictivePopExitTransition = { slideOutHorizontally { it } },
         ) {
-            screen("home") { HomeScreen { request -> container.historyRequest.value = request; nav.navigateTop("history") } }
+            screen("home") {
+                HomeScreen(
+                    onOpenHistory = { request -> container.historyRequest.value = request; nav.navigateTop("history") },
+                    onSetupStep = { step ->
+                        when (step) {
+                            SetupStep.Accounts -> nav.navigate("account/new")
+                            SetupStep.Categories -> nav.navigate("category/new?type=Expense")
+                            SetupStep.FirstOperation -> nav.navigate(entryRoute())
+                            SetupStep.Capture -> nav.navigate("more")
+                            SetupStep.Analysis -> if ("analysis" in tabRoutes) nav.navigateTop("analysis") else nav.navigate("analysis")
+                        }
+                    },
+                )
+            }
             screen("history") {
                 HistoryScreen { uid, isTransfer -> nav.navigate(entryRoute(uid, if (isTransfer) EntryKind.Transfer else EntryKind.Expense)) }
             }
             screen("charts") { ChartsScreen(onOpenTransaction = { nav.navigate(entryRoute(it)) }) }
             screen("analysis") {
+                LaunchedEffect(Unit) { settings.markAnalysisSeen() }
                 AnalysisScreen(
                     onOpenTrend = { nav.navigate("trend/$it") }, onMove = { nav.navigate("move/${android.net.Uri.encode(it)}") },
                     onAddBill = { nav.navigate("recurring/add") },

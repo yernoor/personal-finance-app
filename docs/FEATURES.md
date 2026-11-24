@@ -461,3 +461,7 @@ BUILT and unit-tested; looked at on the emulator, not yet on the phone.
   With Reduce motion nothing advances by itself. Skip or "Start tracking" closes it; More -> About -> Setup guide reopens it.
 - Opens by itself once, on a fresh install only (no accounts and no operations). Any existing data (an upgrade, a restored backup) just marks it seen.
   Not in demo mode, and not when the app was opened from a widget. The copy names no other app.
+- "Get set up" card at the top of Home (`SetupChecklist.kt`), switched on with the guide on a fresh install (so the owner's phone never shows it).
+  Steps tick from the data: an account exists, a category exists, any operation exists, Wallet or Kaspi capture is on, Analysis was opened.
+  Each open step leads to its screen (new account, new category, add screen, More, Analysis). "Hide this card" turns it off for good; it also hides once all five are done.
+  It sits outside the Home layout settings on purpose.
