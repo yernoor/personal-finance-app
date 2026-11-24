@@ -144,8 +144,7 @@ class SetupGuideFlowTest {
     fun existingData_marksSeen_withoutOpeningGuide() {
         runBlocking { db.accountDao().insertAll(listOf(AccountEntity("main", "Main", "KZT", "cash", null, 0, null, false, true, false, false, "", ""))) }
         launch()
-        eventually { settings.setupGuideSeen.value }
-        compose.waitForIdle()
+        eventually { settings.setupGuideSeen.value && shown("home-balance") } // Home loaded: no query still running when tearDown closes the db
         assertTrue(!shown("setup-guide"))
         assertTrue(!settings.setupCard.value && !shown("home-setup")) // the owner, upgrading, never gets the checklist either
     }
