@@ -25,6 +25,7 @@ import dev.yernur.moneytracker.data.importer.ImportRepository
 import dev.yernur.moneytracker.data.security.AppLock
 import dev.yernur.moneytracker.data.sheets.UrlConnectionTransport
 import dev.yernur.moneytracker.data.update.ApkInstaller
+import dev.yernur.moneytracker.data.update.Release
 import dev.yernur.moneytracker.data.update.UpdateChecker
 import dev.yernur.moneytracker.data.update.UpdateDownloads
 import dev.yernur.moneytracker.data.update.UpdateInstaller
@@ -95,11 +96,15 @@ class AppContainer(
     private val notifier = notifierFor(db, settings, forecasts)
 
     /** Asks GitHub for a newer release, but at most once a day; a failure is silent (the Updates screen shows errors when asked by hand). */
-    suspend fun checkForUpdateDaily(now: Long = System.currentTimeMillis()) {
-        val checker = updateChecker ?: return
-        if (now - settings.lastUpdateCheck.value < DAY_MILLIS) return
+    /**
+     * Asks GitHub for a newer release, at most once per [minGapMillis] (the More screen and the daily background job share the clock).
+     * Returns the newer release this call found; null when it skipped, failed or found nothing new.
+     */
+    suspend fun checkForUpdateDaily(now: Long = System.currentTimeMillis(), minGapMillis: Long = DAY_MILLIS): Release? {
+        val checker = updateChecker ?: return null
+        if (now - settings.lastUpdateCheck.value < minGapMillis) return null
         settings.setLastUpdateCheck(now)
-        runCatching { withContext(Dispatchers.IO) { checker.check() } }.onSuccess { settings.setAvailableUpdate(it?.tag) }
+        return runCatching { withContext(Dispatchers.IO) { checker.check() } }.onSuccess { settings.setAvailableUpdate(it?.tag) }.getOrNull()
     }
 
     /** Fetches the National Bank rates, at most once a day; failures are silent (the converter keeps using the cached rates). */
@@ -136,6 +141,7 @@ class MoneyApp : Application() {
         dev.yernur.moneytracker.data.sheets.WeeklySyncWorker.schedule(this)
         dev.yernur.moneytracker.data.ReminderWorker.schedule(this, container.settings)
         dev.yernur.moneytracker.data.BillReminderWorker.schedule(this)
+        dev.yernur.moneytracker.data.update.UpdateCheckWorker.schedule(this)
         kotlinx.coroutines.CoroutineScope(Dispatchers.Default).launch { dev.yernur.moneytracker.widget.updateWidgetPreviews(this@MoneyApp) }
     }
 

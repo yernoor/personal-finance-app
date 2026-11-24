@@ -132,6 +132,15 @@ class SetupGuideFlowTest {
     }
 
     @Test
+    fun updatesLaunch_opensAppUpdates() { // the "new version" notification's tap
+        settings.setSetupGuideSeen(true)
+        compose.setContent {
+            CompositionLocalProvider(LocalAppContainer provides AppContainer(db, settings)) { AppTheme { AppRoot(launch = AppLaunch(UPDATES_LAUNCH, null)) } }
+        }
+        eventually { shown("installed-version") }
+    }
+
+    @Test
     fun existingData_marksSeen_withoutOpeningGuide() {
         runBlocking { db.accountDao().insertAll(listOf(AccountEntity("main", "Main", "KZT", "cash", null, 0, null, false, true, false, false, "", ""))) }
         launch()
