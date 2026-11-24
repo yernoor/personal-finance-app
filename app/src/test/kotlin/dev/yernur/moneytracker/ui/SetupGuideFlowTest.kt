@@ -115,6 +115,16 @@ class SetupGuideFlowTest {
     }
 
     @Test
+    fun captureStep_opensMoreOnAutomation() {
+        settings.setSetupGuideSeen(true)
+        settings.setSetupCard(true)
+        launch()
+        eventually { shown("home-setup") }
+        compose.onNodeWithTag("setup-Capture").performSemanticsAction(SemanticsActions.OnClick)
+        eventually { shown("wallet-capture") } // the Automation group is open on arrival
+    }
+
+    @Test
     fun withMotion_pagesMoveOnByThemselves() {
         launch()
         eventually { shown("setup-guide") }

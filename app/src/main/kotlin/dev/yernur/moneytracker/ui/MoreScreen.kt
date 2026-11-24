@@ -179,6 +179,11 @@ fun MoreScreen(onNotifications: () -> Unit, onCategories: () -> Unit, onTags: ()
     // One group open at a time keeps the page short. Held in a ViewModel: switching liquid glass rebuilds the screen, and plain state would close the group.
     val sections = appViewModel { MoreSections() }
     var openId by sections::open
+    val askedSection by container.moreRequest.collectAsStateWithLifecycle()
+    LaunchedEffect(askedSection) {
+        openId = askedSection ?: return@LaunchedEffect
+        container.moreRequest.value = null
+    }
     Column(Modifier.verticalScroll(rememberScrollState())) {
         val hidden = NavTab.entries.filter { it.id !in navbar }
         val tools = hidden.filter { it.id !in setOf("wealth", "categories", "tags") } // those three have their own rows below

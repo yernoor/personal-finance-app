@@ -330,7 +330,7 @@ fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch?
                             SetupStep.Accounts -> nav.navigate("account/new")
                             SetupStep.Categories -> nav.navigate("category/new?type=Expense")
                             SetupStep.FirstOperation -> nav.navigate(entryRoute())
-                            SetupStep.Capture -> nav.navigate("more")
+                            SetupStep.Capture -> { container.moreRequest.value = "automation"; nav.navigate("more") }
                             SetupStep.Analysis -> if ("analysis" in tabRoutes) nav.navigateTop("analysis") else nav.navigate("analysis")
                         }
                     },

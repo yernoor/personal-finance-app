@@ -76,6 +76,8 @@ class AppContainer(
     val historyRange = kotlinx.coroutines.flow.MutableStateFlow<dev.yernur.moneytracker.data.DateRange?>(null)
     /** Asks the Analysis tab to open on this segment (More -> Notifications -> "Add from Recurring"); Analysis clears it once it has acted. */
     val analysisRequest = kotlinx.coroutines.flow.MutableStateFlow<dev.yernur.moneytracker.ui.AnalysisTab?>(null)
+    /** A More group to open on arrival (the setup card's "payment capture" step opens Automation). */
+    val moreRequest = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
     /** A tap on a Home total asks History to open on that side (income or expenses) of the current period; History clears it once it has acted. */
     val historyRequest = kotlinx.coroutines.flow.MutableStateFlow<dev.yernur.moneytracker.ui.HistoryRequest?>(null)
     /** Today when the shown period contains it, otherwise the period's last day (the day itself for a day view). */
