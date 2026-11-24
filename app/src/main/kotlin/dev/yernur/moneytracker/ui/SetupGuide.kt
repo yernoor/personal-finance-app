@@ -28,15 +28,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,6 +51,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.yernur.moneytracker.data.AccentPalette
@@ -142,18 +145,22 @@ private const val PAGE_MS = 12_000
 
 /**
  * The setup guide: five short "stories" (accounts, categories, adding, automation, analysis). Each page fills its bar at the top and moves on by
- * itself; holding a finger down pauses it, a tap on the left third goes back and elsewhere forward. Back / Next buttons do the same for TalkBack.
+ * itself; holding a finger down pauses it, a tap on the left third goes back and elsewhere forward (TalkBack: Next / Previous step actions).
  * With reduced motion nothing moves by itself and pages just swap.
  */
 @Composable
 fun SetupGuideScreen(onClose: () -> Unit) {
     val reduceMotion = LocalReduceMotion.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    // With TalkBack on, pages never move by themselves: the screen reader would lose its place. Back / Next still work.
+    val talkBack = remember { context.getSystemService(android.view.accessibility.AccessibilityManager::class.java)?.isTouchExplorationEnabled == true }
+    val autoAdvance = !reduceMotion && !talkBack
     var page by rememberSaveable { mutableStateOf(0) }
     var paused by remember { mutableStateOf(false) }
     val progress = remember(page) { Animatable(0f) }
     val last = PAGES.lastIndex
-    LaunchedEffect(page, paused, reduceMotion) {
-        if (reduceMotion || paused) return@LaunchedEffect
+    LaunchedEffect(page, paused, autoAdvance) {
+        if (!autoAdvance || paused) return@LaunchedEffect
         progress.animateTo(1f, tween(((1f - progress.value) * PAGE_MS).toInt(), easing = LinearEasing))
         if (page < last) page++
     }
@@ -163,7 +170,7 @@ fun SetupGuideScreen(onClose: () -> Unit) {
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             PAGES.indices.forEach { i ->
-                val fill = when { i < page -> 1f; i > page -> 0f; reduceMotion -> 1f; else -> progress.value }
+                val fill = when { i < page -> 1f; i > page -> 0f; !autoAdvance -> 1f; else -> progress.value }
                 Box(Modifier.weight(1f).height(3.dp).clip(RoundedCornerShape(2.dp)).background(scheme.onSurface.copy(alpha = 0.18f))) {
                     Box(Modifier.fillMaxWidth(fill).height(3.dp).background(scheme.primary))
                 }
@@ -171,12 +178,20 @@ fun SetupGuideScreen(onClose: () -> Unit) {
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("${page + 1} of ${PAGES.size}", Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, color = scheme.onSurfaceVariant)
-            TextButton(onClose, Modifier.testTag("guide-skip")) { Text("Skip") }
+            IconButton(onClose, Modifier.testTag("guide-skip")) { Icon(Icons.Outlined.Close, "Close guide") }
         }
         Box(
-            Modifier.weight(1f).fillMaxWidth().pointerInput(last) {
+            Modifier.weight(1f).fillMaxWidth().testTag("guide-pages")
+                .semantics { // TalkBack has no tap zones: the same moves as actions on the page
+                    customActions = listOf(
+                        CustomAccessibilityAction("Next step") { if (page < last) { page++; true } else false },
+                        CustomAccessibilityAction("Previous step") { if (page > 0) { page--; true } else false },
+                    )
+                }
+                .pointerInput(last) {
                 detectTapGestures(
                     onPress = { paused = true; tryAwaitRelease(); paused = false },
+                    onLongPress = {}, // a hold only pauses: without this, letting go after any hold counts as a tap and turns the page
                     onTap = { if (it.x < size.width / 3f) page = (page - 1).coerceAtLeast(0) else if (page < last) page++ },
                 )
             },
@@ -198,10 +213,7 @@ fun SetupGuideScreen(onClose: () -> Unit) {
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton({ page-- }, Modifier.weight(1f).testTag("guide-back"), enabled = page > 0) { Text("Back") }
-            Button({ if (page < last) page++ else onClose() }, Modifier.weight(1f).testTag("guide-next")) { Text(if (page < last) "Next" else "Start tracking") }
-        }
+        if (page == last) Button(onClose, Modifier.fillMaxWidth().padding(top = 12.dp).testTag("guide-start")) { Text("Start tracking") }
     }
 }
 

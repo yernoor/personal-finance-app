@@ -7,7 +7,10 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performScrollTo
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -56,6 +59,8 @@ class SetupGuideFlowTest {
         }
     }
 
+    private fun tapPages(x: Float) = compose.onNodeWithTag("guide-pages").performTouchInput { click(Offset(width * x, height / 2f)) }
+
     private fun shown(tag: String) = compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
     private fun hasText(text: String) = compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
 
@@ -66,12 +71,13 @@ class SetupGuideFlowTest {
         eventually { shown("setup-guide") }
         assertTrue(settings.setupGuideSeen.value)
         assertTrue(hasText("1 of 5"))
-        repeat(4) { compose.onNodeWithTag("guide-next").performClick() }
-        eventually { hasText("5 of 5") && hasText("Start tracking") }
-        compose.onNodeWithTag("guide-back").performClick()
-        eventually { hasText("4 of 5") }
-        compose.onNodeWithTag("guide-next").performClick()
-        compose.onNodeWithTag("guide-next").performClick() // Start tracking
+        repeat(4) { tapPages(0.8f) } // right side: forward
+        eventually { hasText("5 of 5") && shown("guide-start") }
+        tapPages(0.1f) // left third: back
+        eventually { hasText("4 of 5") && !shown("guide-start") }
+        tapPages(0.8f)
+        eventually { shown("guide-start") }
+        compose.onNodeWithTag("guide-start").performClick()
         eventually { !shown("setup-guide") && shown("home-balance") }
         eventually { shown("home-setup") && hasText("0 of 5") } // the checklist comes on with the guide
     }

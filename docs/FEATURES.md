@@ -457,8 +457,9 @@ BUILT and unit-tested; looked at on the emulator, not yet on the phone.
 
 ## Setup guide for new users (owner request 2026-11-24; stories + Home checklist chosen from the design canvas)
 - Five "stories" pages (`SetupGuide.kt`): accounts, categories, adding, automation, analysis/recurring. Each fills a bar at the top and moves on by
-  itself after 12 s; holding a finger pauses it, a tap on the left third goes back, elsewhere forward; Back / Next buttons do the same for TalkBack.
-  With Reduce motion nothing advances by itself. Skip or "Start tracking" closes it; More -> About -> Setup guide reopens it.
+  itself after 12 s; holding a finger pauses it (letting go does not turn the page), a tap on the left third goes back, elsewhere forward.
+  No Back / Next buttons (owner's call): TalkBack gets "Next step" / "Previous step" actions on the page instead. With Reduce motion or TalkBack on,
+  nothing advances by itself. The x or "Start tracking" (last page only) closes it; More -> About -> Setup guide reopens it.
 - Opens by itself once, on a fresh install only (no accounts and no operations). Any existing data (an upgrade, a restored backup) just marks it seen.
   Not in demo mode, and not when the app was opened from a widget. The copy names no other app.
 - "Get set up" card at the top of Home (`SetupChecklist.kt`), switched on with the guide on a fresh install (so the owner's phone never shows it).
