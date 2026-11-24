@@ -36,6 +36,13 @@ class UpdateCheckWorkerTest {
     }
 
     @Test
+    fun announcesOnlyAVersionNewerThanTheInstalledApp() {
+        assertEquals("v0.9.0", UpdateCheckWorker.toAnnounce("v0.9.0", "0.8.2")) // found by this job or by the More screen earlier
+        assertEquals(null, UpdateCheckWorker.toAnnounce("v0.9.0", "0.9.0")) // installed since the last check
+        assertEquals(null, UpdateCheckWorker.toAnnounce(null, "0.8.2"))
+    }
+
+    @Test
     fun withoutPermission_nothingIsPosted_andTheVersionIsNotMarked() {
         shadowOf(app).denyPermissions(Manifest.permission.POST_NOTIFICATIONS)
         UpdateCheckWorker.announce(app, settings, "v0.9.0")

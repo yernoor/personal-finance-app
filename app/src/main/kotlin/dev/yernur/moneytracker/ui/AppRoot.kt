@@ -164,7 +164,7 @@ private val slideEasing = FastOutSlowInEasing
 fun AppRoot(nav: NavHostController = rememberNavController(), launch: AppLaunch? = null, onLaunched: () -> Unit = {}) {
     LaunchedEffect(launch) {
         val target = launch ?: return@LaunchedEffect
-        if (target.kind == UPDATES_LAUNCH) { nav.navigate("updates"); onLaunched(); return@LaunchedEffect } // the "new version" notification
+        if (target.kind == UPDATES_LAUNCH) { nav.navigate("updates") { launchSingleTop = true }; onLaunched(); return@LaunchedEffect } // the "new version" notification
         val kind = when (target.kind) {
             "income" -> EntryKind.Income
             "transfer" -> EntryKind.Transfer

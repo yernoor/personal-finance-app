@@ -187,11 +187,11 @@ class UpdatesViewModelTest {
         val container = AppContainer(db, settings, updateChecker = UpdateChecker(transport, "0.2.1"), installedVersion = "0.2.1")
         val day = 24 * 60 * 60 * 1000L
 
-        assertEquals("v0.3.0", container.checkForUpdateDaily(now = 10 * day)?.tag) // what this run found, for the notification
+        container.checkForUpdateDaily(now = 10 * day)
         assertEquals(1, transport.requests.size)
         assertEquals("v0.3.0", settings.availableUpdate.value)
 
-        assertEquals(null, container.checkForUpdateDaily(now = 10 * day + 3_600_000)) // an hour later: no second request, nothing to announce
+        container.checkForUpdateDaily(now = 10 * day + 3_600_000) // an hour later: no second request
         assertEquals(1, transport.requests.size)
         container.checkForUpdateDaily(now = 10 * day + 21 * 3_600_000L, minGapMillis = 20 * 3_600_000L) // the background job's shorter gap
         assertEquals(2, transport.requests.size)
@@ -199,7 +199,7 @@ class UpdatesViewModelTest {
         assertEquals(3, transport.requests.size)
 
         val broken = AppContainer(db, AppSettings(), updateChecker = UpdateChecker(FakeTransport { HttpResponse(500, "") }, "0.2.1"))
-        assertEquals(null, broken.checkForUpdateDaily(now = 20 * day)) // must not throw
+        broken.checkForUpdateDaily(now = 20 * day) // must not throw
         db.close()
     }
 }

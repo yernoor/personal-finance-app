@@ -27,8 +27,9 @@ class UpdateCheckWorker(context: Context, params: WorkerParameters) : CoroutineW
     override suspend fun doWork(): Result {
         val container = (applicationContext as MoneyApp).container
         // 20 h, not 24: a job landing just after the More screen's own check would otherwise skip a whole day.
-        val found = container.checkForUpdateDaily(minGapMillis = TimeUnit.HOURS.toMillis(20))
-        if (found != null) announce(applicationContext, container.settings, found.tag)
+        container.checkForUpdateDaily(minGapMillis = TimeUnit.HOURS.toMillis(20))
+        // Whichever check found it (this one, or the More screen's earlier today): a More visit must not swallow the notification.
+        toAnnounce(container.settings.availableUpdate.value, container.installedVersion)?.let { announce(applicationContext, container.settings, it) }
         return Result.success()
     }
 
@@ -36,6 +37,13 @@ class UpdateCheckWorker(context: Context, params: WorkerParameters) : CoroutineW
         private const val NAME = "daily-update-check"
         private const val CHANNEL = "update_available" // not "app_update": that one is the quiet download channel, and importance cannot be raised later
         private const val NOTIFICATION_ID = 7003
+
+        /** The stored release tag, if it is still newer than the app installed now (an update installed since the last check makes it stale). */
+        fun toAnnounce(available: String?, installed: String): String? {
+            val candidate = available?.let(::parseVersion) ?: return null
+            val mine = parseVersion(installed) ?: return null
+            return available.takeIf { isNewer(candidate, mine) }
+        }
 
         /** Posts "Version X is available" once per [tag]; nothing without the notification permission (it is then tried again for the next check). */
         fun announce(context: Context, settings: AppSettings, tag: String) {

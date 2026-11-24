@@ -25,7 +25,6 @@ import dev.yernur.moneytracker.data.importer.ImportRepository
 import dev.yernur.moneytracker.data.security.AppLock
 import dev.yernur.moneytracker.data.sheets.UrlConnectionTransport
 import dev.yernur.moneytracker.data.update.ApkInstaller
-import dev.yernur.moneytracker.data.update.Release
 import dev.yernur.moneytracker.data.update.UpdateChecker
 import dev.yernur.moneytracker.data.update.UpdateDownloads
 import dev.yernur.moneytracker.data.update.UpdateInstaller
@@ -95,16 +94,15 @@ class AppContainer(
     val bills = BillRepository(db, ledger, today, billsChanged)
     private val notifier = notifierFor(db, settings, forecasts)
 
-    /** Asks GitHub for a newer release, but at most once a day; a failure is silent (the Updates screen shows errors when asked by hand). */
     /**
-     * Asks GitHub for a newer release, at most once per [minGapMillis] (the More screen and the daily background job share the clock).
-     * Returns the newer release this call found; null when it skipped, failed or found nothing new.
+     * Asks GitHub for a newer release, at most once per [minGapMillis] (the More screen and the daily background job share the clock);
+     * a failure is silent (the Updates screen shows errors when asked by hand).
      */
-    suspend fun checkForUpdateDaily(now: Long = System.currentTimeMillis(), minGapMillis: Long = DAY_MILLIS): Release? {
-        val checker = updateChecker ?: return null
-        if (now - settings.lastUpdateCheck.value < minGapMillis) return null
+    suspend fun checkForUpdateDaily(now: Long = System.currentTimeMillis(), minGapMillis: Long = DAY_MILLIS) {
+        val checker = updateChecker ?: return
+        if (now - settings.lastUpdateCheck.value < minGapMillis) return
         settings.setLastUpdateCheck(now)
-        return runCatching { withContext(Dispatchers.IO) { checker.check() } }.onSuccess { settings.setAvailableUpdate(it?.tag) }.getOrNull()
+        runCatching { withContext(Dispatchers.IO) { checker.check() } }.onSuccess { settings.setAvailableUpdate(it?.tag) }
     }
 
     /** Fetches the National Bank rates, at most once a day; failures are silent (the converter keeps using the cached rates). */
