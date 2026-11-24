@@ -88,6 +88,10 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.Hyphens
+import androidx.compose.ui.text.style.LineBreak
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -511,7 +515,7 @@ private fun AmountField(value: String, onChange: (String) -> Unit, label: String
 fun CreateTile(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Column(modifier.width(76.dp).clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
         IconBadge("add", AccentPalette.KEYS.first(), size = 48.dp) // the first palette slot sits exactly on the accent hue
-        Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+        TileLabel(label)
     }
 }
 
@@ -548,8 +552,17 @@ fun CategoryTile(category: CategoryEntity, selected: Boolean, modifier: Modifier
             category.icon, category.color, size = 48.dp,
             ringColor = if (selected) MaterialTheme.colorScheme.primary else null,
         )
-        Text(category.title, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+        TileLabel(category.title)
     }
+}
+
+/** A grid tile's name: up to two centred lines, breaking between words (hyphenating a word too long for one line) before it ellipsizes. */
+@Composable
+fun TileLabel(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text, modifier, style = MaterialTheme.typography.labelMedium.copy(hyphens = Hyphens.Auto, lineBreak = LineBreak.Heading),
+        textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis,
+    )
 }
 
 /**
